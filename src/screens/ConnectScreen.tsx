@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts/ConnectionContext';
 import { ConnectionBanner } from '../components/ConnectionBanner';
+import QRScannerModal from '../components/QRScannerModal';
 
 interface ConnectScreenProps {
   navigation: any;
@@ -22,6 +23,8 @@ interface ConnectScreenProps {
 const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [host, setHost] = useState('192.168.1.100');
   const [port, setPort] = useState('5505');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const { isConnected, connectionStatus, connect, disconnect } = useConnection();
 
   const handleConnect = async () => {
@@ -52,6 +55,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     disconnect();
   };
 
+  const handleQRScan = (scannedIP: string) => {
+    setHost(scannedIP);
+    setShowQRScanner(false);
+  };
+
   const isConnecting = connectionStatus === 'connecting';
 
   return (
@@ -73,29 +81,51 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         <View style={styles.form}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Host/IP Address</Text>
-            <TextInput
-              style={styles.input}
-              value={host}
-              onChangeText={setHost}
-              placeholder="192.168.1.100"
-              placeholderTextColor={FreeShowTheme.colors.text + '66'}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.inputWithIcon}
+                value={host}
+                onChangeText={setHost}
+                placeholder="192.168.1.100"
+                placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity 
+                style={styles.qrButton} 
+                onPress={() => setShowQRScanner(true)}
+              >
+                <Ionicons name="qr-code" size={24} color={FreeShowTheme.colors.secondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Port</Text>
-            <TextInput
-              style={styles.input}
-              value={port}
-              onChangeText={setPort}
-              placeholder="5505"
-              placeholderTextColor={FreeShowTheme.colors.text + '66'}
-              keyboardType="numeric"
-              maxLength={5}
+          <TouchableOpacity 
+            style={styles.advancedToggle}
+            onPress={() => setShowAdvanced(!showAdvanced)}
+          >
+            <Text style={styles.advancedText}>Advanced Settings</Text>
+            <Ionicons 
+              name={showAdvanced ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={FreeShowTheme.colors.text + '99'} 
             />
-          </View>
+          </TouchableOpacity>
+
+          {showAdvanced && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Port</Text>
+              <TextInput
+                style={styles.input}
+                value={port}
+                onChangeText={setPort}
+                placeholder="5505"
+                placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                keyboardType="numeric"
+                maxLength={5}
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.actions}>
@@ -136,6 +166,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           <Text style={styles.tipsText}>• Default port is 5505 for WebSocket API</Text>
           <Text style={styles.tipsText}>• Both devices should be on the same WiFi network</Text>
         </View>
+
+        <QRScannerModal
+          visible={showQRScanner}
+          onClose={() => setShowQRScanner(false)}
+          onScan={handleQRScan}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -191,6 +227,42 @@ const styles = StyleSheet.create({
     borderColor: FreeShowTheme.colors.primaryLighter,
     paddingHorizontal: FreeShowTheme.spacing.md,
     color: FreeShowTheme.colors.text,
+    fontFamily: FreeShowTheme.fonts.system,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  inputWithIcon: {
+    flex: 1,
+    height: 50,
+    fontSize: FreeShowTheme.fontSize.md,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    borderWidth: 2,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    paddingRight: 50,
+    color: FreeShowTheme.colors.text,
+    fontFamily: FreeShowTheme.fonts.system,
+  },
+  qrButton: {
+    position: 'absolute',
+    right: FreeShowTheme.spacing.sm,
+    padding: FreeShowTheme.spacing.sm,
+  },
+  advancedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.sm,
+    marginBottom: FreeShowTheme.spacing.md,
+  },
+  advancedText: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.text + '99',
     fontFamily: FreeShowTheme.fonts.system,
   },
   actions: {

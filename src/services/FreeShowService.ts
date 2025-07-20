@@ -124,6 +124,20 @@ class FreeShowService {
       console.log('Converted shows to array:', content);
     }
 
+    // Convert individual show slides object to array if needed
+    if (mappedType === 'show' && content && typeof content === 'object') {
+      console.log('Converting show slides to array');
+      if (content.slides && typeof content.slides === 'object' && !Array.isArray(content.slides)) {
+        content.slides = Object.keys(content.slides).map(slideId => ({
+          id: slideId,
+          group: content.slides[slideId].group || '',
+          items: content.slides[slideId].items || [],
+          ...content.slides[slideId]
+        }));
+        console.log('Converted show slides to array:', content.slides);
+      }
+    }
+
     if (this.listeners[mappedType]) {
       this.listeners[mappedType].forEach(callback => callback(content));
     }

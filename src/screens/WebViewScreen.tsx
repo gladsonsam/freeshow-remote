@@ -21,26 +21,17 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const { url, title } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const webViewRef = useRef<WebView>(null);
-
-  const handleBack = () => {
-    if (canGoBack && webViewRef.current) {
-      webViewRef.current.goBack();
-    }
-  };
-
-  const handleForward = () => {
-    if (canGoForward && webViewRef.current) {
-      webViewRef.current.goForward();
-    }
-  };
 
   const handleRefresh = () => {
     if (webViewRef.current) {
       webViewRef.current.reload();
     }
+  };
+
+  const handleToggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
   };
 
   const handleClose = () => {
@@ -55,11 +46,6 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const handleLoad = () => {
     setLoading(false);
     setError(null);
-  };
-
-  const handleNavigationStateChange = (navState: any) => {
-    setCanGoBack(navState.canGoBack);
-    setCanGoForward(navState.canGoForward);
   };
 
   if (error) {
@@ -91,52 +77,30 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
-        
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.url}>{url}</Text>
+      {!isFullScreen && (
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.url}>{url}</Text>
+          </View>
+
+          <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+            <Ionicons name="refresh" size={20} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.fullScreenButton} onPress={handleToggleFullScreen}>
+            <Ionicons 
+              name={isFullScreen ? "contract" : "expand"} 
+              size={20} 
+              color={FreeShowTheme.colors.text} 
+            />
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-          <Ionicons name="refresh" size={20} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.navigationBar}>
-        <TouchableOpacity
-          style={[styles.navButton, !canGoBack && styles.navButtonDisabled]}
-          onPress={handleBack}
-          disabled={!canGoBack}
-        >
-          <Ionicons 
-            name="chevron-back" 
-            size={20} 
-            color={canGoBack ? FreeShowTheme.colors.text : FreeShowTheme.colors.text + '40'} 
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navButton, !canGoForward && styles.navButtonDisabled]}
-          onPress={handleForward}
-          disabled={!canGoForward}
-        >
-          <Ionicons 
-            name="chevron-forward" 
-            size={20} 
-            color={canGoForward ? FreeShowTheme.colors.text : FreeShowTheme.colors.text + '40'} 
-          />
-        </TouchableOpacity>
-
-        <View style={styles.spacer} />
-
-        <TouchableOpacity style={styles.navButton} onPress={handleRefresh}>
-          <Ionicons name="refresh" size={18} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
-      </View>
+      )}
 
       <View style={styles.webViewContainer}>
         {loading && (
@@ -145,6 +109,12 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
             <Text style={styles.loadingText}>Loading {title}...</Text>
           </View>
         )}
+
+        {isFullScreen && (
+          <TouchableOpacity style={styles.exitFullScreenButton} onPress={handleToggleFullScreen}>
+            <Ionicons name="contract" size={24} color="white" />
+          </TouchableOpacity>
+        )}
         
         <WebView
           ref={webViewRef}
@@ -152,7 +122,6 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           style={styles.webView}
           onLoad={handleLoad}
           onError={handleError}
-          onNavigationStateChange={handleNavigationStateChange}
           startInLoadingState={false}
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -202,31 +171,24 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: FreeShowTheme.spacing.sm,
   },
+  fullScreenButton: {
+    padding: FreeShowTheme.spacing.sm,
+  },
   placeholder: {
     width: 40,
-  },
-  navigationBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.md,
-    paddingVertical: FreeShowTheme.spacing.xs,
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.primaryLighter,
-  },
-  navButton: {
-    padding: FreeShowTheme.spacing.sm,
-    marginRight: FreeShowTheme.spacing.xs,
-  },
-  navButtonDisabled: {
-    opacity: 0.3,
-  },
-  spacer: {
-    flex: 1,
   },
   webViewContainer: {
     flex: 1,
     position: 'relative',
+  },
+  exitFullScreenButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 25,
+    padding: FreeShowTheme.spacing.md,
+    zIndex: 1000,
   },
   webView: {
     flex: 1,
