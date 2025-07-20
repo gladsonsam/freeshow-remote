@@ -51,7 +51,9 @@ export default function ShowsScreen({ navigation }: ShowsScreenProps) {
   const setupEventListeners = () => {
     freeShowService.onShows((showsData: FreeShowShow[]) => {
       console.log('ShowsScreen - Received shows:', showsData);
-      setShows(showsData || []);
+      // Ensure we have an array, even if the API returns something unexpected
+      const showsArray = Array.isArray(showsData) ? showsData : [];
+      setShows(showsArray);
       setLoading(false);
     });
 
@@ -145,7 +147,10 @@ export default function ShowsScreen({ navigation }: ShowsScreenProps) {
       );
     }
 
-    if (shows.length === 0) {
+    // Ensure shows is an array
+    const showsArray = Array.isArray(shows) ? shows : [];
+
+    if (showsArray.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="folder-open-outline" size={48} color={FreeShowTheme.colors.primaryLighter} />
@@ -156,7 +161,7 @@ export default function ShowsScreen({ navigation }: ShowsScreenProps) {
 
     return (
       <View style={styles.showsList}>
-        {shows.map((show) => (
+        {showsArray.map((show) => (
           <TouchableOpacity 
             key={show.id} 
             style={styles.showCard}

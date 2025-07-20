@@ -106,6 +106,24 @@ class FreeShowService {
 
     const mappedType = typeMapping[type] || type;
 
+    // Convert shows object to array if needed
+    if (mappedType === 'shows' && content && typeof content === 'object' && !Array.isArray(content)) {
+      console.log('Converting shows object to array');
+      const showsArray = Object.keys(content).map(id => ({
+        id,
+        name: content[id].name || content[id].title || `Show ${id}`,
+        category: content[id].category || 'song',
+        slides: content[id].slides ? Object.keys(content[id].slides).map(slideId => ({
+          id: slideId,
+          group: content[id].slides[slideId].group || '',
+          items: content[id].slides[slideId].items || []
+        })) : [],
+        ...content[id]
+      }));
+      content = showsArray;
+      console.log('Converted shows to array:', content);
+    }
+
     if (this.listeners[mappedType]) {
       this.listeners[mappedType].forEach(callback => callback(content));
     }
