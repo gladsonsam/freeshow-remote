@@ -9,6 +9,15 @@ export interface Connection {
   lastConnected?: Date;
 }
 
+export interface ShowOption {
+  id: string;
+  title: string;
+  description: string;
+  port: number;
+  icon: string;
+  color: string;
+}
+
 export interface Show {
   id: string;
   name: string;

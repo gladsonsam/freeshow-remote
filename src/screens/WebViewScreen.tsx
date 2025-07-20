@@ -12,6 +12,8 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import ShowSwitcher from '../components/ShowSwitcher';
+import { useConnection } from '../contexts/ConnectionContext';
 
 interface WebViewScreenProps {
   navigation: any;
@@ -20,6 +22,7 @@ interface WebViewScreenProps {
 
 const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const { url, title, showId } = route.params || {};
+  const { connectionHost } = useConnection();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -84,6 +87,28 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     }
   };
 
+  const handleShowSelect = (show: any) => {
+    if (!connectionHost) {
+      Alert.alert('Error', 'No connection host available');
+      return;
+    }
+
+    const newUrl = `http://${connectionHost}:${show.port}`;
+    
+    // Navigate to the new show interface
+    navigation.setParams({
+      url: newUrl,
+      title: show.title,
+      showId: show.id,
+    });
+
+    // Reload the WebView with the new URL
+    if (webViewRef.current) {
+      setLoading(true);
+      setError(null);
+    }
+  };
+
   const getRotationIcon = () => {
     const isLandscape = currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
                         currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
@@ -125,9 +150,18 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
             <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
           
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{title}</Text>
-          </View>
+          {connectionHost && showId ? (
+            <ShowSwitcher
+              currentTitle={title}
+              currentShowId={showId}
+              connectionHost={connectionHost}
+              onShowSelect={handleShowSelect}
+            />
+          ) : (
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>{title}</Text>
+            </View>
+          )}
 
           <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
             <Ionicons name="refresh" size={20} color={FreeShowTheme.colors.text} />
@@ -176,6 +210,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           mediaPlaybackRequiresUserAction={false}
           mixedContentMode="compatibility"
           allowsFullscreenVideo={true}
+          key={url} // Force re-render when URL changes
         />
       </View>
     </SafeAreaView>
