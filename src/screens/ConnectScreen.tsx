@@ -68,7 +68,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           </Text>
         </View>
 
-        <ConnectionBanner />
+        <ConnectionBanner forceExpanded={true} />
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
