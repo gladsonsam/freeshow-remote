@@ -1,7 +1,22 @@
 {
   "name": "freeshow-companion",
   "version": "1.0.0",
+  "description": "A mobile companion app for FreeShow presentation software",
   "main": "index.ts",
+  "license": "MIT",
+  "author": "Gladson Sam",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gladsonsam/freeshow-companion.git"
+  },
+  "keywords": [
+    "freeshow",
+    "presentation",
+    "remote-control",
+    "react-native",
+    "expo",
+    "mobile"
+  ],
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
