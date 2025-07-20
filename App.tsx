@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import RemoteScreen from './src/screens/RemoteScreen';
 import ConnectScreen from './src/screens/ConnectScreen';
-import ShowsScreen from './src/screens/ShowsScreen';
 import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
@@ -30,8 +29,6 @@ function MainTabs() {
 
           if (route.name === 'Interface') {
             iconName = focused ? 'apps' : 'apps-outline';
-          } else if (route.name === 'Shows') {
-            iconName = focused ? 'documents' : 'documents-outline';
           } else if (route.name === 'Connect') {
             iconName = focused ? 'wifi' : 'wifi-outline';
             // Dynamic color for Connect tab based on connection status
@@ -70,7 +67,6 @@ function MainTabs() {
         component={ShowSelectorScreen}
         options={{ tabBarLabel: 'Interface' }}
       />
-      <Tab.Screen name="Shows" component={ShowsScreen} />
       <Tab.Screen 
         name="Connect" 
         component={ConnectScreen}

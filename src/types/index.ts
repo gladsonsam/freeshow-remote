@@ -111,8 +111,6 @@ export type RootStackParamList = {
 };
 
 export type TabParamList = {
-  Remote: undefined;
-  Shows: undefined;
+  Interface: undefined;
   Connect: undefined;
-  Settings: undefined;
 };

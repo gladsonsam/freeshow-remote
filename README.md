@@ -59,8 +59,7 @@ src/
 ├── components/          # Reusable UI components
 ├── screens/            # App screens
 │   ├── ConnectScreen.tsx    # Connection setup
-│   ├── RemoteScreen.tsx     # Remote control interface
-│   └── ShowsScreen.tsx      # Show management
+│   └── RemoteScreen.tsx     # Remote control interface
 ├── services/           # Business logic
 │   └── FreeShowService.ts   # FreeShow WebSocket communication
 ├── types/              # TypeScript type definitions

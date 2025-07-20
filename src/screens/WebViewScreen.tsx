@@ -127,7 +127,6 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           
           <View style={styles.titleContainer}>
             <Text style={styles.title}>{title}</Text>
-            <Text style={styles.url}>{url}</Text>
           </View>
 
           <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
@@ -209,12 +208,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-  },
-  url: {
-    fontSize: FreeShowTheme.fontSize.xs,
-    color: FreeShowTheme.colors.text + '99',
-    fontFamily: FreeShowTheme.fonts.system,
-    marginTop: 2,
   },
   refreshButton: {
     padding: FreeShowTheme.spacing.sm,
