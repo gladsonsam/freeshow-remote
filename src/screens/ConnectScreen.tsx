@@ -40,7 +40,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       const connected = await connect(host.trim(), portNumber);
       if (connected) {
         Alert.alert('Success', 'Connected to FreeShow!', [
-          { text: 'OK', onPress: () => navigation.navigate('Remote') }
+          { text: 'OK', onPress: () => navigation.navigate('Interface') }
         ]);
       }
     } catch (error) {
