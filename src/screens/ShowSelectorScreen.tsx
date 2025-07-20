@@ -158,12 +158,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Tap any interface to open it in a web view
-        </Text>
-      </View>
     </SafeAreaView>
   );
 };
@@ -248,16 +242,6 @@ const styles = StyleSheet.create({
   },
   chevron: {
     opacity: 0.6,
-  },
-  footer: {
-    padding: FreeShowTheme.spacing.lg,
-    paddingTop: FreeShowTheme.spacing.md,
-  },
-  footerText: {
-    fontSize: FreeShowTheme.fontSize.xs,
-    color: FreeShowTheme.colors.text + '99',
-    textAlign: 'center',
-    fontFamily: FreeShowTheme.fonts.system,
   },
   notConnectedContainer: {
     flex: 1,
