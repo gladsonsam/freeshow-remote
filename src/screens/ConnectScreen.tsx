@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts/ConnectionContext';
-import { ConnectionBanner } from '../components/ConnectionBanner';
 import QRScannerModal from '../components/QRScannerModal';
 import ShareQRModal from '../components/ShareQRModal';
 
@@ -128,8 +127,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
             </Text>
           </View>
         </View>
-
-        <ConnectionBanner forceExpanded={true} />
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>

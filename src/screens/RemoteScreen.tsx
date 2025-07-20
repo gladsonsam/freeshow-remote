@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useConnection } from '../contexts/ConnectionContext';
-import { ConnectionBanner } from '../components/ConnectionBanner';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 
 export default function RemoteScreen() {
@@ -52,7 +51,6 @@ export default function RemoteScreen() {
   if (!isConnected) {
     return (
       <View style={styles.container}>
-        <ConnectionBanner />
         <View style={styles.notConnectedContainer}>
           <Text style={styles.notConnectedText}>Connect to FreeShow to use remote controls</Text>
         </View>
@@ -62,8 +60,6 @@ export default function RemoteScreen() {
 
   return (
     <View style={styles.container}>
-      <ConnectionBanner />
-      
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Stage Controls</Text>

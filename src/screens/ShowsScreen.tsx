@@ -15,7 +15,6 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { freeShowService } from '../services/FreeShowService';
 import { FreeShowShow, FreeShowOutput, FreeShowSlide } from '../types';
 import { useConnection } from '../contexts/ConnectionContext';
-import { ConnectionBanner } from '../components/ConnectionBanner';
 
 interface ShowsScreenProps {
   navigation: any;
@@ -131,10 +130,6 @@ export default function ShowsScreen({ navigation }: ShowsScreenProps) {
     // Fallback to alternating colors
     const colors = [FreeShowTheme.colors.secondary, '#FF4136', '#B10DC9', '#FF851B', '#39CCCC'];
     return colors[index % colors.length];
-  };
-
-  const renderConnectionStatus = () => {
-    return <ConnectionBanner onConnectPress={() => navigation.navigate('Connect')} />;
   };
 
   const renderShows = () => {
@@ -253,7 +248,6 @@ export default function ShowsScreen({ navigation }: ShowsScreenProps) {
           <Text style={styles.subtitle}>Available presentations</Text>
         </View>
 
-        {renderConnectionStatus()}
         {renderShows()}
         {renderCurrentShow()}
       </ScrollView>

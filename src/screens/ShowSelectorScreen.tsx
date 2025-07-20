@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts/ConnectionContext';
-import { ConnectionBanner } from '../components/ConnectionBanner';
 
 interface ShowSelectorScreenProps {
   navigation: any;
@@ -121,8 +120,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
 
   return (
     <SafeAreaView style={styles.container}>
-      <ConnectionBanner />
-      
       <View style={styles.header}>
         <View style={styles.headerTitle}>
           <Ionicons name="apps" size={32} color={FreeShowTheme.colors.secondary} />
