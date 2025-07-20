@@ -2,9 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface ConnectionSettings {
   host: string;
-  port: number;
+  port: number; // API port
   lastConnected: string; // ISO date string
   autoConnect: boolean;
+  showPorts?: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  };
 }
 
 export interface ConnectionHistory {
@@ -35,7 +41,13 @@ export class SettingsService {
   static async saveConnectionSettings(
     host: string, 
     port: number, 
-    autoConnect: boolean = true
+    autoConnect: boolean = true,
+    showPorts?: {
+      remote: number;
+      stage: number;
+      control: number;
+      output: number;
+    }
   ): Promise<void> {
     try {
       const connectionSettings: ConnectionSettings = {
@@ -43,6 +55,12 @@ export class SettingsService {
         port,
         lastConnected: new Date().toISOString(),
         autoConnect,
+        showPorts: showPorts || {
+          remote: 5510,
+          stage: 5511,
+          control: 5512,
+          output: 5513,
+        },
       };
       await AsyncStorage.setItem(
         STORAGE_KEYS.CONNECTION_SETTINGS, 

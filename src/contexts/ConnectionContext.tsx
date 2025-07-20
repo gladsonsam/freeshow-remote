@@ -10,7 +10,12 @@ interface ConnectionContextType {
   savedConnectionSettings: ConnectionSettings | null;
   connectionHistory: ConnectionHistory[];
   appSettings: AppSettings;
-  connect: (host: string, port?: number) => Promise<boolean>;
+  connect: (host: string, port?: number, showPorts?: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  }) => Promise<boolean>;
   disconnect: () => void;
   checkConnection: () => void;
   loadSavedSettings: () => Promise<void>;
@@ -156,7 +161,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     }
   };
 
-  const connect = async (host: string, port: number = 5505): Promise<boolean> => {
+  const connect = async (host: string, port: number = 5505, showPorts?: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  }): Promise<boolean> => {
     setConnectionStatus('connecting');
     setLastError(null);
     
@@ -167,9 +177,15 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         setConnectionHost(host);
         setConnectionStatus('connected');
         
-        // Save successful connection settings
-        await SettingsService.saveConnectionSettings(host, port, appSettings.autoReconnect);
-        setSavedConnectionSettings({ host, port, lastConnected: new Date().toISOString(), autoConnect: appSettings.autoReconnect });
+        // Save successful connection settings including show ports
+        await SettingsService.saveConnectionSettings(host, port, appSettings.autoReconnect, showPorts);
+        setSavedConnectionSettings({ 
+          host, 
+          port, 
+          lastConnected: new Date().toISOString(), 
+          autoConnect: appSettings.autoReconnect,
+          showPorts: showPorts 
+        });
         
         // Refresh connection history
         await loadConnectionHistory();

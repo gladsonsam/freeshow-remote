@@ -11,57 +11,62 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts/ConnectionContext';
+import { ShowOption } from '../types';
 
 interface ShowSelectorScreenProps {
   navigation: any;
 }
 
-interface ShowOption {
-  id: string;
-  title: string;
-  description: string;
-  port: number;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-}
-
-const showOptions: ShowOption[] = [
-  {
-    id: 'remote',
-    title: 'RemoteShow',
-    description: 'Control slides and presentations remotely',
-    port: 5510,
-    icon: 'play-circle',
-    color: '#f0008c',
-  },
-  {
-    id: 'stage',
-    title: 'StageShow',
-    description: 'Stage display for performers and speakers',
-    port: 5511,
-    icon: 'desktop',
-    color: '#2ECC40',
-  },
-  {
-    id: 'control',
-    title: 'ControlShow',
-    description: 'Full control interface for operators',
-    port: 5512,
-    icon: 'settings',
-    color: '#0074D9',
-  },
-  {
-    id: 'output',
-    title: 'OutputShow',
-    description: 'Output display for screens and projectors',
-    port: 5513,
-    icon: 'tv',
-    color: '#FF851B',
-  },
-];
-
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
-  const { isConnected, connectionHost, disconnect } = useConnection();
+  const { isConnected, connectionHost, disconnect, savedConnectionSettings } = useConnection();
+
+  const getShowOptions = (): ShowOption[] => {
+    const defaultPorts = {
+      remote: 5510,
+      stage: 5511,
+      control: 5512,
+      output: 5513,
+    };
+
+    const showPorts = savedConnectionSettings?.showPorts || defaultPorts;
+
+    return [
+      {
+        id: 'remote',
+        title: 'RemoteShow',
+        description: 'Control slides and presentations remotely',
+        port: showPorts.remote,
+        icon: 'play-circle',
+        color: '#f0008c',
+      },
+      {
+        id: 'stage',
+        title: 'StageShow',
+        description: 'Stage display for performers and speakers',
+        port: showPorts.stage,
+        icon: 'desktop',
+        color: '#2ECC40',
+      },
+      {
+        id: 'control',
+        title: 'ControlShow',
+        description: 'Full control interface for operators',
+        port: showPorts.control,
+        icon: 'settings',
+        color: '#0074D9',
+      },
+      {
+        id: 'output',
+        title: 'OutputShow',
+        description: 'Output display for screens and projectors',
+        port: showPorts.output,
+        icon: 'tv',
+        color: '#FF851B',
+      },
+    ];
+  };
+
+  const showOptions = getShowOptions();
 
   const handleShowSelect = (show: ShowOption) => {
     if (!isConnected || !connectionHost) {
@@ -143,7 +148,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
             activeOpacity={0.7}
           >
             <View style={[styles.iconContainer, { backgroundColor: show.color + '20' }]}>
-              <Ionicons name={show.icon} size={28} color={show.color} />
+              <Ionicons name={show.icon as any} size={28} color={show.color} />
             </View>
             
             <View style={styles.showInfo}>

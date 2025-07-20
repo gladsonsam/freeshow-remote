@@ -9,41 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
-
-const showOptions: ShowOption[] = [
-  {
-    id: 'remote',
-    title: 'RemoteShow',
-    description: 'Control slides and presentations remotely',
-    port: 5510,
-    icon: 'play-circle',
-    color: '#f0008c',
-  },
-  {
-    id: 'stage',
-    title: 'StageShow',
-    description: 'Stage display for performers and speakers',
-    port: 5511,
-    icon: 'desktop',
-    color: '#2ECC40',
-  },
-  {
-    id: 'control',
-    title: 'ControlShow',
-    description: 'Full control interface for operators',
-    port: 5512,
-    icon: 'settings',
-    color: '#0074D9',
-  },
-  {
-    id: 'output',
-    title: 'OutputShow',
-    description: 'Output display for screens and projectors',
-    port: 5513,
-    icon: 'tv',
-    color: '#FF851B',
-  },
-];
+import { useConnection } from '../contexts/ConnectionContext';
 
 interface ShowSwitcherProps {
   currentTitle: string;
@@ -59,14 +25,56 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   onShowSelect,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const { savedConnectionSettings } = useConnection();
 
+  const getShowOptions = (): ShowOption[] => {
+    const defaultPorts = {
+      remote: 5510,
+      stage: 5511,
+      control: 5512,
+      output: 5513,
+    };
+
+    const showPorts = savedConnectionSettings?.showPorts || defaultPorts;
+
+    return [
+      {
+        id: 'remote',
+        title: 'RemoteShow',
+        description: 'Control slides and presentations remotely',
+        port: showPorts.remote,
+        icon: 'play-circle',
+        color: '#f0008c',
+      },
+      {
+        id: 'stage',
+        title: 'StageShow',
+        description: 'Stage display for performers and speakers',
+        port: showPorts.stage,
+        icon: 'desktop',
+        color: '#2ECC40',
+      },
+      {
+        id: 'control',
+        title: 'ControlShow',
+        description: 'Full control interface for operators',
+        port: showPorts.control,
+        icon: 'settings',
+        color: '#0074D9',
+      },
+      {
+        id: 'output',
+        title: 'OutputShow',
+        description: 'Output display for screens and projectors',
+        port: showPorts.output,
+        icon: 'tv',
+        color: '#FF851B',
+      },
+    ];
+  };
+
+  const showOptions = getShowOptions();
   const currentShow = showOptions.find(show => show.id === currentShowId);
-  const otherShows = showOptions.filter(show => show.id !== currentShowId);
-
-  // Debug logging
-  console.log('ShowSwitcher - currentShowId:', currentShowId);
-  console.log('ShowSwitcher - currentShow:', currentShow);
-  console.log('ShowSwitcher - otherShows:', otherShows);
 
   const handleShowSelect = (show: ShowOption) => {
     console.log('ShowSwitcher - handleShowSelect called with:', show);
@@ -125,7 +133,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
             )}
 
             <View style={styles.otherShowsSection}>
-              <Text style={styles.sectionTitle}>Available Interfaces ({otherShows.length})</Text>
+              <Text style={styles.sectionTitle}>Available Interfaces</Text>
               <View style={styles.showsList}>
                 {showOptions.map((show) => {
                   // Skip current show

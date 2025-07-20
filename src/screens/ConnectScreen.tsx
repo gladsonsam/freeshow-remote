@@ -24,6 +24,10 @@ interface ConnectScreenProps {
 const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [host, setHost] = useState('192.168.1.100');
   const [port, setPort] = useState('5505');
+  const [remotePort, setRemotePort] = useState('5510');
+  const [stagePort, setStagePort] = useState('5511');
+  const [controlPort, setControlPort] = useState('5512');
+  const [outputPort, setOutputPort] = useState('5513');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
@@ -42,6 +46,14 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     if (savedConnectionSettings) {
       setHost(savedConnectionSettings.host);
       setPort(savedConnectionSettings.port.toString());
+      
+      // Load show ports if they exist
+      if (savedConnectionSettings.showPorts) {
+        setRemotePort(savedConnectionSettings.showPorts.remote.toString());
+        setStagePort(savedConnectionSettings.showPorts.stage.toString());
+        setControlPort(savedConnectionSettings.showPorts.control.toString());
+        setOutputPort(savedConnectionSettings.showPorts.output.toString());
+      }
     }
   }, [savedConnectionSettings]);
 
@@ -53,12 +65,27 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
     const portNumber = parseInt(port);
     if (isNaN(portNumber) || portNumber < 1 || portNumber > 65535) {
-      Alert.alert('Error', 'Please enter a valid port number (1-65535)');
+      Alert.alert('Error', 'Please enter a valid API port number (1-65535)');
       return;
     }
 
+    // Validate show ports
+    const showPorts = {
+      remote: parseInt(remotePort),
+      stage: parseInt(stagePort),
+      control: parseInt(controlPort),
+      output: parseInt(outputPort),
+    };
+
+    for (const [showName, portValue] of Object.entries(showPorts)) {
+      if (isNaN(portValue) || portValue < 1 || portValue > 65535) {
+        Alert.alert('Error', `Please enter a valid ${showName} port number (1-65535)`);
+        return;
+      }
+    }
+
     try {
-      const connected = await connect(host.trim(), portNumber);
+      const connected = await connect(host.trim(), portNumber, showPorts);
       if (connected) {
         navigation.navigate('Interface');
       }
@@ -73,7 +100,14 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     setShowHistory(false);
     
     try {
-      const connected = await connect(historyItem.host, historyItem.port);
+      // Use saved show ports if available, otherwise use defaults
+      const showPorts = historyItem.showPorts || {
+        remote: 5510,
+        stage: 5511,
+        control: 5512,
+        output: 5513,
+      };
+      const connected = await connect(historyItem.host, historyItem.port, showPorts);
       if (connected) {
         navigation.navigate('Interface');
       }
@@ -163,18 +197,76 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
 
           {showAdvanced && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Port</Text>
-              <TextInput
-                style={styles.input}
-                value={port}
-                onChangeText={setPort}
-                placeholder="5505"
-                placeholderTextColor={FreeShowTheme.colors.text + '66'}
-                keyboardType="numeric"
-                maxLength={5}
-              />
-            </View>
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>API Port</Text>
+                <TextInput
+                  style={styles.input}
+                  value={port}
+                  onChangeText={setPort}
+                  placeholder="5505"
+                  placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+              </View>
+
+              <Text style={styles.sectionTitle}>Show Interface Ports</Text>
+              
+              <View style={styles.portGrid}>
+                <View style={styles.portInputGroup}>
+                  <Text style={styles.portLabel}>RemoteShow</Text>
+                  <TextInput
+                    style={styles.portInput}
+                    value={remotePort}
+                    onChangeText={setRemotePort}
+                    placeholder="5510"
+                    placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                    keyboardType="numeric"
+                    maxLength={5}
+                  />
+                </View>
+
+                <View style={styles.portInputGroup}>
+                  <Text style={styles.portLabel}>StageShow</Text>
+                  <TextInput
+                    style={styles.portInput}
+                    value={stagePort}
+                    onChangeText={setStagePort}
+                    placeholder="5511"
+                    placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                    keyboardType="numeric"
+                    maxLength={5}
+                  />
+                </View>
+
+                <View style={styles.portInputGroup}>
+                  <Text style={styles.portLabel}>ControlShow</Text>
+                  <TextInput
+                    style={styles.portInput}
+                    value={controlPort}
+                    onChangeText={setControlPort}
+                    placeholder="5512"
+                    placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                    keyboardType="numeric"
+                    maxLength={5}
+                  />
+                </View>
+
+                <View style={styles.portInputGroup}>
+                  <Text style={styles.portLabel}>OutputShow</Text>
+                  <TextInput
+                    style={styles.portInput}
+                    value={outputPort}
+                    onChangeText={setOutputPort}
+                    placeholder="5513"
+                    placeholderTextColor={FreeShowTheme.colors.text + '66'}
+                    keyboardType="numeric"
+                    maxLength={5}
+                  />
+                </View>
+              </View>
+            </>
           )}
         </View>
 
@@ -507,6 +599,38 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + '99',
     marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  portGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  portInputGroup: {
+    width: '48%',
+    minWidth: 120,
+  },
+  portLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 4,
+  },
+  portInput: {
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: FreeShowTheme.colors.text,
+    backgroundColor: FreeShowTheme.colors.surface,
   },
 });
 
