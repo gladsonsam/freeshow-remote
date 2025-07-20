@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +28,23 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
-  const { isConnected, connectionStatus, connect, disconnect } = useConnection();
+  const [showHistory, setShowHistory] = useState(false);
+  const { 
+    isConnected, 
+    connectionStatus, 
+    savedConnectionSettings,
+    connectionHistory,
+    connect, 
+    disconnect 
+  } = useConnection();
+
+  // Initialize form with saved settings
+  useEffect(() => {
+    if (savedConnectionSettings) {
+      setHost(savedConnectionSettings.host);
+      setPort(savedConnectionSettings.port.toString());
+    }
+  }, [savedConnectionSettings]);
 
   const handleConnect = async () => {
     if (!host.trim()) {
@@ -44,9 +61,22 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     try {
       const connected = await connect(host.trim(), portNumber);
       if (connected) {
-        Alert.alert('Success', 'Connected to FreeShow!', [
-          { text: 'OK', onPress: () => navigation.navigate('Interface') }
-        ]);
+        navigation.navigate('Interface');
+      }
+    } catch (error) {
+      console.error('Connection failed:', error);
+    }
+  };
+
+  const handleHistoryConnect = async (historyItem: any) => {
+    setHost(historyItem.host);
+    setPort(historyItem.port.toString());
+    setShowHistory(false);
+    
+    try {
+      const connected = await connect(historyItem.host, historyItem.port);
+      if (connected) {
+        navigation.navigate('Interface');
       }
     } catch (error) {
       console.error('Connection failed:', error);
@@ -151,6 +181,43 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           )}
         </View>
 
+        {/* Connection History Section */}
+        {!isConnected && connectionHistory.length > 0 && (
+          <View style={styles.historySection}>
+            <TouchableOpacity 
+              style={styles.historyToggle}
+              onPress={() => setShowHistory(!showHistory)}
+            >
+              <Text style={styles.historyTitle}>Recent Connections</Text>
+              <Ionicons 
+                name={showHistory ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color={FreeShowTheme.colors.text + '99'} 
+              />
+            </TouchableOpacity>
+            
+            {showHistory && (
+              <ScrollView style={styles.historyList} nestedScrollEnabled>
+                {connectionHistory.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.historyItem}
+                    onPress={() => handleHistoryConnect(item)}
+                  >
+                    <View style={styles.historyItemContent}>
+                      <Text style={styles.historyHost}>{item.host}:{item.port}</Text>
+                      <Text style={styles.historyDate}>
+                        {new Date(item.lastUsed).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.text + '66'} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
         <View style={styles.actions}>
           {isConnected ? (
             <View style={styles.connectedActions}>
@@ -183,7 +250,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                 </>
               ) : (
                 <>
-                  <Ionicons name="wifi" size={20} color="white" />
                   <Text style={styles.buttonText}>Connect</Text>
                 </>
               )}
@@ -274,14 +340,12 @@ const styles = StyleSheet.create({
     color: FreeShowTheme.colors.secondary,
     marginTop: FreeShowTheme.spacing.lg,
     textAlign: 'center',
-    fontFamily: FreeShowTheme.fonts.system,
   },
   subtitle: {
     fontSize: FreeShowTheme.fontSize.md,
     color: FreeShowTheme.colors.text + '99',
     textAlign: 'center',
     marginTop: FreeShowTheme.spacing.sm,
-    fontFamily: FreeShowTheme.fonts.system,
   },
   form: {
     marginBottom: FreeShowTheme.spacing.xxxl,
@@ -294,7 +358,6 @@ const styles = StyleSheet.create({
     color: FreeShowTheme.colors.text,
     marginBottom: FreeShowTheme.spacing.sm,
     fontWeight: '600',
-    fontFamily: FreeShowTheme.fonts.system,
   },
   input: {
     height: 50,
@@ -305,7 +368,6 @@ const styles = StyleSheet.create({
     borderColor: FreeShowTheme.colors.primaryLighter,
     paddingHorizontal: FreeShowTheme.spacing.md,
     color: FreeShowTheme.colors.text,
-    fontFamily: FreeShowTheme.fonts.system,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -323,7 +385,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: FreeShowTheme.spacing.md,
     paddingRight: 50,
     color: FreeShowTheme.colors.text,
-    fontFamily: FreeShowTheme.fonts.system,
   },
   qrButton: {
     position: 'absolute',
@@ -341,7 +402,6 @@ const styles = StyleSheet.create({
   advancedText: {
     fontSize: FreeShowTheme.fontSize.md,
     color: FreeShowTheme.colors.text + '99',
-    fontFamily: FreeShowTheme.fonts.system,
   },
   actions: {
     marginBottom: FreeShowTheme.spacing.xxxl,
@@ -354,14 +414,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: FreeShowTheme.spacing.lg,
-    paddingHorizontal: FreeShowTheme.spacing.xl,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    gap: FreeShowTheme.spacing.sm,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    minHeight: 56,
     flex: 1,
   },
   connectButton: {
-    backgroundColor: FreeShowTheme.colors.secondary,
+    backgroundColor: '#f0008c', // FreeShow pink
   },
   connectingButton: {
     backgroundColor: '#FF9800', // Orange when connecting
@@ -373,10 +433,10 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.secondary,
   },
   buttonText: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.md,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
-    fontFamily: FreeShowTheme.fonts.system,
+    textAlign: 'center',
   },
   spinner: {
     width: 20,
@@ -398,14 +458,61 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: FreeShowTheme.colors.secondary,
     marginBottom: FreeShowTheme.spacing.sm,
-    fontFamily: FreeShowTheme.fonts.system,
   },
   tipsText: {
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + 'CC',
     marginBottom: FreeShowTheme.spacing.xs,
-    fontFamily: FreeShowTheme.fonts.system,
+  },
+  historySection: {
+    marginBottom: FreeShowTheme.spacing.lg,
+  },
+  historyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.sm,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  historyTitle: {
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+  },
+  historyList: {
+    maxHeight: 200,
+    marginTop: FreeShowTheme.spacing.sm,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    padding: FreeShowTheme.spacing.md,
+    marginBottom: FreeShowTheme.spacing.sm,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  historyItemContent: {
+    flex: 1,
+  },
+  historyHost: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.text,
+    fontWeight: '500',
+  },
+  historyDate: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.text + '99',
+    marginTop: 2,
   },
 });
 
 export default ConnectScreen;
+
+

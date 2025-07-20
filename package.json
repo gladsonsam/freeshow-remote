@@ -31,7 +31,8 @@
     "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
     "socket.io-client": "^4.8.1",
-    "expo-screen-orientation": "~8.1.7"
+    "expo-screen-orientation": "~8.1.7",
+    "@react-native-async-storage/async-storage": "2.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -75,9 +75,9 @@ export const FreeShowTheme = {
   },
   
   fonts: {
-    // System font stack similar to FreeShow
-    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif',
-    mono: 'monospace',
+    // React Native uses platform default fonts
+    system: undefined, // Let React Native use default font
+    mono: undefined, // Let React Native use default monospace font
   },
 };
 
