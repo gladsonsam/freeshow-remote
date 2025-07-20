@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#E91E63"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,13 +19,14 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#E91E63"
       },
       "edgeToEdgeEnabled": true,
       "orientation": "default",
       "permissions": [
         "android.permission.CAMERA"
-      ]
+      ],
+      "package": "com.gladson1205.freeshowcompanion"
     },
     "web": {
       "favicon": "./assets/favicon.png"
