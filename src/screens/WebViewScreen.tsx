@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 
 interface WebViewScreenProps {
@@ -18,11 +19,28 @@ interface WebViewScreenProps {
 }
 
 const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
-  const { url, title } = route.params || {};
+  const { url, title, showId } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [currentOrientation, setCurrentOrientation] = useState<ScreenOrientation.Orientation>(ScreenOrientation.Orientation.PORTRAIT_UP);
   const webViewRef = useRef<WebView>(null);
+
+  useEffect(() => {
+    // Get current orientation on mount
+    ScreenOrientation.getOrientationAsync().then(setCurrentOrientation);
+
+    // Listen for orientation changes
+    const subscription = ScreenOrientation.addOrientationChangeListener((event) => {
+      setCurrentOrientation(event.orientationInfo.orientation);
+    });
+
+    return () => {
+      // Reset to default when leaving
+      ScreenOrientation.unlockAsync();
+      subscription?.remove();
+    };
+  }, []);
 
   const handleRefresh = () => {
     if (webViewRef.current) {
@@ -46,6 +64,30 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const handleLoad = () => {
     setLoading(false);
     setError(null);
+  };
+
+  const handleRotateScreen = async () => {
+    try {
+      const isLandscape = currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
+                          currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+      
+      if (isLandscape) {
+        // Switch to portrait
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      } else {
+        // Switch to landscape
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_LEFT);
+      }
+    } catch (error) {
+      console.error('Failed to rotate screen:', error);
+      Alert.alert('Error', 'Failed to rotate screen');
+    }
+  };
+
+  const getRotationIcon = () => {
+    const isLandscape = currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
+                        currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+    return isLandscape ? 'phone-portrait' : 'phone-landscape';
   };
 
   if (error) {
@@ -91,6 +133,12 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
             <Ionicons name="refresh" size={20} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
+
+          {showId === 'output' && (
+            <TouchableOpacity style={styles.rotationButton} onPress={handleRotateScreen}>
+              <Ionicons name={getRotationIcon()} size={20} color={FreeShowTheme.colors.text} />
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.fullScreenButton} onPress={handleToggleFullScreen}>
             <Ionicons 
@@ -169,6 +217,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   refreshButton: {
+    padding: FreeShowTheme.spacing.sm,
+  },
+  rotationButton: {
     padding: FreeShowTheme.spacing.sm,
   },
   fullScreenButton: {

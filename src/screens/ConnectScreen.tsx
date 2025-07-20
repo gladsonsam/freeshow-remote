@@ -15,6 +15,7 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts/ConnectionContext';
 import { ConnectionBanner } from '../components/ConnectionBanner';
 import QRScannerModal from '../components/QRScannerModal';
+import ShareQRModal from '../components/ShareQRModal';
 
 interface ConnectScreenProps {
   navigation: any;
@@ -25,6 +26,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [port, setPort] = useState('5505');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showShareQR, setShowShareQR] = useState(false);
   const { isConnected, connectionStatus, connect, disconnect } = useConnection();
 
   const handleConnect = async () => {
@@ -62,6 +64,17 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const isConnecting = connectionStatus === 'connecting';
 
+  // Dynamic WiFi icon color based on connection status
+  const getWiFiIconColor = () => {
+    if (isConnected) {
+      return '#4CAF50'; // Green when connected
+    } else if (isConnecting) {
+      return '#FF9800'; // Orange when connecting
+    } else {
+      return FreeShowTheme.colors.secondary; // Blue when disconnected
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
@@ -69,11 +82,21 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <Ionicons name="wifi" size={64} color={FreeShowTheme.colors.secondary} />
-          <Text style={styles.title}>Connect to FreeShow</Text>
-          <Text style={styles.subtitle}>
-            Enter your FreeShow server details to get started
-          </Text>
+          {!isConnected && (
+            <View style={[styles.wifiIconContainer, isConnected && styles.wifiIconConnected]}>
+              <Ionicons name="wifi" size={64} color={getWiFiIconColor()} />
+            </View>
+          )}
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Connect to FreeShow</Text>
+            <Text style={styles.subtitle}>
+              {isConnected 
+                ? "You're connected! Manage your connection below." 
+                : "Enter your FreeShow server details to get started"
+              }
+            </Text>
+          </View>
         </View>
 
         <ConnectionBanner forceExpanded={true} />
@@ -130,16 +153,26 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
         <View style={styles.actions}>
           {isConnected ? (
-            <TouchableOpacity
-              style={[styles.button, styles.disconnectButton]}
-              onPress={handleDisconnect}
-            >
-              <Ionicons name="close-circle" size={20} color="white" />
-              <Text style={styles.buttonText}>Disconnect</Text>
-            </TouchableOpacity>
+            <View style={styles.connectedActions}>
+              <TouchableOpacity
+                style={[styles.button, styles.shareActionButton]}
+                onPress={() => setShowShareQR(true)}
+              >
+                <Ionicons name="share-outline" size={20} color="white" />
+                <Text style={styles.buttonText}>Share</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.button, styles.disconnectButton]}
+                onPress={handleDisconnect}
+              >
+                <Ionicons name="wifi" size={20} color="white" />
+                <Text style={styles.buttonText}>Disconnect</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <TouchableOpacity
-              style={[styles.button, styles.connectButton]}
+              style={[styles.button, styles.connectButton, isConnecting && styles.connectingButton]}
               onPress={handleConnect}
               disabled={isConnecting}
             >
@@ -158,19 +191,28 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           )}
         </View>
 
-        <View style={styles.tips}>
-          <Text style={styles.tipsTitle}>Connection Tips:</Text>
-          <Text style={styles.tipsText}>• Make sure FreeShow is running on your computer</Text>
-          <Text style={styles.tipsText}>• Enable WebSocket/REST API in FreeShow Settings → Connections</Text>
-          <Text style={styles.tipsText}>• Use your computer's local IP address (usually starts with 192.168.x.x)</Text>
-          <Text style={styles.tipsText}>• Default port is 5505 for WebSocket API</Text>
-          <Text style={styles.tipsText}>• Both devices should be on the same WiFi network</Text>
-        </View>
+        {!isConnected && (
+          <View style={styles.tips}>
+            <Text style={styles.tipsTitle}>Connection Tips:</Text>
+            <Text style={styles.tipsText}>• Make sure FreeShow is running on your computer</Text>
+            <Text style={styles.tipsText}>• Enable WebSocket/REST API in FreeShow Settings → Connections</Text>
+            <Text style={styles.tipsText}>• Use your computer's local IP address (usually starts with 192.168.x.x)</Text>
+            <Text style={styles.tipsText}>• Default port is 5505 for WebSocket API</Text>
+            <Text style={styles.tipsText}>• Both devices should be on the same WiFi network</Text>
+          </View>
+        )}
 
         <QRScannerModal
           visible={showQRScanner}
           onClose={() => setShowQRScanner(false)}
           onScan={handleQRScan}
+        />
+
+        <ShareQRModal
+          visible={showShareQR}
+          onClose={() => setShowShareQR(false)}
+          host={host}
+          port={port}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -189,6 +231,42 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: FreeShowTheme.spacing.xxxl,
+    position: 'relative',
+  },
+  titleContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  shareButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: FreeShowTheme.spacing.md,
+    borderRadius: 24,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderWidth: 2,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  wifiIconContainer: {
+    padding: FreeShowTheme.spacing.md,
+    borderRadius: 50,
+    marginBottom: FreeShowTheme.spacing.sm,
+  },
+  wifiIconConnected: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)', // Light green glow
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
   title: {
     fontSize: FreeShowTheme.fontSize.xxxl,
@@ -268,6 +346,10 @@ const styles = StyleSheet.create({
   actions: {
     marginBottom: FreeShowTheme.spacing.xxxl,
   },
+  connectedActions: {
+    flexDirection: 'row',
+    gap: FreeShowTheme.spacing.md,
+  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,12 +358,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: FreeShowTheme.spacing.xl,
     borderRadius: FreeShowTheme.borderRadius.lg,
     gap: FreeShowTheme.spacing.sm,
+    flex: 1,
   },
   connectButton: {
     backgroundColor: FreeShowTheme.colors.secondary,
   },
+  connectingButton: {
+    backgroundColor: '#FF9800', // Orange when connecting
+  },
   disconnectButton: {
     backgroundColor: '#FF4136',
+  },
+  shareActionButton: {
+    backgroundColor: FreeShowTheme.colors.secondary,
   },
   buttonText: {
     color: 'white',

@@ -12,18 +12,21 @@ import ShowsScreen from './src/screens/ShowsScreen';
 import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
-import { ConnectionProvider } from './src/contexts/ConnectionContext';
+import { ConnectionProvider, useConnection } from './src/contexts/ConnectionContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 // Create the main tab navigator
 function MainTabs() {
+  const { isConnected, connectionStatus } = useConnection();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
+          let iconColor = color;
 
           if (route.name === 'Interface') {
             iconName = focused ? 'apps' : 'apps-outline';
@@ -31,11 +34,21 @@ function MainTabs() {
             iconName = focused ? 'documents' : 'documents-outline';
           } else if (route.name === 'Connect') {
             iconName = focused ? 'wifi' : 'wifi-outline';
+            // Dynamic color for Connect tab based on connection status
+            if (focused) {
+              iconColor = FreeShowTheme.colors.secondary; // Purple when focused (on Connect page)
+            } else if (isConnected) {
+              iconColor = '#4CAF50'; // Green when connected but not focused
+            } else if (connectionStatus === 'connecting') {
+              iconColor = '#FF9800'; // Orange when connecting  
+            } else {
+              iconColor = FreeShowTheme.colors.text + '80'; // Gray when not focused and not connected
+            }
           } else {
             iconName = 'help-circle-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size} color={iconColor} />;
         },
         tabBarActiveTintColor: FreeShowTheme.colors.secondary,
         tabBarInactiveTintColor: FreeShowTheme.colors.text + '80', // 50% opacity
@@ -58,7 +71,13 @@ function MainTabs() {
         options={{ tabBarLabel: 'Interface' }}
       />
       <Tab.Screen name="Shows" component={ShowsScreen} />
-      <Tab.Screen name="Connect" component={ConnectScreen} />
+      <Tab.Screen 
+        name="Connect" 
+        component={ConnectScreen}
+        options={{
+          tabBarLabel: 'Connect',
+        }}
+      />
     </Tab.Navigator>
   );
 }

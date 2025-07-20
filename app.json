@@ -22,13 +22,22 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "orientation": "default"
+      "orientation": "default",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-barcode-scanner"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7aa212fb-ba21-43f4-92d3-83f772a2f2a8"
+      }
+    },
+    "owner": "gladson1205"
   }
 }
