@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "freeshow-companion",
+    "name": "FreeShow Companion",
     "slug": "freeshow-companion",
     "version": "1.0.0",
     "orientation": "default",
@@ -13,8 +13,7 @@
       "backgroundColor": "#E91E63"
     },
     "ios": {
-      "supportsTablet": true,
-      "orientation": "default"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -22,17 +21,33 @@
         "backgroundColor": "#E91E63"
       },
       "edgeToEdgeEnabled": true,
-      "orientation": "default",
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
       ],
-      "package": "com.gladson1205.freeshowcompanion"
+      "package": "com.gladson1205.freeshowcompanion",
+      "usesCleartextTraffic": true,
+      "networkSecurityConfig": {
+        "domain-config": [
+          {
+            "domain": "*",
+            "includeSubdomains": true,
+            "cleartextTrafficPermitted": true
+          }
+        ]
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-barcode-scanner"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for scanning QR codes."
+        }
+      ]
     ],
     "extra": {
       "eas": {

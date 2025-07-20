@@ -13,8 +13,10 @@ class FreeShowService {
         
         this.socket = io(url, {
           timeout: 10000,
-          transports: ['websocket'],
-          forceNew: true
+          transports: ['websocket', 'polling'], // Add polling as fallback
+          forceNew: true,
+          upgrade: true,
+          rememberUpgrade: false
         });
 
         this.socket.on('connect', () => {
