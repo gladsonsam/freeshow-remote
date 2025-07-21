@@ -113,7 +113,11 @@ export default function App() {
               }}
             />
           </Stack.Navigator>
-          <StatusBar style="light" />
+          <StatusBar 
+            style="light" 
+            backgroundColor="transparent"
+            translucent={true}
+          />
         </NavigationContainer>
       </ConnectionProvider>
     </SafeAreaProvider>
