@@ -145,7 +145,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <Text style={styles.appTitle}>FreeShow Companion</Text>
+          <Text style={styles.appTitle}>FreeShow Remote</Text>
           
           {!isConnected && (
             <View style={[styles.wifiIconContainer, isConnected && styles.wifiIconConnected]}>

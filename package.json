@@ -1,13 +1,13 @@
 {
-  "name": "freeshow-companion",
+  "name": "freeshow-remote",
   "version": "1.0.0",
-  "description": "A mobile companion app for FreeShow presentation software",
+  "description": "A mobile remote app for FreeShow presentation software",
   "main": "index.ts",
   "license": "MIT",
   "author": "Gladson Sam",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gladsonsam/freeshow-companion.git"
+    "url": "https://github.com/gladsonsam/freeshow-remote.git"
   },
   "keywords": [
     "freeshow",

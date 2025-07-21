@@ -1,4 +1,4 @@
-// FreeShow Companion App Types
+// FreeShow Remote App Types
 
 export interface Connection {
   id: string;

@@ -1,6 +1,6 @@
-# FreeShow Companion
+# FreeShow Remote
 
-A mobile companion app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo.
+A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo.
 
 ## Features
 
@@ -39,8 +39,8 @@ A mobile companion app for [FreeShow](https://freeshow.app) presentation softwar
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/gladsonsam/freeshow-companion.git
-cd freeshow-companion
+git clone https://github.com/gladsonsam/freeshow-remote.git
+cd freeshow-remote
 ```
 
 2. Install dependencies:
