@@ -1,14 +1,10 @@
 import Zeroconf, { ZeroconfService, ZeroconfError } from 'react-native-zeroconf';
 
 export interface DiscoveredFreeShowInstance {
-  name: string; // Display name (will show IP)
+  name: string; // Display name (IP address)
   host: string;
-  port: number;
+  port: number; // Always use default port 5505
   ip: string; // Primary IP for deduplication
-  txt?: { [key: string]: string };
-  fullName?: string;
-  serviceName?: string; // Original service name for extra info
-  addresses?: string[]; // All available addresses
 }
 
 export type DiscoveryEventCallback = (instances: DiscoveredFreeShowInstance[]) => void;
@@ -18,6 +14,8 @@ class AutoDiscoveryService {
   private zeroconf: Zeroconf | null = null;
   private discoveredServices: Map<string, DiscoveredFreeShowInstance> = new Map();
   private isScanning: boolean = false;
+  private scanTimeout: NodeJS.Timeout | null = null;
+  private readonly SCAN_TIMEOUT_MS = 15000; // 15 seconds timeout
   private listeners: {
     onServicesUpdated: DiscoveryEventCallback[];
     onError: ErrorEventCallback[];
@@ -71,6 +69,7 @@ class AutoDiscoveryService {
     this.zeroconf.on('stop', () => {
       console.log('🛑 AutoDiscovery: Stopped scanning');
       this.isScanning = false;
+      this.clearScanTimeout();
     });
 
     this.zeroconf.on('error', (error: ZeroconfError) => {
@@ -95,14 +94,10 @@ class AutoDiscoveryService {
       }
       
       const instance: DiscoveredFreeShowInstance = {
-        name: `FreeShow (${primaryIP})`, // Show IP as the main name
-        host: service.host,
-        port: service.port,
+        name: primaryIP, // Just show the IP address
+        host: primaryIP,
+        port: 5505, // Always use default FreeShow API port
         ip: primaryIP,
-        txt: service.txt || {},
-        fullName: service.fullName,
-        serviceName: service.name, // Keep original service name for extra info
-        addresses: service.addresses,
       };
 
       // Use IP as the unique key for deduplication
@@ -138,9 +133,12 @@ class AutoDiscoveryService {
     }
 
     try {
-      console.log('🔍 AutoDiscovery: Starting scan for FreeShow services...');
+      console.log(`🔍 AutoDiscovery: Starting scan for FreeShow services (${this.SCAN_TIMEOUT_MS / 1000}s timeout)...`);
       this.discoveredServices.clear();
       this.isScanning = true;
+      
+      // Set a timeout to automatically stop scanning
+      this.setScanTimeout();
       
       // Scan for FreeShow services
       // FreeShow publishes with type "freeshow" and protocol "udp"
@@ -167,6 +165,7 @@ class AutoDiscoveryService {
 
     try {
       console.log('🛑 AutoDiscovery: Stopping scan...');
+      this.clearScanTimeout();
       this.zeroconf.stop();
       this.isScanning = false;
     } catch (error) {
@@ -242,6 +241,22 @@ class AutoDiscoveryService {
     this.stopDiscovery();
     this.removeAllListeners();
     this.discoveredServices.clear();
+    this.clearScanTimeout();
+  }
+
+  private setScanTimeout(): void {
+    this.clearScanTimeout();
+    this.scanTimeout = setTimeout(() => {
+      console.log(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s), stopping discovery`);
+      this.stopDiscovery();
+    }, this.SCAN_TIMEOUT_MS);
+  }
+
+  private clearScanTimeout(): void {
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+      this.scanTimeout = null;
+    }
   }
 
   private notifyServicesUpdated(): void {

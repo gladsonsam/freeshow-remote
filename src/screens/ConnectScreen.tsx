@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,10 +33,10 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [showShareQR, setShowShareQR] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showDiscovered, setShowDiscovered] = useState(false);
-  const [selectedServiceForDetails, setSelectedServiceForDetails] = useState<any>(null);
   const { 
     isConnected, 
-    connectionStatus, 
+    connectionStatus,
+    connectionHost,
     connectionHistory,
     discoveredServices,
     isDiscovering,
@@ -50,6 +49,30 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     removeFromHistory,
     clearAllHistory
   } = useConnection();
+
+  // Update form fields when connection changes (auto-connect or manual connect)
+  useEffect(() => {
+    if (isConnected && connectionHost) {
+      setHost(connectionHost);
+      // Port should remain as user set or default
+    }
+  }, [isConnected, connectionHost]);
+
+  // Update form fields when connected to show current connection details
+  useEffect(() => {
+    if (isConnected && connectionHost) {
+      console.log('Updating form with current connection:', connectionHost);
+      setHost(connectionHost);
+      
+      // Try to get port from connection history
+      const currentConnection = connectionHistory.find(item => 
+        item.host === connectionHost
+      );
+      if (currentConnection) {
+        setPort(currentConnection.port.toString());
+      }
+    }
+  }, [isConnected, connectionHost, connectionHistory]);
 
   const handleConnect = async () => {
     if (!host.trim()) {
@@ -413,8 +436,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                     key={service.ip} // Use IP as key since it's unique
                     style={styles.historyItem}
                     onPress={() => handleDiscoveredConnect(service)}
-                    onLongPress={() => setSelectedServiceForDetails(service)}
-                    delayLongPress={800}
                   >
                     <View style={styles.historyItemContent}>
                       <View style={styles.discoveredServiceHeader}>
@@ -424,12 +445,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                         </Text>
                       </View>
                       <Text style={styles.historyDate}>
-                        Port: {service.port}
+                        Tap to connect
                       </Text>
-                    </View>
-                    <View style={styles.discoveredServiceActions}>
-                      <Text style={styles.tapToConnectText}>Tap to connect</Text>
-                      <Text style={styles.holdForInfoText}>Hold for details</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -501,98 +518,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           host={host}
           port={port}
         />
-
-        {/* Service Details Modal */}
-        <Modal
-          visible={selectedServiceForDetails !== null}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setSelectedServiceForDetails(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.serviceDetailsModal}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>FreeShow Service Details</Text>
-                <TouchableOpacity
-                  onPress={() => setSelectedServiceForDetails(null)}
-                  style={styles.modalCloseButton}
-                >
-                  <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
-                </TouchableOpacity>
-              </View>
-              
-              {selectedServiceForDetails && (
-                <ScrollView style={styles.serviceDetailsContent}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>IP Address:</Text>
-                    <Text style={styles.detailValue}>{selectedServiceForDetails.ip}</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Host:</Text>
-                    <Text style={styles.detailValue}>{selectedServiceForDetails.host}</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Port:</Text>
-                    <Text style={styles.detailValue}>{selectedServiceForDetails.port}</Text>
-                  </View>
-                  
-                  {selectedServiceForDetails.serviceName && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Service Name:</Text>
-                      <Text style={styles.detailValue}>{selectedServiceForDetails.serviceName}</Text>
-                    </View>
-                  )}
-                  
-                  {selectedServiceForDetails.fullName && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Full Name:</Text>
-                      <Text style={styles.detailValue}>{selectedServiceForDetails.fullName}</Text>
-                    </View>
-                  )}
-                  
-                  {selectedServiceForDetails.addresses && selectedServiceForDetails.addresses.length > 1 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>All Addresses:</Text>
-                      <View style={styles.addressList}>
-                        {selectedServiceForDetails.addresses.map((addr: string, index: number) => (
-                          <Text key={index} style={styles.addressItem}>• {addr}</Text>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                  
-                  {selectedServiceForDetails.txt && Object.keys(selectedServiceForDetails.txt).length > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Additional Info:</Text>
-                      <View style={styles.txtRecords}>
-                        {Object.entries(selectedServiceForDetails.txt).map(([key, value]) => (
-                          <Text key={key} style={styles.txtRecord}>
-                            {key}: {String(value)}
-                          </Text>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </ScrollView>
-              )}
-              
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.connectFromModalButton}
-                  onPress={() => {
-                    setSelectedServiceForDetails(null);
-                    handleDiscoveredConnect(selectedServiceForDetails);
-                  }}
-                >
-                  <Ionicons name="wifi" size={20} color="white" />
-                  <Text style={styles.connectFromModalText}>Connect</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -925,96 +850,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: FreeShowTheme.colors.secondary,
     fontWeight: '500',
-  },
-  holdForInfoText: {
-    fontSize: 10,
-    color: FreeShowTheme.colors.text + '66',
-    fontStyle: 'italic',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: FreeShowTheme.spacing.lg,
-  },
-  serviceDetailsModal: {
-    backgroundColor: FreeShowTheme.colors.primary,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    maxHeight: '80%',
-    width: '100%',
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: FreeShowTheme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.primaryLighter,
-  },
-  modalTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-  },
-  modalCloseButton: {
-    padding: FreeShowTheme.spacing.sm,
-  },
-  serviceDetailsContent: {
-    flex: 1,
-    padding: FreeShowTheme.spacing.lg,
-  },
-  detailRow: {
-    marginBottom: FreeShowTheme.spacing.md,
-  },
-  detailLabel: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.text + '99',
-    marginBottom: FreeShowTheme.spacing.xs,
-  },
-  detailValue: {
-    fontSize: FreeShowTheme.fontSize.md,
-    color: FreeShowTheme.colors.text,
-    fontFamily: 'monospace',
-  },
-  addressList: {
-    marginTop: FreeShowTheme.spacing.xs,
-  },
-  addressItem: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.text,
-    marginBottom: 2,
-  },
-  txtRecords: {
-    marginTop: FreeShowTheme.spacing.xs,
-  },
-  txtRecord: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.text + '99',
-    marginBottom: 2,
-  },
-  modalActions: {
-    padding: FreeShowTheme.spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: FreeShowTheme.colors.primaryLighter,
-  },
-  connectFromModalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: FreeShowTheme.colors.secondary,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    padding: FreeShowTheme.spacing.md,
-    gap: FreeShowTheme.spacing.sm,
-  },
-  connectFromModalText: {
-    fontSize: FreeShowTheme.fontSize.md,
-    color: 'white',
-    fontWeight: '600',
   },
 });
 
