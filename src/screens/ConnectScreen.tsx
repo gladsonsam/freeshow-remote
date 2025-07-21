@@ -145,6 +145,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
+          <Text style={styles.appTitle}>FreeShow Companion</Text>
+          
           {!isConnected && (
             <View style={[styles.wifiIconContainer, isConnected && styles.wifiIconConnected]}>
               <Ionicons name="wifi" size={64} color={getWiFiIconColor()} />
@@ -335,7 +337,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
               {isConnecting ? (
                 <>
                   <View style={styles.spinner} />
-                  <Text style={styles.buttonText}>Connecting...</Text>
+                  <Text style={[styles.buttonText, styles.buttonTextWithIcon]}>Connecting...</Text>
                 </>
               ) : (
                 <>
@@ -385,8 +387,16 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: FreeShowTheme.spacing.xxxl,
+    marginBottom: FreeShowTheme.spacing.xl, // Reduce from xxxl to xl for better proportions
     position: 'relative',
+  },
+  appTitle: {
+    fontSize: FreeShowTheme.fontSize.xl,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.text,
+    marginBottom: FreeShowTheme.spacing.lg,
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
   titleContainer: {
     alignItems: 'center',
@@ -424,20 +434,22 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   title: {
-    fontSize: FreeShowTheme.fontSize.xxxl,
+    fontSize: FreeShowTheme.fontSize.xxl, // Slightly reduce from xxxl to xxl
     fontWeight: 'bold',
     color: FreeShowTheme.colors.secondary,
-    marginTop: FreeShowTheme.spacing.lg,
+    marginTop: FreeShowTheme.spacing.md, // Reduce from lg to md
     textAlign: 'center',
   },
   subtitle: {
     fontSize: FreeShowTheme.fontSize.md,
     color: FreeShowTheme.colors.text + '99',
     textAlign: 'center',
-    marginTop: FreeShowTheme.spacing.sm,
+    marginTop: FreeShowTheme.spacing.md, // Increase from sm to md for better spacing
+    paddingHorizontal: FreeShowTheme.spacing.md, // Add horizontal padding for better text layout
+    lineHeight: 22, // Add line height for better readability
   },
   form: {
-    marginBottom: FreeShowTheme.spacing.xxxl,
+    marginBottom: FreeShowTheme.spacing.xl, // Reduce from xxxl to xl for better proportions
   },
   inputGroup: {
     marginBottom: FreeShowTheme.spacing.xl,
@@ -485,15 +497,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.sm,
-    marginBottom: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.md, // Increase from sm to md for consistency
+    marginBottom: FreeShowTheme.spacing.lg, // Increase margin for better separation
+    backgroundColor: FreeShowTheme.colors.primaryDarker + '50', // Add subtle background
+    borderRadius: FreeShowTheme.borderRadius.md,
   },
   advancedText: {
     fontSize: FreeShowTheme.fontSize.md,
     color: FreeShowTheme.colors.text + '99',
+    fontWeight: '500', // Add font weight for better hierarchy
   },
   actions: {
-    marginBottom: FreeShowTheme.spacing.xxxl,
+    marginBottom: FreeShowTheme.spacing.xl,
   },
   connectedActions: {
     flexDirection: 'row',
@@ -508,6 +523,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     minHeight: 56,
     flex: 1,
+    gap: FreeShowTheme.spacing.sm, // Add consistent spacing between icon and text
   },
   connectButton: {
     backgroundColor: '#f0008c', // FreeShow pink
@@ -527,6 +543,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  buttonTextWithIcon: {
+    marginLeft: FreeShowTheme.spacing.sm,
+  },
   spinner: {
     width: 20,
     height: 20,
@@ -541,27 +560,29 @@ const styles = StyleSheet.create({
     padding: FreeShowTheme.spacing.lg,
     borderWidth: 2,
     borderColor: FreeShowTheme.colors.primaryLighter,
+    marginTop: FreeShowTheme.spacing.xl, // Add consistent top margin
   },
   tipsTitle: {
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: 'bold',
     color: FreeShowTheme.colors.secondary,
-    marginBottom: FreeShowTheme.spacing.sm,
+    marginBottom: FreeShowTheme.spacing.md, // Increase spacing after title
   },
   tipsText: {
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + 'CC',
-    marginBottom: FreeShowTheme.spacing.xs,
+    marginBottom: FreeShowTheme.spacing.sm, // Increase spacing between tips
+    lineHeight: 20, // Add line height for better readability
   },
   historySection: {
-    marginBottom: FreeShowTheme.spacing.lg,
+    marginBottom: FreeShowTheme.spacing.xl, // Consistent spacing with other sections
   },
   historyToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.sm,
+    paddingHorizontal: FreeShowTheme.spacing.md, // Increase horizontal padding for consistency
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.md,
     borderWidth: 1,
@@ -574,7 +595,7 @@ const styles = StyleSheet.create({
   },
   historyList: {
     maxHeight: 200,
-    marginTop: FreeShowTheme.spacing.sm,
+    marginTop: FreeShowTheme.spacing.md, // Increase spacing for better separation
   },
   historyItem: {
     flexDirection: 'row',
