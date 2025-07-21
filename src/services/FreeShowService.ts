@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { Platform } from 'react-native';
 import { FreeShowShow, FreeShowOutput } from '../types';
 
 class FreeShowService {
@@ -11,7 +12,7 @@ class FreeShowService {
       try {
         const url = `http://${host}:${port}`;
         console.log('🔌 Attempting to connect to FreeShow at:', url);
-        console.log('📱 Platform:', require('react-native').Platform.OS);
+        console.log('📱 Platform:', Platform.OS);
         console.log('🌐 Network test URL:', url);
         
         // Test basic HTTP connectivity first

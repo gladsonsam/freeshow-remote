@@ -84,30 +84,6 @@ eas build --platform ios --profile preview
 3. Enter your computer's IP address
 4. Tap "Connect"
 
-## Project Structure
-
-```
-src/
-├── components/              # Reusable UI components
-│   ├── QRScannerModal.tsx      # QR code scanning
-│   ├── ShareQRModal.tsx        # Share connection QR
-│   └── ShowSwitcher.tsx        # Show selection dropdown
-├── contexts/               # React contexts
-│   ├── ConnectionContext.tsx   # Connection state management
-│   └── ThemeContext.tsx        # App theming
-├── screens/               # App screens
-│   ├── ConnectScreen.tsx       # Connection setup
-│   ├── RemoteScreen.tsx        # Remote control interface
-│   ├── ShowSelectorScreen.tsx  # Show selection
-│   └── WebViewScreen.tsx       # FreeShow output display
-├── services/              # Business logic
-│   ├── FreeShowService.ts      # FreeShow API communication
-│   └── SettingsService.ts      # App settings persistence
-├── theme/                 # App styling
-│   └── FreeShowTheme.ts        # Theme definitions
-├── types/                 # TypeScript type definitions
-└── utils/                 # Utility functions
-```
 ## Technologies Used
 
 - **React Native & Expo**: Cross-platform mobile development
@@ -124,32 +100,9 @@ src/
 - `npm start` - Start the Expo development server
 - `npm run android` - Start on Android emulator/device
 - `npm run ios` - Start on iOS simulator/device
-- `npm run web` - Start web version
 - `eas build --platform android --profile preview` - Build Android APK
 - `eas build --platform ios --profile preview` - Build iOS app
 
-## FreeShow API Integration
-
-This app integrates with FreeShow's Socket.IO API and supports:
-
-- **Connection Management**: Establish WebSocket connection to FreeShow
-- **Show Control**: Get shows, select shows, navigate slides
-- **Output Control**: Clear operations, restore output
-- **Real-time Updates**: Live sync with FreeShow state
-- **Multiple Transport**: WebSocket with polling fallback for reliability
-
-## Troubleshooting
-
-### Connection Issues
-- Ensure both devices are on the same WiFi network
-- Check that FreeShow's API is enabled (usually port 5505)
-- Verify firewall settings aren't blocking connections
-- For APK builds, HTTP connections are enabled via network security config
-
-### Build Issues
-- Run `npx expo install --fix` to resolve dependency conflicts
-- Run `npx expo-doctor` to check for configuration issues
-- Use `eas build --clear-cache` if builds fail
 
 ## Contributing
 
@@ -162,9 +115,3 @@ This app integrates with FreeShow's Socket.IO API and supports:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [FreeShow](https://freeshow.app) - The amazing presentation software this app connects to
-- Expo team for the excellent development platform
-- React Native community for the robust mobile framework

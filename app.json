@@ -34,9 +34,6 @@
       ],
       "package": "com.gladson1205.freeshowremote"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       [
         "expo-camera",

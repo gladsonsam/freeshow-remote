@@ -20,8 +20,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web"
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
@@ -30,7 +29,6 @@
     "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-navigation/bottom-tabs": "^7.4.2",
     "@react-navigation/native": "^7.1.14",
-    "@react-navigation/native-stack": "^7.3.21",
     "@react-navigation/stack": "^7.4.2",
     "expo": "~53.0.20",
     "expo-build-properties": "^0.14.8",
@@ -38,14 +36,12 @@
     "expo-screen-orientation": "~8.1.7",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
-    "react-dom": "19.0.0",
     "react-native": "0.79.5",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-qrcode-svg": "^6.3.15",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
-    "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
     "socket.io-client": "^4.8.1"
   },
