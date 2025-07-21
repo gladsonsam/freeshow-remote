@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { freeShowService } from '../services/FreeShowService';
 import { SettingsService, ConnectionSettings, ConnectionHistory, AppSettings } from '../services/SettingsService';
+import { autoDiscoveryService, DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 
 interface ConnectionContextType {
   isConnected: boolean;
@@ -23,6 +24,12 @@ interface ConnectionContextType {
   getConnectionHistory: () => Promise<ConnectionHistory[]>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
   freeShowService: typeof freeShowService;
+  // Auto Discovery
+  discoveredServices: DiscoveredFreeShowInstance[];
+  isDiscovering: boolean;
+  isDiscoveryAvailable: boolean;
+  startDiscovery: () => void;
+  stopDiscovery: () => void;
 }
 
 const ConnectionContext = createContext<ConnectionContextType | undefined>(undefined);
@@ -44,6 +51,10 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     autoReconnect: true,
     connectionTimeout: 10,
   });
+
+  // Auto Discovery state
+  const [discoveredServices, setDiscoveredServices] = useState<DiscoveredFreeShowInstance[]>([]);
+  const [isDiscovering, setIsDiscovering] = useState(false);
 
   // Load saved settings and attempt auto-reconnect on startup
   useEffect(() => {
@@ -211,6 +222,50 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     setLastError(null);
   };
 
+  // Auto Discovery methods
+  const startDiscovery = (): void => {
+    if (isDiscovering) {
+      console.log('⚠️ Discovery already in progress');
+      return;
+    }
+
+    console.log('🔍 Starting FreeShow discovery...');
+    setIsDiscovering(true);
+    setDiscoveredServices([]);
+    
+    // Set up listeners
+    autoDiscoveryService.onServicesUpdated((services) => {
+      console.log('📡 Discovered services updated:', services);
+      setDiscoveredServices([...services]);
+    });
+
+    autoDiscoveryService.onError((error) => {
+      console.error('❌ Discovery error:', error);
+      setIsDiscovering(false);
+    });
+
+    // Start scanning
+    autoDiscoveryService.startDiscovery();
+  };
+
+  const stopDiscovery = (): void => {
+    if (!isDiscovering) {
+      return;
+    }
+
+    console.log('🛑 Stopping FreeShow discovery...');
+    autoDiscoveryService.stopDiscovery();
+    autoDiscoveryService.removeAllListeners();
+    setIsDiscovering(false);
+  };
+
+  // Cleanup discovery on unmount
+  useEffect(() => {
+    return () => {
+      stopDiscovery();
+    };
+  }, []);
+
   const contextValue: ConnectionContextType = {
     isConnected,
     connectionHost,
@@ -227,6 +282,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     getConnectionHistory,
     updateAppSettings,
     freeShowService,
+    // Auto Discovery
+    discoveredServices,
+    isDiscovering,
+    isDiscoveryAvailable: autoDiscoveryService.isAvailable(),
+    startDiscovery,
+    stopDiscovery,
   };
 
   return (

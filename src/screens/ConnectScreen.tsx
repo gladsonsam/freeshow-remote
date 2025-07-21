@@ -32,13 +32,20 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDiscovered, setShowDiscovered] = useState(false);
   const { 
     isConnected, 
     connectionStatus, 
     savedConnectionSettings,
     connectionHistory,
+    discoveredServices,
+    isDiscovering,
+    isDiscoveryAvailable,
     connect, 
-    disconnect 
+    disconnect,
+    startDiscovery,
+    stopDiscovery,
+    getConnectionHistory 
   } = useConnection();
 
   // Initialize form with saved settings
@@ -118,6 +125,59 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const handleDisconnect = () => {
     disconnect();
+  };
+
+  const handleDiscoveredConnect = async (service: any) => {
+    setHost(service.host || service.ip);
+    setPort(service.port.toString());
+    setShowDiscovered(false);
+    stopDiscovery();
+    
+    try {
+      const connected = await connect(service.host || service.ip, service.port);
+      if (connected) {
+        navigation.navigate('Interface');
+      }
+    } catch (error) {
+      console.error('Connection to discovered service failed:', error);
+    }
+  };
+
+  const handleRemoveFromHistory = async (itemId: string) => {
+    try {
+      // Import SettingsService locally to remove from history
+      const { SettingsService } = await import('../services/SettingsService');
+      await SettingsService.removeFromConnectionHistory(itemId);
+      
+      // Refresh the connection history in context
+      await getConnectionHistory();
+      
+      console.log('Removed item from history:', itemId);
+    } catch (error) {
+      console.error('Failed to remove from history:', error);
+    }
+  };
+
+  const handleClearAllHistory = async () => {
+    try {
+      const { SettingsService } = await import('../services/SettingsService');
+      await SettingsService.clearConnectionHistory();
+      
+      // Refresh the connection history in context
+      await getConnectionHistory();
+      
+      console.log('Cleared all connection history');
+    } catch (error) {
+      console.error('Failed to clear history:', error);
+    }
+  };
+
+  const toggleDiscovery = () => {
+    if (isDiscovering) {
+      stopDiscovery();
+    } else {
+      startDiscovery();
+    }
   };
 
   const handleQRScan = (scannedIP: string) => {
@@ -290,15 +350,110 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
             {showHistory && (
               <ScrollView style={styles.historyList} nestedScrollEnabled>
                 {connectionHistory.map((item, index) => (
+                  <View key={index} style={styles.historyItemWrapper}>
+                    <TouchableOpacity
+                      style={styles.historyItem}
+                      onPress={() => handleHistoryConnect(item)}
+                    >
+                      <View style={styles.historyItemContent}>
+                        <Text style={styles.historyHost}>{item.host}:{item.port}</Text>
+                        <Text style={styles.historyDate}>
+                          {new Date(item.lastUsed).toLocaleDateString()}
+                          {item.name && ` • ${item.name}`}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.text + '66'} />
+                    </TouchableOpacity>
+                    
+                    {/* Management button */}
+                    <TouchableOpacity
+                      style={styles.historyRemoveButton}
+                      onPress={() => handleRemoveFromHistory(item.id)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={FreeShowTheme.colors.disconnected} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                
+                {/* Clear all history button */}
+                {connectionHistory.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearHistoryButton}
+                    onPress={handleClearAllHistory}
+                  >
+                    <Ionicons name="trash" size={16} color={FreeShowTheme.colors.disconnected} />
+                    <Text style={styles.clearHistoryText}>Clear All History</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
+        {/* Auto Discovery Section */}
+        {!isConnected && (
+          <View style={styles.historySection}>
+            <TouchableOpacity 
+              style={styles.historyToggle}
+              onPress={() => setShowDiscovered(!showDiscovered)}
+            >
+              <Text style={styles.historyTitle}>
+                {!isDiscoveryAvailable ? 'Auto Discovery (Unavailable)' : 
+                 isDiscovering ? 'Discovering...' : 'Auto Discovery'}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity 
+                  onPress={toggleDiscovery}
+                  style={{ 
+                    marginRight: 8, 
+                    padding: 4,
+                    opacity: isDiscoveryAvailable ? 1 : 0.5
+                  }}
+                  disabled={!isDiscoveryAvailable}
+                >
+                  <Ionicons 
+                    name={isDiscovering ? "stop" : "search"} 
+                    size={18} 
+                    color={isDiscoveryAvailable ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.text + '66'} 
+                  />
+                </TouchableOpacity>
+                <Ionicons 
+                  name={showDiscovered ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color={FreeShowTheme.colors.text + '99'} 
+                />
+              </View>
+            </TouchableOpacity>
+            
+            {showDiscovered && (
+              <ScrollView style={styles.historyList} nestedScrollEnabled>
+                {!isDiscoveryAvailable && (
+                  <Text style={styles.noServicesText}>
+                    Auto Discovery requires a development build. Use manual connection instead.
+                  </Text>
+                )}
+                {isDiscoveryAvailable && discoveredServices.length === 0 && !isDiscovering && (
+                  <Text style={styles.noServicesText}>
+                    No FreeShow instances found on network. Tap the search icon to scan.
+                  </Text>
+                )}
+                {isDiscoveryAvailable && discoveredServices.length === 0 && isDiscovering && (
+                  <Text style={styles.noServicesText}>
+                    Scanning for FreeShow instances...
+                  </Text>
+                )}
+                {discoveredServices.map((service, index) => (
                   <TouchableOpacity
                     key={index}
                     style={styles.historyItem}
-                    onPress={() => handleHistoryConnect(item)}
+                    onPress={() => handleDiscoveredConnect(service)}
                   >
                     <View style={styles.historyItemContent}>
-                      <Text style={styles.historyHost}>{item.host}:{item.port}</Text>
+                      <Text style={styles.historyHost}>
+                        {service.name || 'FreeShow'}
+                      </Text>
                       <Text style={styles.historyDate}>
-                        {new Date(item.lastUsed).toLocaleDateString()}
+                        {service.host || service.ip}:{service.port}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.text + '66'} />
@@ -351,6 +506,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         {!isConnected && (
           <View style={styles.tips}>
             <Text style={styles.tipsTitle}>Connection Tips:</Text>
+            <Text style={styles.tipsText}>• Use Auto Discovery to find FreeShow instances automatically</Text>
             <Text style={styles.tipsText}>• Make sure FreeShow is running on your computer</Text>
             <Text style={styles.tipsText}>• Enable WebSocket/REST API in FreeShow Settings → Connections</Text>
             <Text style={styles.tipsText}>• Use your computer's local IP address (usually starts with 192.168.x.x)</Text>
@@ -604,9 +760,9 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.md,
     padding: FreeShowTheme.spacing.md,
-    marginBottom: FreeShowTheme.spacing.sm,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
+    flex: 1,
   },
   historyItemContent: {
     flex: 1,
@@ -652,6 +808,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: FreeShowTheme.colors.text,
     backgroundColor: FreeShowTheme.colors.surface,
+  },
+  noServicesText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.text + '99',
+    textAlign: 'center',
+    padding: FreeShowTheme.spacing.lg,
+    fontStyle: 'italic',
+  },
+  historyItemWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: FreeShowTheme.spacing.sm,
+  },
+  historyRemoveButton: {
+    padding: FreeShowTheme.spacing.sm,
+    marginLeft: FreeShowTheme.spacing.sm,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.disconnected + '30',
+  },
+  clearHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    padding: FreeShowTheme.spacing.md,
+    marginTop: FreeShowTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.disconnected + '30',
+    gap: FreeShowTheme.spacing.sm,
+  },
+  clearHistoryText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.disconnected,
+    fontWeight: '500',
   },
 });
 
