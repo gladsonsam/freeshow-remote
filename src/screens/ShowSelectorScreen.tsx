@@ -126,20 +126,21 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTitle}>
-          <Ionicons name="apps" size={32} color={FreeShowTheme.colors.secondary} />
-          <Text style={styles.title}>FreeShow Interfaces</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTitle}>
+            <Text style={styles.title}>FreeShow Interfaces</Text>
+            <Text style={styles.subtitle}>
+              Connected to {connectionHost}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
+            <Ionicons name="log-out-outline" size={22} color={FreeShowTheme.colors.text + 'CC'} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
-          <Ionicons name="log-out" size={20} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
       </View>
 
-      <Text style={styles.subtitle}>
-        Connected to {connectionHost} - Choose an interface to open:
-      </Text>
-
       <ScrollView style={styles.showList} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionTitle}>Choose an interface:</Text>
         {showOptions.map((show) => (
           <TouchableOpacity
             key={show.id}
@@ -173,52 +174,71 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.primary,
   },
   header: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.md,
+    paddingBottom: FreeShowTheme.spacing.lg,
+  },
+  headerContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    padding: FreeShowTheme.spacing.lg,
-    paddingBottom: FreeShowTheme.spacing.md,
   },
   headerTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: FreeShowTheme.spacing.sm,
+    flex: 1,
   },
   title: {
-    fontSize: FreeShowTheme.fontSize.xl,
-    fontWeight: 'bold',
+    fontSize: FreeShowTheme.fontSize.xxl, // Reduce from xl to xxl for better balance
+    fontWeight: '700',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
+    marginBottom: FreeShowTheme.spacing.xs,
   },
   subtitle: {
     fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.text + '99',
-    marginHorizontal: FreeShowTheme.spacing.lg,
-    marginBottom: FreeShowTheme.spacing.lg,
+    color: FreeShowTheme.colors.text + 'AA',
     fontFamily: FreeShowTheme.fonts.system,
+    fontWeight: '500',
   },
   disconnectButton: {
     padding: FreeShowTheme.spacing.sm,
+    marginTop: -FreeShowTheme.spacing.xs, // Align with title
+  },
+  sectionTitle: {
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text + 'CC',
+    marginBottom: FreeShowTheme.spacing.lg,
+    paddingHorizontal: 2, // Align with card content
+    fontFamily: FreeShowTheme.fonts.system,
   },
   showList: {
     flex: 1,
     paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.sm, // Reduce top padding
   },
   showCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
-    borderWidth: 2,
+    borderWidth: 1.5, // Reduce border width
     borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 4,
     padding: FreeShowTheme.spacing.lg,
     marginBottom: FreeShowTheme.spacing.md,
     gap: FreeShowTheme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
+    width: 52, // Slightly smaller
+    height: 52,
     borderRadius: FreeShowTheme.borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -228,22 +248,24 @@ const styles = StyleSheet.create({
   },
   showTitle: {
     fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: 'bold',
+    fontWeight: '700', // Increase font weight
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 2,
+    marginBottom: 4, // Increase spacing
   },
   showDescription: {
     fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.text + 'CC',
+    color: FreeShowTheme.colors.text + 'BB', // Increase opacity slightly
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 4,
+    marginBottom: 6, // Increase spacing
+    lineHeight: 18, // Add line height for better readability
   },
   showPort: {
     fontSize: FreeShowTheme.fontSize.xs,
-    color: FreeShowTheme.colors.text + '99',
+    color: FreeShowTheme.colors.text + 'AA', // Increase opacity
     fontFamily: FreeShowTheme.fonts.system,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   chevron: {
     opacity: 0.6,
@@ -253,35 +275,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: FreeShowTheme.spacing.xl,
+    paddingTop: FreeShowTheme.spacing.xxl, // Reduce top padding to shift content up slightly
   },
   notConnectedTitle: {
     fontSize: FreeShowTheme.fontSize.xl,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: FreeShowTheme.colors.text,
     marginTop: FreeShowTheme.spacing.lg,
-    marginBottom: FreeShowTheme.spacing.sm,
+    marginBottom: FreeShowTheme.spacing.md, // Increase spacing
     fontFamily: FreeShowTheme.fonts.system,
+    textAlign: 'center',
   },
   notConnectedText: {
     fontSize: FreeShowTheme.fontSize.md,
-    color: FreeShowTheme.colors.text + '99',
+    color: FreeShowTheme.colors.text + 'BB',
     textAlign: 'center',
     marginBottom: FreeShowTheme.spacing.xl,
     fontFamily: FreeShowTheme.fonts.system,
+    lineHeight: 22, // Add line height for better readability
+    paddingHorizontal: FreeShowTheme.spacing.md, // Add horizontal padding
   },
   connectButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FreeShowTheme.colors.secondary,
     paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingHorizontal: FreeShowTheme.spacing.xl, // Increase horizontal padding
     borderRadius: FreeShowTheme.borderRadius.lg,
     gap: FreeShowTheme.spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   buttonText: {
     color: 'white',
     fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: '600',
+    fontWeight: '700', // Increase font weight
     fontFamily: FreeShowTheme.fonts.system,
   },
 });
