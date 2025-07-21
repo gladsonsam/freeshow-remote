@@ -8,7 +8,6 @@ interface ConnectionContextType {
   connectionHost: string | null;
   connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error';
   lastError: string | null;
-  savedConnectionSettings: ConnectionSettings | null;
   connectionHistory: ConnectionHistory[];
   appSettings: AppSettings;
   connect: (host: string, port?: number, showPorts?: {
@@ -19,9 +18,9 @@ interface ConnectionContextType {
   }) => Promise<boolean>;
   disconnect: () => void;
   checkConnection: () => void;
-  loadSavedSettings: () => Promise<void>;
-  clearSavedSettings: () => Promise<void>;
   getConnectionHistory: () => Promise<ConnectionHistory[]>;
+  removeFromHistory: (id: string) => Promise<void>;
+  clearAllHistory: () => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
   freeShowService: typeof freeShowService;
   // Auto Discovery
@@ -43,7 +42,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
   const [connectionHost, setConnectionHost] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected');
   const [lastError, setLastError] = useState<string | null>(null);
-  const [savedConnectionSettings, setSavedConnectionSettings] = useState<ConnectionSettings | null>(null);
   const [connectionHistory, setConnectionHistory] = useState<ConnectionHistory[]>([]);
   const [appSettings, setAppSettings] = useState<AppSettings>({
     theme: 'dark',
@@ -56,11 +54,10 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
   const [discoveredServices, setDiscoveredServices] = useState<DiscoveredFreeShowInstance[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
 
-  // Load saved settings and attempt auto-reconnect on startup
+  // Load app settings and connection history on startup
   useEffect(() => {
     const initializeApp = async () => {
-      console.log('Initializing app with saved settings...');
-      await loadSavedSettings();
+      console.log('Initializing app...');
       await loadAppSettings();
       await loadConnectionHistory();
     };
@@ -68,35 +65,33 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     initializeApp();
   }, []);
 
-  // Auto-reconnect when saved settings are loaded (if autoReconnect is enabled)
+  // Auto-connect to last connection in history on startup
   useEffect(() => {
-    const attemptAutoReconnect = async () => {
+    const attemptAutoConnect = async () => {
       if (
-        savedConnectionSettings && 
+        connectionHistory.length > 0 && 
         appSettings.autoReconnect && 
         !isConnected && 
         connectionStatus === 'disconnected'
       ) {
-        console.log('Attempting auto-reconnect to:', savedConnectionSettings.host);
+        // Get the most recent connection (last in history)
+        const lastConnection = connectionHistory[connectionHistory.length - 1];
+        console.log('Attempting auto-connect to last connection:', lastConnection.host);
+        
         // Delay slightly to ensure services are ready
         setTimeout(() => {
-          connect(savedConnectionSettings.host, savedConnectionSettings.port);
+          connect(lastConnection.host, lastConnection.port);
         }, 1500);
+      } else if (connectionHistory.length === 0) {
+        console.log('No connection history found - skipping auto-connect');
       }
     };
 
-    attemptAutoReconnect();
-  }, [savedConnectionSettings, appSettings.autoReconnect]);
-
-  const loadSavedSettings = async (): Promise<void> => {
-    try {
-      const settings = await SettingsService.getConnectionSettings();
-      setSavedConnectionSettings(settings);
-      console.log('Loaded saved connection settings:', settings);
-    } catch (error) {
-      console.error('Failed to load saved connection settings:', error);
+    // Only attempt auto-connect when history is loaded and app settings are ready
+    if (connectionHistory.length >= 0 && appSettings.autoReconnect !== undefined) {
+      attemptAutoConnect();
     }
-  };
+  }, [connectionHistory, appSettings.autoReconnect]);
 
   const loadAppSettings = async (): Promise<void> => {
     try {
@@ -118,16 +113,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     }
   };
 
-  const clearSavedSettings = async (): Promise<void> => {
-    try {
-      await SettingsService.clearConnectionSettings();
-      setSavedConnectionSettings(null);
-      console.log('Cleared saved connection settings');
-    } catch (error) {
-      console.error('Failed to clear saved connection settings:', error);
-    }
-  };
-
   const getConnectionHistory = async (): Promise<ConnectionHistory[]> => {
     try {
       const history = await SettingsService.getConnectionHistory();
@@ -136,6 +121,26 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     } catch (error) {
       console.error('Failed to get connection history:', error);
       return [];
+    }
+  };
+
+  const removeFromHistory = async (id: string): Promise<void> => {
+    try {
+      await SettingsService.removeFromConnectionHistory(id);
+      await loadConnectionHistory(); // Refresh history
+      console.log('Removed connection from history:', id);
+    } catch (error) {
+      console.error('Failed to remove connection from history:', error);
+    }
+  };
+
+  const clearAllHistory = async (): Promise<void> => {
+    try {
+      await SettingsService.clearConnectionHistory();
+      setConnectionHistory([]); // Clear local state immediately
+      console.log('Cleared all connection history');
+    } catch (error) {
+      console.error('Failed to clear connection history:', error);
     }
   };
 
@@ -188,15 +193,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         setConnectionHost(host);
         setConnectionStatus('connected');
         
-        // Save successful connection settings including show ports
-        await SettingsService.saveConnectionSettings(host, port, appSettings.autoReconnect, showPorts);
-        setSavedConnectionSettings({ 
-          host, 
-          port, 
-          lastConnected: new Date().toISOString(), 
-          autoConnect: appSettings.autoReconnect,
-          showPorts: showPorts 
-        });
+        // Add to connection history
+        await SettingsService.addToConnectionHistory(host, port);
         
         // Refresh connection history
         await loadConnectionHistory();
@@ -271,15 +269,14 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     connectionHost,
     connectionStatus,
     lastError,
-    savedConnectionSettings,
     connectionHistory,
     appSettings,
     connect,
     disconnect,
     checkConnection,
-    loadSavedSettings,
-    clearSavedSettings,
     getConnectionHistory,
+    removeFromHistory,
+    clearAllHistory,
     updateAppSettings,
     freeShowService,
     // Auto Discovery

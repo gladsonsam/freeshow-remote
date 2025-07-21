@@ -25,7 +25,6 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   onShowSelect,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const { savedConnectionSettings } = useConnection();
 
   const getShowOptions = (): ShowOption[] => {
     const defaultPorts = {
@@ -35,7 +34,8 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
       output: 5513,
     };
 
-    const showPorts = savedConnectionSettings?.showPorts || defaultPorts;
+    // Use default ports since we simplified the connection system
+    const showPorts = defaultPorts;
 
     return [
       {

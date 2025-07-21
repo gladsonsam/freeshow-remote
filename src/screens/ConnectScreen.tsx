@@ -36,7 +36,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const { 
     isConnected, 
     connectionStatus, 
-    savedConnectionSettings,
     connectionHistory,
     discoveredServices,
     isDiscovering,
@@ -45,24 +44,10 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     disconnect,
     startDiscovery,
     stopDiscovery,
-    getConnectionHistory 
+    getConnectionHistory,
+    removeFromHistory,
+    clearAllHistory
   } = useConnection();
-
-  // Initialize form with saved settings
-  useEffect(() => {
-    if (savedConnectionSettings) {
-      setHost(savedConnectionSettings.host);
-      setPort(savedConnectionSettings.port.toString());
-      
-      // Load show ports if they exist
-      if (savedConnectionSettings.showPorts) {
-        setRemotePort(savedConnectionSettings.showPorts.remote.toString());
-        setStagePort(savedConnectionSettings.showPorts.stage.toString());
-        setControlPort(savedConnectionSettings.showPorts.control.toString());
-        setOutputPort(savedConnectionSettings.showPorts.output.toString());
-      }
-    }
-  }, [savedConnectionSettings]);
 
   const handleConnect = async () => {
     if (!host.trim()) {
@@ -144,32 +129,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const handleRemoveFromHistory = async (itemId: string) => {
-    try {
-      // Import SettingsService locally to remove from history
-      const { SettingsService } = await import('../services/SettingsService');
-      await SettingsService.removeFromConnectionHistory(itemId);
-      
-      // Refresh the connection history in context
-      await getConnectionHistory();
-      
-      console.log('Removed item from history:', itemId);
-    } catch (error) {
-      console.error('Failed to remove from history:', error);
-    }
+    await removeFromHistory(itemId);
   };
 
   const handleClearAllHistory = async () => {
-    try {
-      const { SettingsService } = await import('../services/SettingsService');
-      await SettingsService.clearConnectionHistory();
-      
-      // Refresh the connection history in context
-      await getConnectionHistory();
-      
-      console.log('Cleared all connection history');
-    } catch (error) {
-      console.error('Failed to clear history:', error);
-    }
+    await clearAllHistory();
   };
 
   const toggleDiscovery = () => {
