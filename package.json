@@ -33,6 +33,7 @@
     "@react-navigation/native-stack": "^7.3.21",
     "@react-navigation/stack": "^7.4.2",
     "expo": "~53.0.20",
+    "expo-build-properties": "^0.14.8",
     "expo-camera": "~16.1.11",
     "expo-screen-orientation": "~8.1.7",
     "expo-status-bar": "~2.2.3",

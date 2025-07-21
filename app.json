@@ -13,7 +13,12 @@
       "backgroundColor": "#E91E63"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": { 
+          "NSAllowsArbitraryLoads": true 
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,19 +29,10 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE"
       ],
-      "package": "com.gladson1205.freeshowcompanion",
-      "usesCleartextTraffic": true,
-      "networkSecurityConfig": {
-        "domain-config": [
-          {
-            "domain": "*",
-            "includeSubdomains": true,
-            "cleartextTrafficPermitted": true
-          }
-        ]
-      }
+      "package": "com.gladson1205.freeshowcompanion"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,6 +42,23 @@
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for scanning QR codes."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "requestLegacyExternalStorage": true,
+            "networkSecurityConfig": "./network_security_config.xml"
+          },
+          "ios": {
+            "infoPlist": {
+              "NSAppTransportSecurity": {
+                "NSAllowsArbitraryLoads": true
+              }
+            }
+          }
         }
       ]
     ],

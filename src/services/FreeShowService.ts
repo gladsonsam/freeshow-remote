@@ -10,13 +10,40 @@ class FreeShowService {
     return new Promise((resolve, reject) => {
       try {
         const url = `http://${host}:${port}`;
+        console.log('🔌 Attempting to connect to FreeShow at:', url);
+        console.log('📱 Platform:', require('react-native').Platform.OS);
+        console.log('🌐 Network test URL:', url);
+        
+        // Test basic HTTP connectivity first
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        fetch(url, { 
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          }
+        })
+        .then(response => {
+          clearTimeout(timeoutId);
+          console.log('✅ HTTP test successful:', response.status);
+        })
+        .catch(httpError => {
+          clearTimeout(timeoutId);
+          console.warn('⚠️ HTTP test failed:', httpError.message);
+        });
         
         this.socket = io(url, {
-          timeout: 10000,
+          timeout: 15000,
           transports: ['websocket', 'polling'], // Add polling as fallback
           forceNew: true,
           upgrade: true,
-          rememberUpgrade: false
+          rememberUpgrade: false,
+          autoConnect: true,
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
         });
 
         this.socket.on('connect', () => {
