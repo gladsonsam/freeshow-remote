@@ -31,9 +31,9 @@ export interface AppSettings {
 }
 
 const STORAGE_KEYS = {
-  CONNECTION_SETTINGS: '@freeshow_companion:connection_settings',
-  CONNECTION_HISTORY: '@freeshow_companion:connection_history',
-  APP_SETTINGS: '@freeshow_companion:app_settings',
+  CONNECTION_SETTINGS: '@freeshow_remote:connection_settings',
+  CONNECTION_HISTORY: '@freeshow_remote:connection_history',
+  APP_SETTINGS: '@freeshow_remote:app_settings',
 } as const;
 
 export class SettingsService {

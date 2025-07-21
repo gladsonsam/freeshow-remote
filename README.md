@@ -1,6 +1,6 @@
 # FreeShow Remote
 
-A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo.
+A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo. Not affiliated with FreeShow.
 
 ## Features
 

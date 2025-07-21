@@ -15,8 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSAppTransportSecurity": { 
-          "NSAllowsArbitraryLoads": true 
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
         }
       }
     },
@@ -30,7 +30,8 @@
         "android.permission.CAMERA",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE"
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.gladson1205.freeshowremote"
     },
@@ -61,7 +62,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "7aa212fb-ba21-43f4-92d3-83f772a2f2a8"
+        "projectId": "a8981839-843a-4268-b544-cde35e549de6"
       }
     },
     "owner": "gladson1205"
