@@ -1,29 +1,28 @@
 # FreeShow Remote
-
 A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo. Not affiliated with FreeShow.
+
+> **⚠️ Important Note**: Currently only available for Android. The $99/year Apple Developer Program fee makes iOS distribution unfeasible for this free app. If you're interested in sponsoring iOS distribution or publishing this on the App Store, please [open an issue](https://github.com/gladsonsam/freeshow-remote/issues) or contact me!
 
 ## Features
 
-- 📱 **QR Code Connection**: Scan QR codes from FreeShow to connect instantly
-- 🎮 **Remote Control**: Control your FreeShow presentations remotely
-  - Next/Previous slide navigation
-  - Clear slide/background/all
-  - Restore output
-- 📋 **Show Management**: 
-  - View all available shows
-  - Switch between shows dynamically
-  - Browse show content and slides
-- �️ **Output Display**: View FreeShow's output screen in a WebView with:
-  - Full-screen mode
-  - Screen rotation controls for output
-  - Real-time content display
-- 📱 **Cross-Platform**: Works on both Android and iOS devices
-- � **Real-time Sync**: Socket.IO connection for instant updates
-- 🎨 **Native UI**: Custom themed interface matching FreeShow's design
+- � **Auto-discovery**: Automatically finds FreeShow on your network - no need to type IP addresses
+- 🎭 **Quick Show Switching**: Instantly switch between different shows and presentations  
+- 🔌 **Full Integration**: Works with all FreeShow connection types (API, Remote, Output display)
+- 🎮 **Complete Remote Control**: Navigate slides, clear outputs, restore displays, and more
+- 📱 **Android Native**: Optimized for Android devices (iOS builds possible but not distributed)
 
 ## Screenshots
 
-<!-- Add screenshots here when available -->
+<div align="center">
+  <img src=".github/assets/connect-page.jpg" width="200" alt="Connection Page"/>
+  <img src=".github/assets/main-page.jpg" width="200" alt="Main Remote Control"/>
+  <img src=".github/assets/quick-switch.jpg" width="200" alt="Quick Show Switching"/>
+</div>
+
+<div align="center">
+  <img src=".github/assets/remoteshow.jpg" width="200" alt="Remote Show View"/>
+  <img src=".github/assets/stageshow.jpg" width="200" alt="Stage Show Display"/>
+</div>
 
 ## Getting Started
 
@@ -66,42 +65,6 @@ eas build --platform android --profile preview
 # Build iOS app
 eas build --platform ios --profile preview
 ```
-
-### Connecting to FreeShow
-
-1. Make sure FreeShow is running on your computer with API enabled
-2. In FreeShow, enable the Remote API (typically runs on port 5505)
-3. Use one of these methods to connect:
-
-**Method 1: QR Code (Recommended)**
-1. In FreeShow, display the connection QR code
-2. In the app, tap "Scan QR Code"
-3. Point your camera at the QR code
-
-**Method 2: Manual Connection**
-1. Note your computer's IP address
-2. In the app, tap "Manual Connection"
-3. Enter your computer's IP address
-4. Tap "Connect"
-
-## Technologies Used
-
-- **React Native & Expo**: Cross-platform mobile development
-- **TypeScript**: Type-safe JavaScript
-- **Socket.IO**: Real-time WebSocket communication with FreeShow
-- **React Navigation**: Navigation between screens
-- **Expo Camera**: QR code scanning functionality
-- **React Native WebView**: Display FreeShow output
-- **Expo Vector Icons**: Beautiful icons
-- **AsyncStorage**: Local data persistence
-
-## Scripts
-
-- `npm start` - Start the Expo development server
-- `npm run android` - Start on Android emulator/device
-- `npm run ios` - Start on iOS simulator/device
-- `eas build --platform android --profile preview` - Build Android APK
-- `eas build --platform ios --profile preview` - Build iOS app
 
 
 ## Contributing
