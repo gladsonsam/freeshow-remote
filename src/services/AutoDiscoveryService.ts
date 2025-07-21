@@ -1,12 +1,14 @@
 import Zeroconf, { ZeroconfService, ZeroconfError } from 'react-native-zeroconf';
 
 export interface DiscoveredFreeShowInstance {
-  name: string;
+  name: string; // Display name (will show IP)
   host: string;
   port: number;
-  ip?: string;
+  ip: string; // Primary IP for deduplication
   txt?: { [key: string]: string };
   fullName?: string;
+  serviceName?: string; // Original service name for extra info
+  addresses?: string[]; // All available addresses
 }
 
 export type DiscoveryEventCallback = (instances: DiscoveredFreeShowInstance[]) => void;
@@ -80,18 +82,31 @@ class AutoDiscoveryService {
     this.zeroconf.on('resolved', (service: ZeroconfService) => {
       console.log('✅ AutoDiscovery: FreeShow service resolved:', service);
       
+      // Get the primary IP address
+      const primaryIP = service.addresses?.[0] || service.host;
+      
+      // Skip if we already have this IP address (prevent duplicates)
+      const existingService = Array.from(this.discoveredServices.values())
+        .find(existing => existing.ip === primaryIP);
+      
+      if (existingService) {
+        console.log(`🔍 AutoDiscovery: Skipping duplicate IP ${primaryIP}`);
+        return;
+      }
+      
       const instance: DiscoveredFreeShowInstance = {
-        name: service.name,
+        name: `FreeShow (${primaryIP})`, // Show IP as the main name
         host: service.host,
         port: service.port,
-        ip: service.addresses?.[0] || service.host,
+        ip: primaryIP,
         txt: service.txt || {},
         fullName: service.fullName,
+        serviceName: service.name, // Keep original service name for extra info
+        addresses: service.addresses,
       };
 
-      // Use fullName as unique key, fallback to name+host+port
-      const key = service.fullName || `${service.name}-${service.host}-${service.port}`;
-      this.discoveredServices.set(key, instance);
+      // Use IP as the unique key for deduplication
+      this.discoveredServices.set(primaryIP, instance);
       
       this.notifyServicesUpdated();
     });
@@ -99,8 +114,8 @@ class AutoDiscoveryService {
     // Service removed
     this.zeroconf.on('remove', (service: ZeroconfService) => {
       console.log('🗑️ AutoDiscovery: FreeShow service removed:', service.name);
-      const key = service.fullName || `${service.name}-${service.host}-${service.port}`;
-      this.discoveredServices.delete(key);
+      const primaryIP = service.addresses?.[0] || service.host;
+      this.discoveredServices.delete(primaryIP);
       this.notifyServicesUpdated();
     });
   }
