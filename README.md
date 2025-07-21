@@ -1,7 +1,7 @@
 # FreeShow Remote
 A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo. Not affiliated with FreeShow.
 
-> **⚠️ Important Note**: Currently only available for Android. The $99/year Apple Developer Program fee makes iOS distribution unfeasible for this free app. If you're interested in sponsoring iOS distribution or publishing this on the App Store, please [open an issue](https://github.com/gladsonsam/freeshow-remote/issues) or contact me!
+> **⚠️ Important Note**: Currently only available for Android. The $99/year Apple Developer Program fee makes iOS distribution unfeasible. If you're interested in sponsoring iOS distribution or publishing this on the App Store, please [open an issue](https://github.com/gladsonsam/freeshow-remote/issues) or contact me!
 
 ## Features
 
@@ -9,18 +9,18 @@ A mobile remote app for [FreeShow](https://freeshow.app) presentation software, 
 - 🎭 **Quick Show Switching**: Instantly switch between different shows and presentations  
 - 🔌 **Full Integration**: Works with all FreeShow connection types (API, Remote, Output display)
 - 🎮 **Complete Remote Control**: Navigate slides, clear outputs, restore displays, and more
-- 📱 **Android Native**: Optimized for Android devices (iOS builds possible but not distributed)
 
 ## Screenshots
 
 <div align="center">
   <img src=".github/assets/connect-page.jpg" width="200" alt="Connection Page"/>
   <img src=".github/assets/main-page.jpg" width="200" alt="Main Remote Control"/>
-  <img src=".github/assets/quick-switch.jpg" width="200" alt="Quick Show Switching"/>
+  <img src=".github/assets/remoteshow.jpg" width="200" alt="Remote Show View"/>
 </div>
 
 <div align="center">
-  <img src=".github/assets/remoteshow.jpg" width="200" alt="Remote Show View"/>
+
+  <img src=".github/assets/quick-switch.jpg" width="200" alt="Quick Show Switching"/>
   <img src=".github/assets/stageshow.jpg" width="200" alt="Stage Show Display"/>
 </div>
 
