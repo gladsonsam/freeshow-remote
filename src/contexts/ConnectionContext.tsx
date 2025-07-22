@@ -67,6 +67,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   // Auto-connect to last connection in history on startup
   useEffect(() => {
+    let autoConnectTimeout: NodeJS.Timeout | null = null;
+    
     const attemptAutoConnect = async () => {
       if (
         connectionHistory.length > 0 && 
@@ -78,9 +80,33 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         const lastConnection = connectionHistory[connectionHistory.length - 1];
         console.log('Attempting auto-connect to last connection:', lastConnection.host);
         
-        // Delay slightly to ensure services are ready
-        setTimeout(() => {
-          connect(lastConnection.host, lastConnection.port);
+        // Delay slightly to ensure services are ready, then attempt connection
+        setTimeout(async () => {
+          // Set up auto-connect timeout after connection starts
+          autoConnectTimeout = setTimeout(() => {
+            console.log('⏰ Auto-connect timeout reached, canceling connection attempt');
+            setConnectionStatus('error');
+            setLastError('Auto-connect timeout - connection took too long');
+          }, appSettings.connectionTimeout * 1000); // Use connectionTimeout from settings
+          
+          try {
+            const success = await connect(lastConnection.host, 5505, lastConnection.showPorts);
+            if (autoConnectTimeout) {
+              clearTimeout(autoConnectTimeout);
+              autoConnectTimeout = null;
+            }
+            if (!success) {
+              console.log('❌ Auto-connect failed');
+            } else {
+              console.log('✅ Auto-connect successful');
+            }
+          } catch (error) {
+            if (autoConnectTimeout) {
+              clearTimeout(autoConnectTimeout);
+              autoConnectTimeout = null;
+            }
+            console.error('❌ Auto-connect error:', error);
+          }
         }, 1500);
       } else if (connectionHistory.length === 0) {
         console.log('No connection history found - skipping auto-connect');
@@ -91,6 +117,13 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     if (connectionHistory.length >= 0 && appSettings.autoReconnect !== undefined) {
       attemptAutoConnect();
     }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoConnectTimeout) {
+        clearTimeout(autoConnectTimeout);
+      }
+    };
   }, [connectionHistory, appSettings.autoReconnect]);
 
   const loadAppSettings = async (): Promise<void> => {
@@ -193,8 +226,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         setConnectionHost(host);
         setConnectionStatus('connected');
         
-        // Add to connection history
-        await SettingsService.addToConnectionHistory(host, port);
+        // Add to connection history with interface ports
+        await SettingsService.addToConnectionHistory(host, port, undefined, showPorts);
         
         // Refresh connection history
         await loadConnectionHistory();
@@ -234,7 +267,28 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     // Set up listeners
     autoDiscoveryService.onServicesUpdated((services) => {
       console.log('📡 Discovered services updated:', services);
-      setDiscoveredServices([...services]);
+      
+      // Deduplicate by IP address and ignore the discovered port
+      const uniqueServices: DiscoveredFreeShowInstance[] = [];
+      const seenIPs = new Set<string>();
+      
+      services.forEach(service => {
+        const ip = service.ip || service.host;
+        if (!seenIPs.has(ip)) {
+          seenIPs.add(ip);
+          // Always use default port 5505 and IP as the primary identifier
+          uniqueServices.push({
+            ...service,
+            name: ip, // Use IP as display name
+            host: ip,
+            port: 5505, // Always use default port regardless of discovery
+            ip: ip
+          });
+        }
+      });
+      
+      console.log('📡 Deduplicated services by IP:', uniqueServices);
+      setDiscoveredServices(uniqueServices);
     });
 
     autoDiscoveryService.onError((error) => {

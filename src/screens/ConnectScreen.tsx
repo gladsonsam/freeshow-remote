@@ -23,7 +23,6 @@ interface ConnectScreenProps {
 
 const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [host, setHost] = useState('192.168.1.100');
-  const [port, setPort] = useState('5505');
   const [remotePort, setRemotePort] = useState('5510');
   const [stagePort, setStagePort] = useState('5511');
   const [controlPort, setControlPort] = useState('5512');
@@ -63,26 +62,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     if (isConnected && connectionHost) {
       console.log('Updating form with current connection:', connectionHost);
       setHost(connectionHost);
-      
-      // Try to get port from connection history
-      const currentConnection = connectionHistory.find(item => 
-        item.host === connectionHost
-      );
-      if (currentConnection) {
-        setPort(currentConnection.port.toString());
-      }
     }
   }, [isConnected, connectionHost, connectionHistory]);
 
   const handleConnect = async () => {
     if (!host.trim()) {
       Alert.alert('Error', 'Please enter a valid host address');
-      return;
-    }
-
-    const portNumber = parseInt(port);
-    if (isNaN(portNumber) || portNumber < 1 || portNumber > 65535) {
-      Alert.alert('Error', 'Please enter a valid API port number (1-65535)');
       return;
     }
 
@@ -102,7 +87,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     }
 
     try {
-      const connected = await connect(host.trim(), portNumber, showPorts);
+      const connected = await connect(host.trim(), 5505, showPorts); // Always use port 5505
       if (connected) {
         navigation.navigate('Interface');
       }
@@ -113,18 +98,25 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const handleHistoryConnect = async (historyItem: any) => {
     setHost(historyItem.host);
-    setPort(historyItem.port.toString());
     setShowHistory(false);
     
+    // Update interface ports from stored history
+    if (historyItem.showPorts) {
+      setRemotePort(historyItem.showPorts.remote.toString());
+      setStagePort(historyItem.showPorts.stage.toString());
+      setControlPort(historyItem.showPorts.control.toString());
+      setOutputPort(historyItem.showPorts.output.toString());
+    }
+    
     try {
-      // Use saved show ports if available, otherwise use defaults
+      // Use stored interface ports if available, otherwise use current form values
       const showPorts = historyItem.showPorts || {
-        remote: 5510,
-        stage: 5511,
-        control: 5512,
-        output: 5513,
+        remote: parseInt(remotePort),
+        stage: parseInt(stagePort),
+        control: parseInt(controlPort),
+        output: parseInt(outputPort),
       };
-      const connected = await connect(historyItem.host, historyItem.port, showPorts);
+      const connected = await connect(historyItem.host, 5505, showPorts); // Always use port 5505
       if (connected) {
         navigation.navigate('Interface');
       }
@@ -138,13 +130,22 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const handleDiscoveredConnect = async (service: any) => {
-    setHost(service.host || service.ip);
-    setPort(service.port.toString());
+    // Use the IP address and ignore the discovered port
+    const ip = service.ip || service.host;
+    setHost(ip);
     setShowDiscovered(false);
     stopDiscovery();
     
     try {
-      const connected = await connect(service.host || service.ip, service.port);
+      // Get current interface port settings
+      const showPorts = {
+        remote: parseInt(remotePort),
+        stage: parseInt(stagePort),
+        control: parseInt(controlPort),
+        output: parseInt(outputPort),
+      };
+      
+      const connected = await connect(ip, 5505, showPorts); // Always use port 5505
       if (connected) {
         navigation.navigate('Interface');
       }
@@ -249,19 +250,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
           {showAdvanced && (
             <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>API Port</Text>
-                <TextInput
-                  style={styles.input}
-                  value={port}
-                  onChangeText={setPort}
-                  placeholder="5505"
-                  placeholderTextColor={FreeShowTheme.colors.text + '66'}
-                  keyboardType="numeric"
-                  maxLength={5}
-                />
-              </View>
-
               <Text style={styles.sectionTitle}>Show Interface Ports</Text>
               
               <View style={styles.portGrid}>
@@ -345,7 +333,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       onPress={() => handleHistoryConnect(item)}
                     >
                       <View style={styles.historyItemContent}>
-                        <Text style={styles.historyHost}>{item.host}:{item.port}</Text>
+                        <Text style={styles.historyHost}>{item.host}</Text>
                         <Text style={styles.historyDate}>
                           {new Date(item.lastUsed).toLocaleDateString()}
                           {item.name && ` • ${item.name}`}
@@ -475,22 +463,34 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              style={[styles.button, styles.connectButton, isConnecting && styles.connectingButton]}
-              onPress={handleConnect}
-              disabled={isConnecting}
-            >
-              {isConnecting ? (
-                <>
-                  <View style={styles.spinner} />
-                  <Text style={[styles.buttonText, styles.buttonTextWithIcon]}>Connecting...</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.buttonText}>Connect</Text>
-                </>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.connectButton, isConnecting && styles.connectingButton]}
+                onPress={handleConnect}
+                disabled={isConnecting}
+              >
+                {isConnecting ? (
+                  <>
+                    <View style={styles.spinner} />
+                    <Text style={[styles.buttonText, styles.buttonTextWithIcon]}>Connecting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>Connect</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              {isConnecting && (
+                <TouchableOpacity
+                  style={[styles.button, styles.stopButton]}
+                  onPress={handleDisconnect}
+                >
+                  <Ionicons name="stop" size={20} color="white" />
+                  <Text style={[styles.buttonText, styles.buttonTextWithIcon]}>Stop</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -501,7 +501,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
             <Text style={styles.tipsText}>• Make sure FreeShow is running on your computer</Text>
             <Text style={styles.tipsText}>• Enable WebSocket/REST API in FreeShow Settings → Connections</Text>
             <Text style={styles.tipsText}>• Use your computer's local IP address (usually starts with 192.168.x.x)</Text>
-            <Text style={styles.tipsText}>• Default port is 5505 for WebSocket API</Text>
+            <Text style={styles.tipsText}>• FreeShow Remote uses port 5505 for WebSocket connection</Text>
             <Text style={styles.tipsText}>• Both devices should be on the same WiFi network</Text>
           </View>
         )}
@@ -516,7 +516,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           visible={showShareQR}
           onClose={() => setShowShareQR(false)}
           host={host}
-          port={port}
+          port="5505"
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -672,11 +672,20 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: FreeShowTheme.spacing.sm, // Add consistent spacing between icon and text
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: FreeShowTheme.spacing.md,
+  },
   connectButton: {
     backgroundColor: '#f0008c', // FreeShow pink
   },
   connectingButton: {
     backgroundColor: '#FF9800', // Orange when connecting
+  },
+  stopButton: {
+    backgroundColor: '#FF4136',
+    flex: 0,
+    minWidth: 100,
   },
   disconnectButton: {
     backgroundColor: '#FF4136',

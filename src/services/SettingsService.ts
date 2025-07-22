@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface ConnectionSettings {
   host: string;
-  port: number; // API port
   lastConnected: string; // ISO date string
   autoConnect: boolean;
   showPorts?: {
@@ -14,12 +13,17 @@ export interface ConnectionSettings {
 }
 
 export interface ConnectionHistory {
-  id: string;
-  host: string;
-  port: number;
+  id: string; // Now just the IP address
+  host: string; // IP address
   name?: string; // User-friendly name
   lastUsed: string; // ISO date string
   successfulConnections: number;
+  showPorts?: { // Interface port configs stored per IP
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  };
 }
 
 export interface AppSettings {
@@ -40,7 +44,7 @@ export class SettingsService {
   // Connection Settings
   static async saveConnectionSettings(
     host: string, 
-    port: number, 
+    port: number = 5505, // Keep parameter for backward compatibility but don't store it
     autoConnect: boolean = true,
     showPorts?: {
       remote: number;
@@ -52,7 +56,6 @@ export class SettingsService {
     try {
       const connectionSettings: ConnectionSettings = {
         host,
-        port,
         lastConnected: new Date().toISOString(),
         autoConnect,
         showPorts: showPorts || {
@@ -68,7 +71,7 @@ export class SettingsService {
       );
       
       // Also save to connection history
-      await this.addToConnectionHistory(host, port);
+      await this.addToConnectionHistory(host, port, undefined, showPorts);
       
       console.log('Connection settings saved:', connectionSettings);
     } catch (error) {
@@ -100,32 +103,48 @@ export class SettingsService {
   }
 
   // Connection History
-  static async addToConnectionHistory(host: string, port: number, name?: string): Promise<void> {
+  static async addToConnectionHistory(host: string, port: number = 5505, name?: string, showPorts?: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  }): Promise<void> {
     try {
       const history = await this.getConnectionHistory();
-      const id = `${host}:${port}`;
+      const id = host; // Use IP address as the unique identifier
       const now = new Date().toISOString();
       
-      // Find existing entry or create new one
+      // Find existing entry by IP address
       const existingIndex = history.findIndex(item => item.id === id);
       
       if (existingIndex >= 0) {
-        // Update existing entry
+        // Update existing entry, keeping or updating interface ports
         history[existingIndex] = {
           ...history[existingIndex],
           lastUsed: now,
           successfulConnections: history[existingIndex].successfulConnections + 1,
           name: name || history[existingIndex].name,
+          showPorts: showPorts || history[existingIndex].showPorts || {
+            remote: 5510,
+            stage: 5511,
+            control: 5512,
+            output: 5513,
+          },
         };
       } else {
         // Add new entry
         history.unshift({
           id,
           host,
-          port,
           name,
           lastUsed: now,
           successfulConnections: 1,
+          showPorts: showPorts || {
+            remote: 5510,
+            stage: 5511,
+            control: 5512,
+            output: 5513,
+          },
         });
       }
       
@@ -137,7 +156,7 @@ export class SettingsService {
         JSON.stringify(trimmedHistory)
       );
       
-      console.log('Connection history updated:', trimmedHistory);
+      console.log('Connection history updated (IP-based, no port):', trimmedHistory);
     } catch (error) {
       console.error('Failed to update connection history:', error);
     }
