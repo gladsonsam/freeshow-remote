@@ -107,6 +107,18 @@ class FreeShowService {
     }
   }
 
+  clearAll(): void {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('CLEAR_ALL');
+    }
+  }
+
+  clearSlide(): void {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('CLEAR_SLIDE');
+    }
+  }
+
   // Event system for listening to socket events
   on(event: string, callback: (data: any) => void): void {
     if (!this.listeners[event]) {

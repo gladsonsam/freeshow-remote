@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { freeShowService } from '../services/FreeShowService';
 import { SettingsService, ConnectionSettings, ConnectionHistory, AppSettings } from '../services/SettingsService';
 import { autoDiscoveryService, DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
@@ -10,6 +10,12 @@ interface ConnectionContextType {
   lastError: string | null;
   connectionHistory: ConnectionHistory[];
   appSettings: AppSettings;
+  currentShowPorts: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  } | null;
   connect: (host: string, port?: number, showPorts?: {
     remote: number;
     stage: number;
@@ -22,6 +28,12 @@ interface ConnectionContextType {
   removeFromHistory: (id: string) => Promise<void>;
   clearAllHistory: () => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
+  updateCurrentShowPorts: (ports: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  }) => void;
   freeShowService: typeof freeShowService;
   // Auto Discovery
   discoveredServices: DiscoveredFreeShowInstance[];
@@ -43,6 +55,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected');
   const [lastError, setLastError] = useState<string | null>(null);
   const [connectionHistory, setConnectionHistory] = useState<ConnectionHistory[]>([]);
+  const [currentShowPorts, setCurrentShowPorts] = useState<{
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  } | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>({
     theme: 'dark',
     notifications: true,
@@ -188,6 +206,26 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     }
   };
 
+  const updateCurrentShowPorts = useCallback((ports: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  }) => {
+    setCurrentShowPorts(prevPorts => {
+      // Only update if the ports have actually changed
+      if (!prevPorts || 
+          prevPorts.remote !== ports.remote ||
+          prevPorts.stage !== ports.stage ||
+          prevPorts.control !== ports.control ||
+          prevPorts.output !== ports.output) {
+        console.log('Updated current show ports:', ports);
+        return ports;
+      }
+      return prevPorts;
+    });
+  }, []);
+
   useEffect(() => {
     checkConnection();
     
@@ -226,8 +264,17 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         setConnectionHost(host);
         setConnectionStatus('connected');
         
+        // Store the current show ports (use defaults if not provided)
+        const currentPorts = showPorts || {
+          remote: 5510,
+          stage: 5511,
+          control: 5512,
+          output: 5513,
+        };
+        setCurrentShowPorts(currentPorts);
+        
         // Add to connection history with interface ports
-        await SettingsService.addToConnectionHistory(host, port, undefined, showPorts);
+        await SettingsService.addToConnectionHistory(host, port, undefined, currentPorts);
         
         // Refresh connection history
         await loadConnectionHistory();
@@ -250,6 +297,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     setIsConnected(false);
     setConnectionHost(null);
     setConnectionStatus('disconnected');
+    setCurrentShowPorts(null);
     setLastError(null);
   };
 
@@ -325,6 +373,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     lastError,
     connectionHistory,
     appSettings,
+    currentShowPorts,
     connect,
     disconnect,
     checkConnection,
@@ -332,6 +381,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     removeFromHistory,
     clearAllHistory,
     updateAppSettings,
+    updateCurrentShowPorts,
     freeShowService,
     // Auto Discovery
     discoveredServices,

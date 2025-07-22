@@ -22,7 +22,7 @@ interface WebViewScreenProps {
 
 const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const { url, title, showId } = route.params || {};
-  const { connectionHost } = useConnection();
+  const { connectionHost, currentShowPorts } = useConnection();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -155,6 +155,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
               currentTitle={title}
               currentShowId={showId}
               connectionHost={connectionHost}
+              showPorts={currentShowPorts || undefined}
               onShowSelect={handleShowSelect}
             />
           ) : (

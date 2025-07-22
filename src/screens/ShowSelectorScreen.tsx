@@ -18,7 +18,7 @@ interface ShowSelectorScreenProps {
 }
 
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
-  const { isConnected, connectionHost, disconnect } = useConnection();
+  const { isConnected, connectionHost, disconnect, currentShowPorts } = useConnection();
 
   const getShowOptions = (): ShowOption[] => {
     const defaultPorts = {
@@ -28,8 +28,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       output: 5513,
     };
 
-    // Use default ports since we simplified the connection system
-    const showPorts = defaultPorts;
+    // Use current show ports if available, otherwise fall back to defaults
+    const showPorts = currentShowPorts || defaultPorts;
 
     return [
       {

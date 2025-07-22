@@ -48,7 +48,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     stopDiscovery,
     getConnectionHistory,
     removeFromHistory,
-    clearAllHistory
+    clearAllHistory,
+    updateCurrentShowPorts
   } = useConnection();
 
   // Connection pulse animation for visual feedback
@@ -88,6 +89,19 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       setHost(connectionHost);
     }
   }, [isConnected, connectionHost, connectionHistory]);
+
+  // Update current show ports whenever port values change and we're connected
+  useEffect(() => {
+    if (isConnected) {
+      const showPorts = {
+        remote: parseInt(remotePort) || 5510,
+        stage: parseInt(stagePort) || 5511,
+        control: parseInt(controlPort) || 5512,
+        output: parseInt(outputPort) || 5513,
+      };
+      updateCurrentShowPorts(showPorts);
+    }
+  }, [isConnected, remotePort, stagePort, controlPort, outputPort]);
 
   const handleConnect = async () => {
     if (!host.trim()) {
@@ -434,7 +448,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.advancedToggle}
               onPress={() => setShowAdvanced(!showAdvanced)}
-              disabled={isConnected}
             >
               <Text style={styles.advancedText}>Interface Ports</Text>
               <Ionicons 
@@ -458,7 +471,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
-                      editable={!isConnected}
                     />
                   </View>
 
@@ -472,7 +484,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
-                      editable={!isConnected}
                     />
                   </View>
 
@@ -486,7 +497,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
-                      editable={!isConnected}
                     />
                   </View>
 
@@ -500,7 +510,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
-                      editable={!isConnected}
                     />
                   </View>
                 </View>

@@ -15,6 +15,12 @@ interface ShowSwitcherProps {
   currentTitle: string;
   currentShowId: string;
   connectionHost: string;
+  showPorts?: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+  };
   onShowSelect: (show: ShowOption) => void;
 }
 
@@ -22,6 +28,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   currentTitle,
   currentShowId,
   connectionHost,
+  showPorts,
   onShowSelect,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,15 +41,15 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
       output: 5513,
     };
 
-    // Use default ports since we simplified the connection system
-    const showPorts = defaultPorts;
+    // Use provided show ports or fall back to defaults
+    const actualPorts = showPorts || defaultPorts;
 
     return [
       {
         id: 'remote',
         title: 'RemoteShow',
         description: 'Control slides and presentations remotely',
-        port: showPorts.remote,
+        port: actualPorts.remote,
         icon: 'play-circle',
         color: '#f0008c',
       },
@@ -50,7 +57,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'stage',
         title: 'StageShow',
         description: 'Stage display for performers and speakers',
-        port: showPorts.stage,
+        port: actualPorts.stage,
         icon: 'desktop',
         color: '#2ECC40',
       },
@@ -58,7 +65,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'control',
         title: 'ControlShow',
         description: 'Full control interface for operators',
-        port: showPorts.control,
+        port: actualPorts.control,
         icon: 'settings',
         color: '#0074D9',
       },
@@ -66,7 +73,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'output',
         title: 'OutputShow',
         description: 'Output display for screens and projectors',
-        port: showPorts.output,
+        port: actualPorts.output,
         icon: 'tv',
         color: '#FF851B',
       },
