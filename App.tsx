@@ -56,12 +56,20 @@ function MainTabs() {
           backgroundColor: FreeShowTheme.colors.primaryDarkest,
           borderTopColor: FreeShowTheme.colors.primaryLighter,
           borderTopWidth: 2,
+          height: 75,
+          paddingBottom: 12, // Increased bottom padding to push content up
+          paddingTop: 4, // Reduced top padding
         },
         headerShown: false,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
           fontFamily: FreeShowTheme.fonts.system,
+          marginTop: 2, // Reduced space between icon and label
+          marginBottom: 0,
+        },
+        tabBarIconStyle: {
+          marginBottom: 0,
         },
       })}
     >
