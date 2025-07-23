@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { freeShowService } from '../services/FreeShowService';
 import { SettingsService, ConnectionSettings, ConnectionHistory, AppSettings } from '../services/SettingsService';
 import { autoDiscoveryService, DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
+import { ErrorLogger } from '../services/ErrorLogger';
 
 interface ConnectionContextType {
   isConnected: boolean;
@@ -72,12 +73,22 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
   const [discoveredServices, setDiscoveredServices] = useState<DiscoveredFreeShowInstance[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
 
+  // Auto-connect state - prevent multiple auto-connect attempts
+  const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false);
+  
+  // Track when initial data loading is complete
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
   // Load app settings and connection history on startup
   useEffect(() => {
     const initializeApp = async () => {
-      console.log('Initializing app...');
+      ErrorLogger.info('Initializing app...', 'ConnectionContext');
       await loadAppSettings();
       await loadConnectionHistory();
+      
+      // Mark that initial data loading is complete
+      setIsDataLoaded(true);
+      ErrorLogger.debug('Initial data loading complete', 'ConnectionContext');
     };
     
     initializeApp();
@@ -88,21 +99,34 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     let autoConnectTimeout: NodeJS.Timeout | null = null;
     
     const attemptAutoConnect = async () => {
+      ErrorLogger.debug('Auto-connect check', 'ConnectionContext', {
+        hasAttemptedAutoConnect,
+        historyLength: connectionHistory.length,
+        autoReconnect: appSettings.autoReconnect,
+        isConnected,
+        connectionStatus
+      });
+      
       if (
         connectionHistory.length > 0 && 
         appSettings.autoReconnect && 
         !isConnected && 
         connectionStatus === 'disconnected'
       ) {
+        // Mark that we've attempted auto-connect
+        setHasAttemptedAutoConnect(true);
+        
         // Get the most recent connection (last in history)
         const lastConnection = connectionHistory[connectionHistory.length - 1];
-        console.log('Attempting auto-connect to last connection:', lastConnection.host);
+        ErrorLogger.info('Attempting auto-connect to last connection', 'ConnectionContext', { host: lastConnection.host });
         
         // Delay slightly to ensure services are ready, then attempt connection
         setTimeout(async () => {
           // Set up auto-connect timeout after connection starts
           autoConnectTimeout = setTimeout(() => {
-            console.log('⏰ Auto-connect timeout reached, canceling connection attempt');
+            ErrorLogger.warn('⏰ Auto-connect timeout reached, canceling connection attempt', 'ConnectionContext');
+            // Cancel the ongoing connection attempt
+            freeShowService.disconnect();
             setConnectionStatus('error');
             setLastError('Auto-connect timeout - connection took too long');
           }, appSettings.connectionTimeout * 1000); // Use connectionTimeout from settings
@@ -114,26 +138,53 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
               autoConnectTimeout = null;
             }
             if (!success) {
-              console.log('❌ Auto-connect failed');
+              ErrorLogger.warn('❌ Auto-connect failed', 'ConnectionContext');
             } else {
-              console.log('✅ Auto-connect successful');
+              ErrorLogger.info('✅ Auto-connect successful', 'ConnectionContext');
             }
           } catch (error) {
             if (autoConnectTimeout) {
               clearTimeout(autoConnectTimeout);
               autoConnectTimeout = null;
             }
-            console.error('❌ Auto-connect error:', error);
+            ErrorLogger.error('❌ Auto-connect error', 'ConnectionContext', error instanceof Error ? error : new Error(String(error)));
           }
         }, 1500);
-      } else if (connectionHistory.length === 0) {
-        console.log('No connection history found - skipping auto-connect');
+      } else {
+        // Mark that we've attempted auto-connect even if conditions aren't met
+        setHasAttemptedAutoConnect(true);
+        if (connectionHistory.length === 0) {
+          ErrorLogger.info('No connection history found - skipping auto-connect', 'ConnectionContext');
+        } else if (!appSettings.autoReconnect) {
+          ErrorLogger.info('Auto-reconnect disabled - skipping auto-connect', 'ConnectionContext');
+        } else {
+          ErrorLogger.info('Auto-connect conditions not met', 'ConnectionContext', {
+            isConnected,
+            connectionStatus
+          });
+        }
       }
     };
 
-    // Only attempt auto-connect when history is loaded and app settings are ready
-    if (connectionHistory.length >= 0 && appSettings.autoReconnect !== undefined) {
+    // Only attempt auto-connect when initial data is loaded AND we haven't attempted yet
+    if (
+      isDataLoaded && 
+      !hasAttemptedAutoConnect
+    ) {
+      ErrorLogger.debug('Ready for auto-connect check', 'ConnectionContext', {
+        historyLength: connectionHistory.length,
+        autoReconnect: appSettings.autoReconnect,
+        hasAttemptedAutoConnect,
+        isDataLoaded
+      });
       attemptAutoConnect();
+    } else {
+      ErrorLogger.debug('Not ready for auto-connect yet', 'ConnectionContext', {
+        hasAttemptedAutoConnect,
+        historyLength: connectionHistory.length,
+        autoReconnectDefined: appSettings.autoReconnect !== undefined,
+        isDataLoaded
+      });
     }
 
     // Cleanup timeout on unmount
@@ -142,15 +193,15 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         clearTimeout(autoConnectTimeout);
       }
     };
-  }, [connectionHistory, appSettings.autoReconnect]);
+  }, [isDataLoaded, hasAttemptedAutoConnect]);
 
   const loadAppSettings = async (): Promise<void> => {
     try {
       const settings = await SettingsService.getAppSettings();
       setAppSettings(settings);
-      console.log('Loaded app settings:', settings);
+      ErrorLogger.info('Loaded app settings', 'ConnectionContext', { settings });
     } catch (error) {
-      console.error('Failed to load app settings:', error);
+      ErrorLogger.error('Failed to load app settings', 'ConnectionContext', error instanceof Error ? error : new Error(String(error)));
     }
   };
 
