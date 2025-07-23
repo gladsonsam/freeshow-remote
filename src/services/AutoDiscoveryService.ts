@@ -10,6 +10,8 @@ export interface DiscoveredFreeShowInstance {
 export type DiscoveryEventCallback = (instances: DiscoveredFreeShowInstance[]) => void;
 export type ErrorEventCallback = (error: string) => void;
 
+import { ErrorLogger } from './ErrorLogger';
+
 class AutoDiscoveryService {
   private zeroconf: Zeroconf | null = null;
   private discoveredServices: Map<string, DiscoveredFreeShowInstance> = new Map();
@@ -26,27 +28,27 @@ class AutoDiscoveryService {
 
   constructor() {
     try {
-      console.log('🔧 AutoDiscovery: Initializing Zeroconf service...');
+      ErrorLogger.debug('🔧 AutoDiscovery: Initializing Zeroconf service...', 'AutoDiscoveryService');
       this.zeroconf = new Zeroconf();
       
       if (!this.zeroconf) {
         throw new Error('Zeroconf constructor returned null/undefined');
       }
       
-      console.log('✅ AutoDiscovery: Zeroconf initialized successfully');
+      ErrorLogger.info('✅ AutoDiscovery: Zeroconf initialized successfully', 'AutoDiscoveryService');
       this.setupEventListeners();
     } catch (error) {
-      console.error('❌ AutoDiscovery: Failed to initialize Zeroconf:', error);
+      ErrorLogger.error('❌ AutoDiscovery: Failed to initialize Zeroconf', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
       
       // Check if we're in Expo Go
       const globalAny = global as any;
       const isExpoGo = __DEV__ && globalAny.__expo?.packagerConnection;
       
       if (isExpoGo) {
-        console.log('💡 AutoDiscovery: Running in Expo Go - native modules not available');
-        console.log('🔨 AutoDiscovery: Please create a development build to use autodiscovery');
+        ErrorLogger.info('💡 AutoDiscovery: Running in Expo Go - native modules not available', 'AutoDiscoveryService');
+        ErrorLogger.info('🔨 AutoDiscovery: Please create a development build to use autodiscovery', 'AutoDiscoveryService');
       } else {
-        console.log('💡 AutoDiscovery: This may be due to missing native dependencies or permissions');
+        ErrorLogger.info('💡 AutoDiscovery: This may be due to missing native dependencies or permissions', 'AutoDiscoveryService');
       }
       
       this.zeroconf = null;
@@ -57,29 +59,29 @@ class AutoDiscoveryService {
 
   private setupEventListeners(): void {
     if (!this.zeroconf) {
-      console.warn('⚠️ AutoDiscovery: Zeroconf not initialized, skipping event listeners setup');
+      ErrorLogger.warn('⚠️ AutoDiscovery: Zeroconf not initialized, skipping event listeners setup', 'AutoDiscoveryService');
       return;
     }
 
     // Service found
     this.zeroconf.on('start', () => {
-      console.log('🔍 AutoDiscovery: Started scanning for FreeShow instances');
+      ErrorLogger.info('🔍 AutoDiscovery: Started scanning for FreeShow instances', 'AutoDiscoveryService');
     });
 
     this.zeroconf.on('stop', () => {
-      console.log('🛑 AutoDiscovery: Stopped scanning');
+      ErrorLogger.info('🛑 AutoDiscovery: Stopped scanning', 'AutoDiscoveryService');
       this.isScanning = false;
       this.clearScanTimeout();
     });
 
     this.zeroconf.on('error', (error: ZeroconfError) => {
-      console.error('❌ AutoDiscovery Error:', error);
+      ErrorLogger.error('❌ AutoDiscovery Error', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
       this.notifyError(`Discovery error: ${error.message || 'Unknown error'}`);
     });
 
     // Service resolved (we get the full details)
     this.zeroconf.on('resolved', (service: ZeroconfService) => {
-      console.log('✅ AutoDiscovery: FreeShow service resolved:', service);
+      ErrorLogger.info('✅ AutoDiscovery: FreeShow service resolved', 'AutoDiscoveryService', { service });
       
       // Get the primary IP address
       const primaryIP = service.addresses?.[0] || service.host;
@@ -89,7 +91,7 @@ class AutoDiscoveryService {
         .find(existing => existing.ip === primaryIP);
       
       if (existingService) {
-        console.log(`🔍 AutoDiscovery: Skipping duplicate IP ${primaryIP}`);
+        ErrorLogger.debug(`🔍 AutoDiscovery: Skipping duplicate IP ${primaryIP}`, 'AutoDiscoveryService');
         return;
       }
       
@@ -108,7 +110,7 @@ class AutoDiscoveryService {
 
     // Service removed
     this.zeroconf.on('remove', (service: ZeroconfService) => {
-      console.log('🗑️ AutoDiscovery: FreeShow service removed:', service.name);
+      ErrorLogger.info('🗑️ AutoDiscovery: FreeShow service removed', 'AutoDiscoveryService', { serviceName: service.name });
       const primaryIP = service.addresses?.[0] || service.host;
       this.discoveredServices.delete(primaryIP);
       this.notifyServicesUpdated();
@@ -122,18 +124,18 @@ class AutoDiscoveryService {
   startDiscovery(): void {
     if (!this.zeroconf) {
       const error = 'Autodiscovery requires a development build. Please use manual connection.';
-      console.error('❌ AutoDiscovery:', error);
+      ErrorLogger.error('❌ AutoDiscovery', 'AutoDiscoveryService', new Error(String(error)));
       this.notifyError(error);
       return;
     }
 
     if (this.isScanning) {
-      console.log('⚠️ AutoDiscovery: Already scanning');
+      ErrorLogger.warn('⚠️ AutoDiscovery: Already scanning', 'AutoDiscoveryService');
       return;
     }
 
     try {
-      console.log(`🔍 AutoDiscovery: Starting scan for FreeShow services (${this.SCAN_TIMEOUT_MS / 1000}s timeout)...`);
+      ErrorLogger.info(`🔍 AutoDiscovery: Starting scan for FreeShow services (${this.SCAN_TIMEOUT_MS / 1000}s timeout)...`, 'AutoDiscoveryService');
       this.discoveredServices.clear();
       this.isScanning = true;
       
@@ -144,7 +146,7 @@ class AutoDiscoveryService {
       // FreeShow publishes with type "freeshow" and protocol "udp"
       this.zeroconf.scan('freeshow', 'udp');
     } catch (error) {
-      console.error('❌ AutoDiscovery: Failed to start scanning:', error);
+      ErrorLogger.error('❌ AutoDiscovery: Failed to start scanning', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
       this.isScanning = false;
       this.notifyError(`Failed to start discovery: ${error}. Try using manual connection instead.`);
     }
@@ -155,7 +157,7 @@ class AutoDiscoveryService {
    */
   stopDiscovery(): void {
     if (!this.zeroconf) {
-      console.warn('⚠️ AutoDiscovery: Zeroconf not initialized');
+      ErrorLogger.warn('⚠️ AutoDiscovery: Zeroconf not initialized', 'AutoDiscoveryService');
       return;
     }
 
@@ -164,7 +166,7 @@ class AutoDiscoveryService {
     }
 
     try {
-      console.log('🛑 AutoDiscovery: Stopping scan...');
+      ErrorLogger.info('🛑 AutoDiscovery: Stopping scan...', 'AutoDiscoveryService');
       this.clearScanTimeout();
       this.isScanning = false;
       this.zeroconf.stop();

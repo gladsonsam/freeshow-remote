@@ -14,6 +14,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { useConnection } from '../contexts/ConnectionContext';
+import { ErrorLogger } from '../services/ErrorLogger';
 
 interface WebViewScreenProps {
   navigation: any;
@@ -82,7 +83,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_LEFT);
       }
     } catch (error) {
-      console.error('Failed to rotate screen:', error);
+      ErrorLogger.error('Failed to rotate screen', 'WebViewScreen', error instanceof Error ? error : new Error(String(error)));
       Alert.alert('Error', 'Failed to rotate screen');
     }
   };

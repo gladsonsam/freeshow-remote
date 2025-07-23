@@ -12,6 +12,8 @@ import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { ConnectionProvider, useConnection } from './src/contexts/ConnectionContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { ErrorLogger } from './src/services/ErrorLogger';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -63,17 +65,27 @@ function MainTabs() {
       })}
     >
       <Tab.Screen 
-        name="Interface" 
-        component={ShowSelectorScreen}
+        name="Interface"
         options={{ tabBarLabel: 'Interface' }}
-      />
+      >
+        {(props) => (
+          <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ShowSelectorScreen Error', 'App', error, { errorInfo })}>
+            <ShowSelectorScreen {...props} />
+          </ErrorBoundary>
+        )}
+      </Tab.Screen>
       <Tab.Screen 
-        name="Connect" 
-        component={ConnectScreen}
+        name="Connect"
         options={{
           tabBarLabel: 'Connect',
         }}
-      />
+      >
+        {(props) => (
+          <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ConnectScreen Error', 'App', error, { errorInfo })}>
+            <ConnectScreen {...props} />
+          </ErrorBoundary>
+        )}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }
@@ -94,32 +106,44 @@ const FreeShowNavigationTheme = {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ConnectionProvider>
-        <NavigationContainer theme={FreeShowNavigationTheme}>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              cardStyle: { backgroundColor: FreeShowTheme.colors.primary },
-            }}
-          >
-            <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen 
-              name="WebView" 
-              component={WebViewScreen}
-              options={{
-                presentation: 'modal',
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        ErrorLogger.fatal('App-level Error', 'App', error, { errorInfo });
+        // In production, you might want to report this to a crash analytics service
+      }}
+    >
+      <SafeAreaProvider>
+        <ConnectionProvider>
+          <NavigationContainer theme={FreeShowNavigationTheme}>
+            <Stack.Navigator
+              screenOptions={{
                 headerShown: false,
+                cardStyle: { backgroundColor: FreeShowTheme.colors.primary },
               }}
+            >
+              <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen 
+                name="WebView"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              >
+                {(props) => (
+                  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('WebViewScreen Error', 'App', error, { errorInfo })}>
+                    <WebViewScreen {...props} />
+                  </ErrorBoundary>
+                )}
+              </Stack.Screen>
+            </Stack.Navigator>
+            <StatusBar 
+              style="light" 
+              backgroundColor="transparent"
+              translucent={true}
             />
-          </Stack.Navigator>
-          <StatusBar 
-            style="light" 
-            backgroundColor="transparent"
-            translucent={true}
-          />
-        </NavigationContainer>
-      </ConnectionProvider>
-    </SafeAreaProvider>
+          </NavigationContainer>
+        </ConnectionProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

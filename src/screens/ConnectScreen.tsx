@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts/ConnectionContext';
 import QRScannerModal from '../components/QRScannerModal';
+import { ErrorLogger } from '../services/ErrorLogger';
 import ShareQRModal from '../components/ShareQRModal';
 
 interface ConnectScreenProps {
@@ -85,7 +86,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   // Update form fields when connected to show current connection details
   useEffect(() => {
     if (isConnected && connectionHost) {
-      console.log('Updating form with current connection:', connectionHost);
+      ErrorLogger.debug('Updating form with current connection', 'ConnectScreen', { connectionHost });
       setHost(connectionHost);
     }
   }, [isConnected, connectionHost, connectionHistory]);
@@ -130,7 +131,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         navigation.navigate('Interface');
       }
     } catch (error) {
-      console.error('Connection failed:', error);
+      ErrorLogger.error('Manual connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
     }
   };
 
@@ -158,7 +159,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         navigation.navigate('Interface');
       }
     } catch (error) {
-      console.error('Connection failed:', error);
+      ErrorLogger.error('History connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
     }
   };
 
@@ -186,7 +187,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         navigation.navigate('Interface');
       }
     } catch (error) {
-      console.error('Connection to discovered service failed:', error);
+      ErrorLogger.error('Discovered service connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
     }
   };
 

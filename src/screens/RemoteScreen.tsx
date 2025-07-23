@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useConnection } from '../contexts/ConnectionContext';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { ErrorLogger } from '../services/ErrorLogger';
 
 export default function RemoteScreen() {
   const { isConnected, freeShowService } = useConnection();
@@ -41,7 +42,7 @@ export default function RemoteScreen() {
           freeShowService.clearAll();
           break;
         default:
-          console.warn('Unknown action:', action);
+          ErrorLogger.warn('Unknown action', 'RemoteScreen', undefined, { action });
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send command');

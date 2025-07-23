@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
 import { useConnection } from '../contexts/ConnectionContext';
+import { ErrorLogger } from '../services/ErrorLogger';
 
 interface ShowSwitcherProps {
   currentTitle: string;
@@ -84,7 +85,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   const currentShow = showOptions.find(show => show.id === currentShowId);
 
   const handleShowSelect = (show: ShowOption) => {
-    console.log('ShowSwitcher - handleShowSelect called with:', show);
+    ErrorLogger.debug('ShowSwitcher - handleShowSelect called with', 'ShowSwitcher', { show });
     setModalVisible(false);
     onShowSelect(show);
   };
