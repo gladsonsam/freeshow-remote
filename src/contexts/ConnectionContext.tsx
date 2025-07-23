@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
-import { SettingsService, ConnectionSettings, ConnectionHistory, AppSettings } from '../services/SettingsService';
+import { settingsRepository, AppSettings, ConnectionHistory } from '../repositories/SettingsRepository';
 import { autoDiscoveryService, DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
@@ -233,7 +233,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   const loadAppSettings = async (): Promise<void> => {
     try {
-      const settings = await SettingsService.getAppSettings();
+      const settings = await settingsRepository.getAppSettings();
       setAppSettings(settings);
       ErrorLogger.info('Loaded app settings', 'ConnectionContext', { settings });
     } catch (error) {
@@ -243,7 +243,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   const loadConnectionHistory = async (): Promise<void> => {
     try {
-      const history = await SettingsService.getConnectionHistory();
+      const history = await settingsRepository.getConnectionHistory();
       setConnectionHistory(history);
       console.log('Loaded connection history:', history);
     } catch (error) {
@@ -253,7 +253,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   const getConnectionHistory = async (): Promise<ConnectionHistory[]> => {
     try {
-      const history = await SettingsService.getConnectionHistory();
+      const history = await settingsRepository.getConnectionHistory();
       setConnectionHistory(history);
       return history;
     } catch (error) {
@@ -264,7 +264,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   const removeFromHistory = async (id: string): Promise<void> => {
     try {
-      await SettingsService.removeFromConnectionHistory(id);
+      await settingsRepository.removeFromConnectionHistory(id);
       await loadConnectionHistory(); // Refresh history
       console.log('Removed connection from history:', id);
     } catch (error) {
@@ -274,7 +274,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   const clearAllHistory = async (): Promise<void> => {
     try {
-      await SettingsService.clearConnectionHistory();
+      await settingsRepository.clearConnectionHistory();
       setConnectionHistory([]); // Clear local state immediately
       console.log('Cleared all connection history');
     } catch (error) {
@@ -284,8 +284,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
 
   const updateAppSettings = async (newSettings: Partial<AppSettings>): Promise<void> => {
     try {
-      await SettingsService.saveAppSettings(newSettings);
-      const updatedSettings = { ...appSettings, ...newSettings };
+      const updatedSettings = await settingsRepository.updateAppSettings(newSettings);
       setAppSettings(updatedSettings);
       console.log('Updated app settings:', updatedSettings);
     } catch (error) {
@@ -364,7 +363,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         setCurrentShowPorts(currentPorts);
         
         // Add to connection history with interface ports
-        await SettingsService.addToConnectionHistory(host, port, undefined, currentPorts);
+        await settingsRepository.addToConnectionHistory(host, port, undefined, currentPorts);
         
         // Refresh connection history
         await loadConnectionHistory();
