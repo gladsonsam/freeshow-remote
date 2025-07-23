@@ -18,6 +18,12 @@ class AutoDiscoveryService {
   private isScanning: boolean = false;
   private scanTimeout: NodeJS.Timeout | null = null;
   private readonly SCAN_TIMEOUT_MS = 15000; // 15 seconds timeout
+  
+  // Throttling and debouncing for performance optimization
+  private updateThrottleTimeout: NodeJS.Timeout | null = null;
+  private readonly UPDATE_THROTTLE_MS = 500; // Throttle service updates to max once per 500ms
+  private pendingUpdate = false;
+  
   private listeners: {
     onServicesUpdated: DiscoveryEventCallback[];
     onError: ErrorEventCallback[];
@@ -105,7 +111,7 @@ class AutoDiscoveryService {
       // Use IP as the unique key for deduplication
       this.discoveredServices.set(primaryIP, instance);
       
-      this.notifyServicesUpdated();
+      this.notifyServicesUpdatedThrottled();
     });
 
     // Service removed
@@ -113,7 +119,7 @@ class AutoDiscoveryService {
       ErrorLogger.info('🗑️ AutoDiscovery: FreeShow service removed', 'AutoDiscoveryService', { serviceName: service.name });
       const primaryIP = service.addresses?.[0] || service.host;
       this.discoveredServices.delete(primaryIP);
-      this.notifyServicesUpdated();
+      this.notifyServicesUpdatedThrottled();
     });
   }
 
@@ -244,6 +250,7 @@ class AutoDiscoveryService {
     this.removeAllListeners();
     this.discoveredServices.clear();
     this.clearScanTimeout();
+    this.clearUpdateThrottle();
   }
 
   private setScanTimeout(): void {
@@ -267,23 +274,61 @@ class AutoDiscoveryService {
     }
   }
 
+  private clearUpdateThrottle(): void {
+    if (this.updateThrottleTimeout) {
+      clearTimeout(this.updateThrottleTimeout);
+      this.updateThrottleTimeout = null;
+    }
+    this.pendingUpdate = false;
+  }
+
+  /**
+   * Throttled version of notifyServicesUpdated to prevent excessive updates
+   * This improves performance by batching rapid discovery events
+   */
+  private notifyServicesUpdatedThrottled(): void {
+    // If we already have a pending update, just mark that we need to update
+    if (this.updateThrottleTimeout) {
+      this.pendingUpdate = true;
+      return;
+    }
+
+    // Immediately notify for the first event
+    this.notifyServicesUpdated();
+    
+    // Set up throttling for subsequent events
+    this.updateThrottleTimeout = setTimeout(() => {
+      this.updateThrottleTimeout = null;
+      
+      // If there was a pending update during throttle period, process it now
+      if (this.pendingUpdate) {
+        this.pendingUpdate = false;
+        this.notifyServicesUpdated();
+      }
+    }, this.UPDATE_THROTTLE_MS);
+  }
+
   private notifyServicesUpdated(): void {
     const services = this.getDiscoveredServices();
+    ErrorLogger.debug(`🔄 AutoDiscovery: Notifying ${this.listeners.onServicesUpdated.length} listeners of ${services.length} services`, 'AutoDiscoveryService');
+    
     this.listeners.onServicesUpdated.forEach(callback => {
       try {
         callback(services);
       } catch (error) {
-        console.error('❌ Error in services updated callback:', error);
+        ErrorLogger.error('❌ Error in services updated callback', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
 
   private notifyError(error: string): void {
+    ErrorLogger.warn(`⚠️ AutoDiscovery: ${error}`, 'AutoDiscoveryService');
+    
     this.listeners.onError.forEach(callback => {
       try {
         callback(error);
       } catch (err) {
-        console.error('❌ Error in error callback:', err);
+        ErrorLogger.error('❌ Error in error callback', 'AutoDiscoveryService', err instanceof Error ? err : new Error(String(err)));
       }
     });
   }

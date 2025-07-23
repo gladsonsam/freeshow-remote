@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
 import { useConnection } from '../contexts/ConnectionContext';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { configService } from '../config/AppConfig';
 
 interface ShowSwitcherProps {
   currentTitle: string;
@@ -34,14 +35,11 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
-  const getShowOptions = (): ShowOption[] => {
-    const defaultPorts = {
-      remote: 5510,
-      stage: 5511,
-      control: 5512,
-      output: 5513,
-    };
+  // Memoize the default ports configuration
+  const defaultPorts = useMemo(() => configService.getConfig().defaultShowPorts, []);
 
+  // Memoize show options calculation - only recalculates when showPorts changes
+  const showOptions = useMemo((): ShowOption[] => {
     // Use provided show ports or fall back to defaults
     const actualPorts = showPorts || defaultPorts;
 
@@ -79,22 +77,33 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         color: '#FF851B',
       },
     ];
-  };
+  }, [showPorts, defaultPorts]);
 
-  const showOptions = getShowOptions();
-  const currentShow = showOptions.find(show => show.id === currentShowId);
+  // Memoize current show lookup - only recalculates when showOptions or currentShowId changes
+  const currentShow = useMemo(() => {
+    return showOptions.find(show => show.id === currentShowId);
+  }, [showOptions, currentShowId]);
 
-  const handleShowSelect = (show: ShowOption) => {
+  // Memoize event handlers to prevent prop drilling and unnecessary re-renders
+  const handleShowSelect = useCallback((show: ShowOption) => {
     ErrorLogger.debug('ShowSwitcher - handleShowSelect called with', 'ShowSwitcher', { show });
     setModalVisible(false);
     onShowSelect(show);
-  };
+  }, [onShowSelect]);
+
+  const handleOpenModal = useCallback(() => {
+    setModalVisible(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setModalVisible(false);
+  }, []);
 
   return (
     <>
       <TouchableOpacity 
         style={styles.titleContainer} 
-        onPress={() => setModalVisible(true)}
+        onPress={handleOpenModal}
         activeOpacity={0.7}
       >
         <Text style={styles.title}>{currentTitle}</Text>
@@ -105,19 +114,19 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         animationType="fade"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleCloseModal}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.backgroundTouchable}
             activeOpacity={1}
-            onPress={() => setModalVisible(false)}
+            onPress={handleCloseModal}
           />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Switch Interface</Text>
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
+                onPress={handleCloseModal}
                 style={styles.closeButton}
               >
                 <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />

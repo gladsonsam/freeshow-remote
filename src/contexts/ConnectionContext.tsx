@@ -102,6 +102,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
   // Auto-connect to last connection in history on startup
   useEffect(() => {
     let autoConnectTimeout: NodeJS.Timeout | null = null;
+    let autoConnectDelayTimeout: NodeJS.Timeout | null = null;
     
     const attemptAutoConnect = async () => {
       ErrorLogger.debug('Auto-connect check', 'ConnectionContext', {
@@ -123,10 +124,17 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         
         // Get the most recent connection (last in history)
         const lastConnection = connectionHistory[connectionHistory.length - 1];
-        ErrorLogger.info('Attempting auto-connect to last connection', 'ConnectionContext', { host: lastConnection.host });
+        ErrorLogger.info('Attempting auto-connect to last connection', 'ConnectionContext', { 
+          host: lastConnection.host, 
+          lastUsed: lastConnection.lastUsed,
+          showPorts: lastConnection.showPorts 
+        });
         
         // Delay slightly to ensure services are ready, then attempt connection
-        setTimeout(async () => {
+        ErrorLogger.debug('⏰ Setting auto-connect delay timeout (1500ms)', 'ConnectionContext');
+        autoConnectDelayTimeout = setTimeout(async () => {
+          ErrorLogger.debug('🚀 Auto-connect delay timeout reached, starting connection', 'ConnectionContext');
+          
           // Set up auto-connect timeout after connection starts
           autoConnectTimeout = setTimeout(() => {
             ErrorLogger.warn('⏰ Auto-connect timeout reached, canceling connection attempt', 'ConnectionContext');
@@ -137,15 +145,29 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
           }, appSettings.connectionTimeout * 1000); // Use connectionTimeout from settings
           
           try {
+            ErrorLogger.debug('Starting auto-connect attempt', 'ConnectionContext', { 
+              host: lastConnection.host, 
+              defaultPort: configService.getNetworkConfig().defaultPort,
+              showPorts: lastConnection.showPorts,
+              connectionTimeout: appSettings.connectionTimeout
+            });
+            
             const success = await connect(lastConnection.host, configService.getNetworkConfig().defaultPort, lastConnection.showPorts);
+            
+            ErrorLogger.debug('Auto-connect attempt completed', 'ConnectionContext', { 
+              success, 
+              connectionStatus: connectionStatus,
+              isConnected: isConnected
+            });
+            
             if (autoConnectTimeout) {
               clearTimeout(autoConnectTimeout);
               autoConnectTimeout = null;
             }
             if (!success) {
-              ErrorLogger.warn('❌ Auto-connect failed', 'ConnectionContext');
+              ErrorLogger.warn('❌ Auto-connect failed - connection returned false', 'ConnectionContext', new Error(`Host: ${lastConnection.host}, LastError: ${lastError || 'none'}`));
             } else {
-              ErrorLogger.info('✅ Auto-connect successful', 'ConnectionContext');
+              ErrorLogger.info('✅ Auto-connect successful', 'ConnectionContext', { host: lastConnection.host });
             }
           } catch (error) {
             if (autoConnectTimeout) {
@@ -192,13 +214,18 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
       });
     }
 
-    // Cleanup timeout on unmount
+    // Cleanup all timeouts on unmount or dependency changes
     return () => {
       if (autoConnectTimeout) {
         clearTimeout(autoConnectTimeout);
+        autoConnectTimeout = null;
+      }
+      if (autoConnectDelayTimeout) {
+        clearTimeout(autoConnectDelayTimeout);
+        autoConnectDelayTimeout = null;
       }
     };
-  }, [isDataLoaded, hasAttemptedAutoConnect]);
+  }, [isDataLoaded]); // Removed hasAttemptedAutoConnect from dependencies to prevent cleanup loop
 
   const loadAppSettings = async (): Promise<void> => {
     try {
@@ -310,11 +337,17 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     control: number;
     output: number;
   }): Promise<boolean> => {
+    ErrorLogger.debug('🔌 ConnectionContext.connect called', 'ConnectionContext', { host, port, showPorts });
+    
     setConnectionStatus('connecting');
     setLastError(null);
     
     try {
+      ErrorLogger.debug('🔌 Calling FreeShowService.connect', 'ConnectionContext', { host, port });
       const success = await freeShowService.connect(host, port);
+      
+      ErrorLogger.debug('🔌 FreeShowService.connect returned', 'ConnectionContext', { success, host, port });
+      
       if (success) {
         setIsConnected(true);
         setConnectionHost(host);
@@ -331,13 +364,16 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         // Refresh connection history
         await loadConnectionHistory();
         
+        ErrorLogger.debug('🔌 Connection setup completed successfully', 'ConnectionContext', { host, port });
         return true;
       } else {
+        ErrorLogger.warn('🔌 FreeShowService.connect returned false', 'ConnectionContext', new Error(`Host: ${host}, Port: ${port}`));
         setConnectionStatus('error');
         setLastError('Failed to connect to FreeShow');
         return false;
       }
     } catch (error) {
+      ErrorLogger.error('🔌 Exception in ConnectionContext.connect', 'ConnectionContext', error instanceof Error ? error : new Error(String(error)));
       setConnectionStatus('error');
       setLastError(error instanceof Error ? error.message : 'Connection failed');
       return false;
