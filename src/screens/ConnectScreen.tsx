@@ -491,7 +491,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                             <Text style={styles.recentDeviceIP}>{item.host}</Text>
                             <Text style={styles.recentDeviceTime}>
                               {new Date(item.lastUsed).toLocaleDateString()}
-                              {item.name && ` • ${item.name}`}
                             </Text>
                           </View>
                           <TouchableOpacity
