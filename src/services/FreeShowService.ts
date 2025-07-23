@@ -1,6 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { Platform } from 'react-native';
 import { ErrorLogger } from './ErrorLogger';
+import { configService } from '../config/AppConfig';
+import { ValidationService } from './InputValidationService';
 
 // Error types for better error handling
 export class FreeShowConnectionError extends Error {
@@ -28,24 +30,47 @@ class FreeShowService {
   private socket: Socket | null = null;
   private isConnected: boolean = false;
   private listeners: { [key: string]: ((data: any) => void)[] } = {};
-  private connectionTimeout: number = 10000;
-  private maxReconnectionAttempts: number = 5;
+  private networkConfig = configService.getNetworkConfig();
   private currentReconnectionAttempt: number = 0;
 
-  async connect(host: string, port: number = 5505): Promise<boolean> {
+  constructor() {
+    // Initialize configuration on service creation
+    this.initializeConfiguration();
+  }
+
+  private async initializeConfiguration(): Promise<void> {
+    try {
+      await configService.loadConfiguration();
+      this.networkConfig = configService.getNetworkConfig();
+      ErrorLogger.debug('FreeShowService configuration loaded', 'FreeShowService', 
+        new Error(`Config: ${JSON.stringify(this.networkConfig)}`)
+      );
+    } catch (error) {
+      ErrorLogger.error('Failed to load FreeShowService configuration', 'FreeShowService', 
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+  }
+
+  async connect(host: string, port: number = this.networkConfig.defaultPort): Promise<boolean> {
     try {
       const url = `http://${host}:${port}`;
-      ErrorLogger.info(`🔌 Attempting to connect to FreeShow at: ${url}`, 'FreeShowService', { platform: Platform.OS });
-      ErrorLogger.debug(`📱 Platform: ${Platform.OS}`, 'FreeShowService');
+      ErrorLogger.info(`🔌 Attempting to connect to FreeShow at: ${url}`, 'FreeShowService', new Error(`Platform: ${Platform.OS}`));
       
-      // Validate input parameters
-      if (!host || typeof host !== 'string') {
-        throw new FreeShowConnectionError('Invalid host parameter', 'INVALID_HOST');
+      // Validate and sanitize input parameters using InputValidationService
+      const hostValidation = ValidationService.validateHost(host);
+      if (!hostValidation.isValid) {
+        throw new FreeShowConnectionError(`Invalid host: ${hostValidation.error}`, 'INVALID_HOST');
       }
       
-      if (!port || typeof port !== 'number' || port <= 0 || port > 65535) {
-        throw new FreeShowConnectionError('Invalid port parameter', 'INVALID_PORT');
+      const portValidation = ValidationService.validatePort(port);
+      if (!portValidation.isValid) {
+        throw new FreeShowConnectionError(`Invalid port: ${portValidation.error}`, 'INVALID_PORT');
       }
+
+      // Use sanitized values
+      const sanitizedHost = hostValidation.sanitizedValue as string;
+      const sanitizedPort = portValidation.sanitizedValue as number;
 
       // Test basic HTTP connectivity first with proper error handling
       try {
@@ -123,7 +148,7 @@ class FreeShowService {
           autoConnect: true,
           reconnection: true,
           reconnectionDelay: 1000,
-          reconnectionAttempts: this.maxReconnectionAttempts
+          reconnectionAttempts: this.networkConfig.maxRetries
         });
 
         // Connection timeout handler
@@ -131,11 +156,11 @@ class FreeShowService {
           if (!this.isConnected) {
             this.cleanupConnection();
             reject(new FreeShowTimeoutError(
-              `Connection timeout after ${this.connectionTimeout}ms`, 
-              this.connectionTimeout
+              `Connection timeout after ${this.networkConfig.connectionTimeout}ms`, 
+              this.networkConfig.connectionTimeout
             ));
           }
-        }, this.connectionTimeout);
+        }, this.networkConfig.connectionTimeout);
 
         this.socket.on('connect', () => {
           try {
@@ -169,16 +194,16 @@ class FreeShowService {
             
             this.currentReconnectionAttempt++;
             
-            if (this.currentReconnectionAttempt >= this.maxReconnectionAttempts) {
+            if (this.currentReconnectionAttempt >= this.networkConfig.maxRetries) {
               this.cleanupConnection();
               reject(new FreeShowConnectionError(
-                `Failed to connect after ${this.maxReconnectionAttempts} attempts: ${error.message}`,
+                `Failed to connect after ${this.networkConfig.maxRetries} attempts: ${error.message}`,
                 'MAX_RECONNECTION_ATTEMPTS',
                 error
               ));
             } else {
               // Let socket.io handle the reconnection
-              ErrorLogger.debug(`Reconnection attempt ${this.currentReconnectionAttempt}/${this.maxReconnectionAttempts}`, 'FreeShowService');
+              ErrorLogger.debug(`Reconnection attempt ${this.currentReconnectionAttempt}/${this.networkConfig.maxRetries}`, 'FreeShowService');
             }
           } catch (handlerError) {
             ErrorLogger.error('Error in connect_error handler', 'FreeShowService', handlerError instanceof Error ? handlerError : new Error(String(handlerError)));

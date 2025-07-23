@@ -20,17 +20,21 @@ import { useConnection } from '../contexts/ConnectionContext';
 import QRScannerModal from '../components/QRScannerModal';
 import { ErrorLogger } from '../services/ErrorLogger';
 import ShareQRModal from '../components/ShareQRModal';
+import { ValidationService } from '../services/InputValidationService';
+import { configService } from '../config/AppConfig';
 
 interface ConnectScreenProps {
   navigation: any;
 }
 
 const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
+  const defaultPorts = configService.getDefaultShowPorts();
+  
   const [host, setHost] = useState('192.168.1.100');
-  const [remotePort, setRemotePort] = useState('5510');
-  const [stagePort, setStagePort] = useState('5511');
-  const [controlPort, setControlPort] = useState('5512');
-  const [outputPort, setOutputPort] = useState('5513');
+  const [remotePort, setRemotePort] = useState(defaultPorts.remote.toString());
+  const [stagePort, setStagePort] = useState(defaultPorts.stage.toString());
+  const [controlPort, setControlPort] = useState(defaultPorts.control.toString());
+  const [outputPort, setOutputPort] = useState(defaultPorts.output.toString());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
@@ -105,56 +109,106 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   }, [isConnected, remotePort, stagePort, controlPort, outputPort]);
 
   const handleConnect = async () => {
-    if (!host.trim()) {
-      Alert.alert('Error', 'Please enter a valid host address');
-      return;
-    }
-
-    // Validate show ports
-    const showPorts = {
-      remote: parseInt(remotePort),
-      stage: parseInt(stagePort),
-      control: parseInt(controlPort),
-      output: parseInt(outputPort),
-    };
-
-    for (const [showName, portValue] of Object.entries(showPorts)) {
-      if (isNaN(portValue) || portValue < 1 || portValue > 65535) {
-        Alert.alert('Error', `Please enter a valid ${showName} port number (1-65535)`);
+    try {
+      // Validate host input
+      const hostValidation = ValidationService.validateHost(host.trim());
+      if (!hostValidation.isValid) {
+        Alert.alert('Invalid Host', hostValidation.error || 'Please enter a valid host address');
         return;
       }
-    }
 
-    try {
-      const connected = await connect(host.trim(), 5505, showPorts); // Always use port 5505
+      // Validate show ports
+      const portsToValidate = {
+        remote: remotePort,
+        stage: stagePort,
+        control: controlPort,
+        output: outputPort,
+      };
+
+      const validatedPorts: any = {};
+      for (const [portName, portValue] of Object.entries(portsToValidate)) {
+        const portValidation = ValidationService.validatePort(portValue);
+        if (!portValidation.isValid) {
+          Alert.alert('Invalid Port', `${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`);
+          return;
+        }
+        validatedPorts[portName] = portValidation.sanitizedValue;
+      }
+
+      // Additional validation for show ports as a group
+      const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
+      if (!showPortsValidation.isValid) {
+        Alert.alert('Port Configuration Error', showPortsValidation.error || 'Invalid port configuration');
+        return;
+      }
+
+      // Use sanitized values for connection
+      const sanitizedHost = hostValidation.sanitizedValue as string;
+      const sanitizedShowPorts = showPortsValidation.sanitizedValue;
+      const defaultPort = configService.getNetworkConfig().defaultPort;
+
+      ErrorLogger.info('Attempting manual connection with validated inputs', 'ConnectScreen', 
+        new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}`)
+      );
+
+      const connected = await connect(sanitizedHost, defaultPort, sanitizedShowPorts);
       if (connected) {
         navigation.navigate('Interface');
       }
     } catch (error) {
       ErrorLogger.error('Manual connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+      Alert.alert('Connection Error', 'Failed to connect to FreeShow. Please check your connection and try again.');
     }
   };
 
   const handleHistoryConnect = async (historyItem: any) => {
-    setHost(historyItem.host);
-    
-    // Update interface ports from stored history
-    if (historyItem.showPorts) {
-      setRemotePort(historyItem.showPorts.remote.toString());
-      setStagePort(historyItem.showPorts.stage.toString());
-      setControlPort(historyItem.showPorts.control.toString());
-      setOutputPort(historyItem.showPorts.output.toString());
-    }
-    
     try {
-      // Use stored interface ports if available, otherwise use current form values
-      const showPorts = historyItem.showPorts || {
-        remote: parseInt(remotePort),
-        stage: parseInt(stagePort),
-        control: parseInt(controlPort),
-        output: parseInt(outputPort),
-      };
-      const connected = await connect(historyItem.host, 5505, showPorts); // Always use port 5505
+      // Validate host from history
+      const hostValidation = ValidationService.validateHost(historyItem.host);
+      if (!hostValidation.isValid) {
+        Alert.alert('Invalid Host', `History item has invalid host: ${hostValidation.error}`);
+        return;
+      }
+
+      // Update UI with history item data
+      const sanitizedHost = hostValidation.sanitizedValue as string;
+      setHost(sanitizedHost);
+      
+      // Validate and update interface ports from stored history
+      let validatedShowPorts;
+      
+      if (historyItem.showPorts) {
+        const showPortsValidation = ValidationService.validateShowPorts(historyItem.showPorts);
+        if (!showPortsValidation.isValid) {
+          ErrorLogger.warn('History item has invalid show ports, using defaults', 'ConnectScreen', 
+            new Error(`Invalid ports: ${JSON.stringify(historyItem.showPorts)}`)
+          );
+          validatedShowPorts = configService.getDefaultShowPorts();
+        } else {
+          validatedShowPorts = showPortsValidation.sanitizedValue;
+        }
+        
+        // Update UI with validated ports
+        setRemotePort(validatedShowPorts.remote.toString());
+        setStagePort(validatedShowPorts.stage.toString());
+        setControlPort(validatedShowPorts.control.toString());
+        setOutputPort(validatedShowPorts.output.toString());
+      } else {
+        // Use default ports if none stored
+        validatedShowPorts = configService.getDefaultShowPorts();
+        setRemotePort(validatedShowPorts.remote.toString());
+        setStagePort(validatedShowPorts.stage.toString());
+        setControlPort(validatedShowPorts.control.toString());
+        setOutputPort(validatedShowPorts.output.toString());
+      }
+      
+      ErrorLogger.info('Attempting connection from history with validated inputs', 'ConnectScreen', 
+        new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(validatedShowPorts)}`)
+      );
+
+      const defaultPort = configService.getNetworkConfig().defaultPort;
+      const connected = await connect(sanitizedHost, defaultPort, validatedShowPorts);
+      
       if (connected) {
         navigation.navigate('Interface');
       }
@@ -223,9 +277,46 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleQRScan = (scannedIP: string) => {
-    setHost(scannedIP);
-    setShowQRScanner(false);
+  const handleQRScan = (scannedContent: string) => {
+    try {
+      // Validate QR content
+      const qrValidation = ValidationService.validateQRContent(scannedContent);
+      if (!qrValidation.isValid) {
+        Alert.alert('Invalid QR Code', qrValidation.error || 'The QR code contains invalid content');
+        setShowQRScanner(false);
+        return;
+      }
+
+      const sanitizedContent = qrValidation.sanitizedValue as string;
+      
+      // Extract host from URL if it's a full URL, otherwise use as-is
+      let extractedHost = sanitizedContent;
+      try {
+        const url = new URL(sanitizedContent);
+        extractedHost = url.hostname;
+      } catch {
+        // Not a URL, use the content as-is (should be an IP or hostname)
+      }
+
+      // Final validation of the extracted host
+      const hostValidation = ValidationService.validateHost(extractedHost);
+      if (!hostValidation.isValid) {
+        Alert.alert('Invalid Host', `QR code contains invalid host: ${hostValidation.error}`);
+        setShowQRScanner(false);
+        return;
+      }
+
+      ErrorLogger.info('QR scan successful', 'ConnectScreen', 
+        new Error(`Scanned: ${scannedContent}, Extracted: ${hostValidation.sanitizedValue}`)
+      );
+
+      setHost(hostValidation.sanitizedValue as string);
+      setShowQRScanner(false);
+    } catch (error) {
+      ErrorLogger.error('QR scan processing failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+      Alert.alert('QR Scan Error', 'Failed to process QR code content');
+      setShowQRScanner(false);
+    }
   };
 
   const isConnecting = connectionStatus === 'connecting';

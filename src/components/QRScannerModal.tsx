@@ -11,6 +11,8 @@ import {
 import { Camera, CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { ValidationService } from '../services/InputValidationService';
+import { ErrorLogger } from '../services/ErrorLogger';
 
 interface QRScannerModalProps {
   visible: boolean;
@@ -41,36 +43,29 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
     setScanned(true);
     
     try {
-      // Extract IP from URL (e.g., "http://192.168.1.100:5505" -> "192.168.1.100")
-      let ip = data;
+      ErrorLogger.debug('QR code scanned', 'QRScannerModal', new Error(`Type: ${type}, Data: ${data}`));
       
-      // Handle URLs
-      if (data.includes('://')) {
-        const url = new URL(data);
-        ip = url.hostname;
-      } 
-      // Handle IP:port format
-      else if (data.includes(':')) {
-        ip = data.split(':')[0];
-      }
-      
-      // Validate IP format
-      const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-      
-      if (ipPattern.test(ip)) {
-        onScan(ip);
-        onClose();
-      } else {
+      // Validate QR content first
+      const qrValidation = ValidationService.validateQRContent(data);
+      if (!qrValidation.isValid) {
         Alert.alert(
           'Invalid QR Code', 
-          'The scanned QR code does not contain a valid IP address.',
+          qrValidation.error || 'The QR code contains invalid content.',
           [{ text: 'Try Again', onPress: () => setScanned(false) }]
         );
+        return;
       }
+
+      // Use the already validated content from QR validation
+      // The QR validation service handles URL parsing and host extraction
+      onScan(qrValidation.sanitizedValue as string);
+      onClose();
+      
     } catch (error) {
+      ErrorLogger.error('QR code processing failed', 'QRScannerModal', error instanceof Error ? error : new Error(String(error)));
       Alert.alert(
-        'Invalid QR Code', 
-        'Unable to extract IP address from the scanned QR code.',
+        'QR Scan Error', 
+        'Failed to process the scanned QR code.',
         [{ text: 'Try Again', onPress: () => setScanned(false) }]
       );
     }

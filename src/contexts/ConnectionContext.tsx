@@ -3,6 +3,7 @@ import { freeShowService } from '../services/FreeShowService';
 import { SettingsService, ConnectionSettings, ConnectionHistory, AppSettings } from '../services/SettingsService';
 import { autoDiscoveryService, DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { configService } from '../config/AppConfig';
 
 interface ConnectionContextType {
   isConnected: boolean;
@@ -62,11 +63,15 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     control: number;
     output: number;
   } | null>(null);
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    theme: 'dark',
-    notifications: true,
-    autoReconnect: true,
-    connectionTimeout: 10,
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
+    const defaultPorts = configService.getDefaultShowPorts();
+    const networkConfig = configService.getNetworkConfig();
+    return {
+      theme: 'dark',
+      notifications: true,
+      autoReconnect: true,
+      connectionTimeout: networkConfig.connectionTimeout / 1000, // Convert to seconds for UI
+    };
   });
 
   // Auto Discovery state
@@ -132,7 +137,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
           }, appSettings.connectionTimeout * 1000); // Use connectionTimeout from settings
           
           try {
-            const success = await connect(lastConnection.host, 5505, lastConnection.showPorts);
+            const success = await connect(lastConnection.host, configService.getNetworkConfig().defaultPort, lastConnection.showPorts);
             if (autoConnectTimeout) {
               clearTimeout(autoConnectTimeout);
               autoConnectTimeout = null;
@@ -299,7 +304,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     }
   };
 
-  const connect = async (host: string, port: number = 5505, showPorts?: {
+  const connect = async (host: string, port: number = configService.getNetworkConfig().defaultPort, showPorts?: {
     remote: number;
     stage: number;
     control: number;
@@ -316,12 +321,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         setConnectionStatus('connected');
         
         // Store the current show ports (use defaults if not provided)
-        const currentPorts = showPorts || {
-          remote: 5510,
-          stage: 5511,
-          control: 5512,
-          output: 5513,
-        };
+        const defaultPorts = configService.getDefaultShowPorts();
+        const currentPorts = showPorts || defaultPorts;
         setCurrentShowPorts(currentPorts);
         
         // Add to connection history with interface ports

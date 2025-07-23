@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -14,6 +14,7 @@ import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { ConnectionProvider, useConnection } from './src/contexts/ConnectionContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ErrorLogger } from './src/services/ErrorLogger';
+import { configService } from './src/config/AppConfig';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -105,10 +106,24 @@ const FreeShowNavigationTheme = {
 };
 
 export default function App() {
+  // Initialize configuration on app startup
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await configService.loadConfiguration();
+        ErrorLogger.info('App configuration loaded successfully', 'App');
+      } catch (error) {
+        ErrorLogger.error('Failed to load app configuration', 'App', error instanceof Error ? error : new Error(String(error)));
+      }
+    };
+
+    initializeApp();
+  }, []);
+
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
-        ErrorLogger.fatal('App-level Error', 'App', error, { errorInfo });
+        ErrorLogger.fatal('App-level Error', 'App', error, new Error(JSON.stringify(errorInfo)));
         // In production, you might want to report this to a crash analytics service
       }}
     >
