@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useConnection } from '../contexts/ConnectionContext';
+import { useConnection } from '../contexts';
 import { ShowOption } from '../types';
 
 interface ShowSelectorScreenProps {
@@ -18,7 +18,9 @@ interface ShowSelectorScreenProps {
 }
 
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
-  const { isConnected, connectionHost, disconnect, currentShowPorts } = useConnection();
+  const { state, actions } = useConnection();
+  const { isConnected, connectionHost, currentShowPorts } = state;
+  const { disconnect } = actions;
 
   const getShowOptions = (): ShowOption[] => {
     const defaultPorts = {

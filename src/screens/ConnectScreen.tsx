@@ -16,7 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useConnection } from '../contexts/ConnectionContext';
+import { useConnection, useDiscovery, useConnectionHistory } from '../contexts';
+import { DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
+import { ConnectionHistory } from '../repositories';
 import QRScannerModal from '../components/QRScannerModal';
 import { ErrorLogger } from '../services/ErrorLogger';
 import ShareQRModal from '../components/ShareQRModal';
@@ -39,23 +41,20 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
   const [connectionPulse] = useState(new Animated.Value(1));
-  const { 
-    isConnected, 
-    connectionStatus,
-    connectionHost,
-    connectionHistory,
-    discoveredServices,
-    isDiscovering,
-    isDiscoveryAvailable,
-    connect, 
-    disconnect,
-    startDiscovery,
-    stopDiscovery,
-    getConnectionHistory,
-    removeFromHistory,
-    clearAllHistory,
-    updateCurrentShowPorts
-  } = useConnection();
+  
+  // Use focused contexts
+  const connection = useConnection();
+  const { state: connectionState, actions: connectionActions } = connection;
+  const { isConnected, connectionStatus, connectionHost, currentShowPorts } = connectionState;
+  const { connect, disconnect, updateShowPorts } = connectionActions;
+  
+  const discovery = useDiscovery();
+  const { state: discoveryState, actions: discoveryActions } = discovery;
+  const { discoveredServices, isDiscovering, isDiscoveryAvailable } = discoveryState;
+  const { startDiscovery, stopDiscovery } = discoveryActions;
+  
+  const [connectionHistory, historyActions] = useConnectionHistory();
+  const { remove: removeFromHistory, clear: clearAllHistory, getLast: getLastConnection } = historyActions;
 
   // Connection pulse animation for visual feedback
   useEffect(() => {
@@ -104,7 +103,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         control: parseInt(controlPort) || 5512,
         output: parseInt(outputPort) || 5513,
       };
-      updateCurrentShowPorts(showPorts);
+      updateShowPorts(showPorts);
     }
   }, [isConnected, remotePort, stagePort, controlPort, outputPort]);
 
@@ -151,8 +150,10 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}`)
       );
 
-      const connected = await connect(sanitizedHost, defaultPort, sanitizedShowPorts);
+      const connected = await connect(sanitizedHost, defaultPort);
       if (connected) {
+        // Update show ports after successful connection
+        updateShowPorts(sanitizedShowPorts);
         navigation.navigate('Interface');
       }
     } catch (error) {
@@ -207,9 +208,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       );
 
       const defaultPort = configService.getNetworkConfig().defaultPort;
-      const connected = await connect(sanitizedHost, defaultPort, validatedShowPorts);
+      const connected = await connect(sanitizedHost, defaultPort);
       
       if (connected) {
+        // Update show ports after successful connection
+        updateShowPorts(validatedShowPorts);
         navigation.navigate('Interface');
       }
     } catch (error) {
@@ -236,8 +239,10 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         output: parseInt(outputPort),
       };
       
-      const connected = await connect(ip, 5505, showPorts); // Always use port 5505
+      const connected = await connect(ip, 5505); // Always use port 5505
       if (connected) {
+        // Update show ports after successful connection
+        updateShowPorts(showPorts);
         navigation.navigate('Interface');
       }
     } catch (error) {
@@ -425,7 +430,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                     
                     {discoveredServices.length > 0 ? (
                       <View style={styles.discoveredDevices}>
-                        {discoveredServices.map((service, index) => (
+                        {discoveredServices.map((service: DiscoveredFreeShowInstance, index: number) => (
                           <TouchableOpacity
                             key={service.ip}
                             style={styles.discoveredDevice}
@@ -476,7 +481,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       </TouchableOpacity>
                     </View>
                     <View style={styles.recentDevices}>
-                      {connectionHistory.slice(0, 3).map((item, index) => (
+                      {connectionHistory.slice(0, 3).map((item: ConnectionHistory, index: number) => (
                         <TouchableOpacity
                           key={item.id}
                           style={styles.recentDevice}

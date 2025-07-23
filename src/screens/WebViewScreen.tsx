@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import ShowSwitcher from '../components/ShowSwitcher';
-import { useConnection } from '../contexts/ConnectionContext';
+import { useConnection } from '../contexts';
 import { ErrorLogger } from '../services/ErrorLogger';
 
 interface WebViewScreenProps {
@@ -23,7 +23,8 @@ interface WebViewScreenProps {
 
 const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const { url, title, showId } = route.params || {};
-  const { connectionHost, currentShowPorts } = useConnection();
+  const { state } = useConnection();
+  const { connectionHost, currentShowPorts } = state;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);

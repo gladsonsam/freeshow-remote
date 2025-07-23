@@ -10,17 +10,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useErrorHandler } from './ErrorBoundary';
+import { getDefaultFreeShowService } from '../services/DIContainer';
 import { 
-  freeShowService, 
   FreeShowConnectionError, 
   FreeShowTimeoutError, 
   FreeShowNetworkError 
-} from '../services/FreeShowService';
+} from '../services/FreeShowServiceV2';
 import { 
-  SettingsService, 
-  SettingsStorageError, 
-  SettingsValidationError 
-} from '../services/SettingsService';
+  settingsRepository,
+  AppSettings 
+} from '../repositories';
 
 interface ErrorInfo {
   timestamp: Date;
@@ -64,6 +63,7 @@ export const ErrorTestingUtility: React.FC = () => {
 
   const testConnectionError = async () => {
     try {
+      const freeShowService = getDefaultFreeShowService();
       await freeShowService.connect('invalid.ip.address', 9999);
     } catch (error) {
       const errorInfo: ErrorInfo = {
@@ -80,13 +80,14 @@ export const ErrorTestingUtility: React.FC = () => {
 
   const testValidationError = async () => {
     try {
-      await SettingsService.saveConnectionSettings('invalid-ip', -1);
+      // Test validation by trying to add invalid connection data
+      await settingsRepository.addToConnectionHistory('', -1);
     } catch (error) {
       const errorInfo: ErrorInfo = {
         timestamp: new Date(),
-        type: error instanceof SettingsValidationError ? 'Settings Validation Error' : 'Unknown Error',
+        type: 'Repository Validation Error',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
-        component: 'SettingsService',
+        component: 'SettingsRepository',
         stack: error instanceof Error ? error.stack : undefined,
       };
       logError(errorInfo);

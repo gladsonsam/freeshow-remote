@@ -11,7 +11,7 @@ import ConnectScreen from './src/screens/ConnectScreen';
 import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
-import { ConnectionProvider, useConnection } from './src/contexts/ConnectionContext';
+import { AppContextProvider, useConnection } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
@@ -21,7 +21,8 @@ const Stack = createStackNavigator();
 
 // Create the main tab navigator
 function MainTabs() {
-  const { isConnected, connectionStatus } = useConnection();
+  const { state } = useConnection();
+  const { isConnected, connectionStatus } = state;
 
   return (
     <Tab.Navigator
@@ -136,7 +137,7 @@ export default function App() {
       }}
     >
       <SafeAreaProvider>
-        <ConnectionProvider>
+        <AppContextProvider>
           <NavigationContainer theme={FreeShowNavigationTheme}>
             <Stack.Navigator
               screenOptions={{
@@ -165,7 +166,7 @@ export default function App() {
               translucent={true}
             />
           </NavigationContainer>
-        </ConnectionProvider>
+        </AppContextProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

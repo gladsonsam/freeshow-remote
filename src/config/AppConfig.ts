@@ -143,7 +143,10 @@ class ConfigService {
         this.config.network.connectionTimeout = 15000; // Longer timeout for dev
       }
     } catch (error) {
-      console.warn('Failed to load configuration, using defaults:', error);
+      // Use a simple fallback since ErrorLogger might not be available during config initialization
+      if (__DEV__) {
+        console.warn('Failed to load configuration, using defaults:', error);
+      }
     }
   }
 

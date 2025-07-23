@@ -177,7 +177,7 @@ class AutoDiscoveryService {
       this.isScanning = false;
       this.zeroconf.stop();
     } catch (error) {
-      console.error('❌ AutoDiscovery: Failed to stop scanning:', error);
+      ErrorLogger.error('❌ AutoDiscovery: Failed to stop scanning', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
       this.notifyError(`Failed to stop discovery: ${error}`);
     }
   }
@@ -258,10 +258,10 @@ class AutoDiscoveryService {
     this.scanTimeout = setTimeout(() => {
       const discoveredCount = this.discoveredServices.size;
       if (discoveredCount === 0) {
-        console.log(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s) with no devices found, stopping discovery`);
+        ErrorLogger.info(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s) with no devices found, stopping discovery`, 'AutoDiscoveryService');
         this.notifyError(`No FreeShow devices found after ${this.SCAN_TIMEOUT_MS / 1000} seconds. Try manual connection or ensure FreeShow is running on your network.`);
       } else {
-        console.log(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s), found ${discoveredCount} device(s), stopping discovery`);
+        ErrorLogger.info(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s), found ${discoveredCount} device(s), stopping discovery`, 'AutoDiscoveryService');
       }
       this.stopDiscovery();
     }, this.SCAN_TIMEOUT_MS);

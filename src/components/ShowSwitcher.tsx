@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
-import { useConnection } from '../contexts/ConnectionContext';
+import { useConnection } from '../contexts';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
 

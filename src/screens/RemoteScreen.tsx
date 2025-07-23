@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useConnection } from '../contexts/ConnectionContext';
+import { useConnection, useFreeShowService } from '../contexts';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ErrorLogger } from '../services/ErrorLogger';
 
 export default function RemoteScreen() {
-  const { isConnected, freeShowService } = useConnection();
+  const { state } = useConnection();
+  const { isConnected } = state;
+  const freeShowService = useFreeShowService();
 
   const controlButtons = [
     { label: 'Previous', action: 'previous', icon: '⏮️' },
@@ -23,23 +25,23 @@ export default function RemoteScreen() {
     try {
       switch (action) {
         case 'previous':
-          freeShowService.previousSlide();
+          await freeShowService.previousSlide();
           break;
         case 'next':
-          freeShowService.nextSlide();
+          await freeShowService.nextSlide();
           break;
         case 'clear':
-          freeShowService.clearAll();
+          await freeShowService.sendRequest('clear');
           break;
         case 'black':
-          freeShowService.clearSlide();
+          await freeShowService.toggleBlackout();
           break;
         case 'start_show':
-          // This would need a show ID - for now just clear
-          freeShowService.clearAll();
+          // This would need a show ID - for now just toggle blackout off
+          await freeShowService.sendRequest('blackout', { enable: false });
           break;
         case 'stop_show':
-          freeShowService.clearAll();
+          await freeShowService.sendRequest('clear');
           break;
         default:
           ErrorLogger.warn('Unknown action', 'RemoteScreen', undefined, { action });
