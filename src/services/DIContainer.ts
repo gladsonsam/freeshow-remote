@@ -17,7 +17,7 @@ import {
   EventManager,
   defaultFreeShowServiceConfig 
 } from './implementations/FreeShowServiceImplementations';
-import { FreeShowService } from './FreeShowServiceV2';
+import { FreeShowService } from './FreeShowService';
 
 /**
  * Adapter classes to make existing services compatible with interfaces

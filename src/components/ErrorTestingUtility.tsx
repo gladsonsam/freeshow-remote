@@ -15,7 +15,7 @@ import {
   FreeShowConnectionError, 
   FreeShowTimeoutError, 
   FreeShowNetworkError 
-} from '../services/FreeShowServiceV2';
+} from '../services/FreeShowService';
 import { 
   settingsRepository,
   AppSettings 
