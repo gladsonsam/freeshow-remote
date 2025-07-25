@@ -346,23 +346,37 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
           { id: 'stage', port: 5511 },
           { id: 'control', port: 5512 },
           { id: 'output', port: 5513 },
+          { id: 'api', port: 5505 },
         ];
         
         const selectedShow = showOptions.find(show => show.id === appSettings.autoLaunchInterface);
         if (selectedShow) {
-          const url = `http://${state.connectionHost}:${selectedShow.port}`;
-          ErrorLogger.info('[AutoLaunch] Navigating to auto-launch interface', 'ConnectionStateContext', {
-            interface: appSettings.autoLaunchInterface,
-            url,
-            title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show'
-          });
-          
-          // Navigate to WebView
-          navToUse.navigate('WebView', {
-            url,
-            title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show',
-            showId: appSettings.autoLaunchInterface,
-          });
+          if (appSettings.autoLaunchInterface === 'api') {
+            // Navigate to APIScreen for API interface
+            ErrorLogger.info('[AutoLaunch] Navigating to API interface', 'ConnectionStateContext', {
+              interface: appSettings.autoLaunchInterface,
+              title: 'API Controls'
+            });
+            
+            navToUse.navigate('APIScreen', {
+              title: 'API Controls',
+              showId: appSettings.autoLaunchInterface,
+            });
+          } else {
+            // Navigate to WebView for other interfaces
+            const url = `http://${state.connectionHost}:${selectedShow.port}`;
+            ErrorLogger.info('[AutoLaunch] Navigating to auto-launch interface', 'ConnectionStateContext', {
+              interface: appSettings.autoLaunchInterface,
+              url,
+              title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show'
+            });
+            
+            navToUse.navigate('WebView', {
+              url,
+              title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show',
+              showId: appSettings.autoLaunchInterface,
+            });
+          }
         } else {
           ErrorLogger.warn('[AutoLaunch] Selected show not found', 'ConnectionStateContext', 
             new Error(`autoLaunchInterface: ${appSettings.autoLaunchInterface}`)

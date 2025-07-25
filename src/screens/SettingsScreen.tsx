@@ -18,7 +18,7 @@ interface SettingsScreenProps {
 }
 
 interface ShowOption {
-  id: 'none' | 'remote' | 'stage' | 'control' | 'output';
+  id: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
   title: string;
   description: string;
   icon: string;
@@ -69,6 +69,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       icon: 'tv',
       color: '#FF851B',
     },
+    {
+      id: 'api',
+      title: 'API Controls',
+      description: 'Custom native controls using FreeShow API',
+      icon: 'code-slash',
+      color: '#B10DC9',
+    },
   ];
 
   useEffect(() => {
@@ -82,8 +89,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   };
 
   const handleAutoLaunchSelect = async (showId: string) => {
-    setAutoLaunchInterface(showId);
-    await updateAppSettings({ autoLaunchInterface: showId });
+    const typedShowId = showId as 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
+    setAutoLaunchInterface(typedShowId);
+    await updateAppSettings({ autoLaunchInterface: typedShowId });
     setShowLaunchPicker(false);
   };
 

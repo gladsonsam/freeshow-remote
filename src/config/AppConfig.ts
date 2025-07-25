@@ -20,6 +20,7 @@ export interface ShowPortsConfig {
   stage: number;
   control: number;
   output: number;
+  api: number;
 }
 
 export interface ValidationConfig {
@@ -60,6 +61,7 @@ const DEFAULT_CONFIG: AppConfig = {
     stage: 5511,
     control: 5512,
     output: 5513,
+    api: 5505,
   },
   validation: {
     maxHostLength: 253, // RFC compliant max domain length

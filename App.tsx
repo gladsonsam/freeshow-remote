@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ConnectScreen from './src/screens/ConnectScreen';
 import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
+import APIScreen from './src/screens/APIScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { AppContextProvider, useConnection, useSettings } from './src/contexts';
@@ -173,6 +174,19 @@ export default function App() {
                 {(props) => (
                   <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('WebViewScreen Error', 'App', error, { errorInfo })}>
                     <WebViewScreen {...props} />
+                  </ErrorBoundary>
+                )}
+              </Stack.Screen>
+              <Stack.Screen 
+                name="APIScreen"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              >
+                {(props) => (
+                  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('APIScreen Error', 'App', error, { errorInfo })}>
+                    <APIScreen {...props} />
                   </ErrorBoundary>
                 )}
               </Stack.Screen>

@@ -7,7 +7,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   autoReconnect: boolean;
-  autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output';
+  autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
   connectionTimeout: number; // in seconds
 }
 

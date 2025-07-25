@@ -19,6 +19,7 @@ interface ConnectionContextType {
     stage: number;
     control: number;
     output: number;
+    api?: number;
   } | null;
   connect: (host: string, port?: number, showPorts?: {
     remote: number;
@@ -37,6 +38,7 @@ interface ConnectionContextType {
     stage: number;
     control: number;
     output: number;
+    api?: number;
   }) => void;
   freeShowService: IFreeShowService;
   // Auto Discovery
@@ -68,6 +70,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     stage: number;
     control: number;
     output: number;
+    api?: number;
   } | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
     const defaultPorts = configService.getDefaultShowPorts();
@@ -76,6 +79,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
       theme: 'dark',
       notifications: true,
       autoReconnect: true,
+      autoLaunchInterface: 'none',
       connectionTimeout: networkConfig.connectionTimeout / 1000, // Convert to seconds for UI
     };
   });
@@ -315,6 +319,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     stage: number;
     control: number;
     output: number;
+    api?: number;
   }) => {
     setCurrentShowPorts(prevPorts => {
       // Only update if the ports have actually changed
@@ -322,7 +327,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
           prevPorts.remote !== ports.remote ||
           prevPorts.stage !== ports.stage ||
           prevPorts.control !== ports.control ||
-          prevPorts.output !== ports.output) {
+          prevPorts.output !== ports.output ||
+          prevPorts.api !== ports.api) {
         console.log('Updated current show ports:', ports);
         return ports;
       }
@@ -357,6 +363,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     stage: number;
     control: number;
     output: number;
+    api?: number;
   }): Promise<boolean> => {
     ErrorLogger.debug('🔌 ConnectionContext.connect called', 'ConnectionContext', { host, port, showPorts });
     setConnectionStatus('connecting');

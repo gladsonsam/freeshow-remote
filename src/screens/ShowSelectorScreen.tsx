@@ -22,12 +22,13 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const { isConnected, connectionHost, currentShowPorts } = state;
   const { disconnect } = actions;
 
-  const getShowOptions = (): ShowOption[] => {
+  const getShowOptions = () => {
     const defaultPorts = {
       remote: 5510,
       stage: 5511,
       control: 5512,
       output: 5513,
+      api: 5505,
     };
 
     // Use current show ports if available, otherwise fall back to defaults
@@ -66,6 +67,14 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         icon: 'tv',
         color: '#FF851B',
       },
+      {
+        id: 'api',
+        title: 'API Controls',
+        description: 'Custom native controls using FreeShow API',
+        port: showPorts.api,
+        icon: 'code-slash',
+        color: '#B10DC9',
+      },
     ];
   };
 
@@ -77,14 +86,22 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       return;
     }
 
-    const url = `http://${connectionHost}:${show.port}`;
-    
-    // Navigate to the WebView screen in the parent stack
-    navigation.getParent()?.navigate('WebView', {
-      url,
-      title: show.title,
-      showId: show.id,
-    });
+    if (show.id === 'api') {
+      // Navigate to APIScreen for API interface
+      navigation.getParent()?.navigate('APIScreen', {
+        title: show.title,
+        showId: show.id,
+      });
+    } else {
+      // Navigate to WebView for other interfaces
+      const url = `http://${connectionHost}:${show.port}`;
+      
+      navigation.getParent()?.navigate('WebView', {
+        url,
+        title: show.title,
+        showId: show.id,
+      });
+    }
   };
 
   const handleDisconnect = () => {
