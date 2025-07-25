@@ -71,10 +71,16 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     autoConnectAttempted: false,
   });
 
-  // Use injected service or default
+  const navigationRef = useRef<any>(null);
   const service = injectedService || getDefaultFreeShowService();
   const logContext = 'ConnectionProvider';
   const cancelConnectionRef = useRef(false);
+
+  // Update navigation ref when navigation prop changes
+  useEffect(() => {
+    navigationRef.current = navigation;
+    ErrorLogger.debug('[ConnectionProvider] Navigation ref updated', 'ConnectionStateContext', { hasNavigation: !!navigation });
+  }, [navigation]);
 
   // Update state when service connection changes
   useEffect(() => {
@@ -196,11 +202,9 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
           ErrorLogger.info('[AutoConnect] Auto-connect successful', 'AutoConnect', { host: lastConnection.host });
           
           // Trigger auto-launch if enabled
-          if (navigation) {
-            setTimeout(async () => {
-              await triggerAutoLaunch(navigation);
-            }, 1000); // Small delay to ensure connection is fully established
-          }
+          setTimeout(async () => {
+            await triggerAutoLaunch();
+          }, 1500); // Increased delay to ensure connection is fully established and navigation is ready
         } else {
           ErrorLogger.info('[AutoConnect] Auto-connect failed', 'AutoConnect', { host: lastConnection.host });
         }
@@ -317,9 +321,25 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }));
   }, []);
 
-  const triggerAutoLaunch = async (nav: any) => {
+  const triggerAutoLaunch = useCallback(async (nav?: any) => {
     try {
+      const navToUse = nav || navigationRef.current;
+      ErrorLogger.debug('[AutoLaunch] Attempting auto-launch', 'ConnectionStateContext', { 
+        hasNavigation: !!navToUse,
+        isConnected: state.isConnected,
+        connectionHost: state.connectionHost
+      });
+      
+      if (!navToUse) {
+        ErrorLogger.warn('[AutoLaunch] No navigation available', 'ConnectionStateContext');
+        return;
+      }
+
       const appSettings = await settingsRepository.getAppSettings();
+      ErrorLogger.debug('[AutoLaunch] App settings loaded', 'ConnectionStateContext', { 
+        autoLaunchInterface: appSettings.autoLaunchInterface 
+      });
+      
       if (appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
         const showOptions = [
           { id: 'remote', port: 5510 },
@@ -329,25 +349,46 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         ];
         
         const selectedShow = showOptions.find(show => show.id === appSettings.autoLaunchInterface);
-        if (selectedShow && nav) {
+        if (selectedShow) {
           const url = `http://${state.connectionHost}:${selectedShow.port}`;
           ErrorLogger.info('[AutoLaunch] Navigating to auto-launch interface', 'ConnectionStateContext', {
             interface: appSettings.autoLaunchInterface,
-            url
+            url,
+            title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show'
           });
           
           // Navigate to WebView
-          nav.navigate('WebView', {
+          navToUse.navigate('WebView', {
             url,
             title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show',
             showId: appSettings.autoLaunchInterface,
           });
+        } else {
+          ErrorLogger.warn('[AutoLaunch] Selected show not found', 'ConnectionStateContext', 
+            new Error(`autoLaunchInterface: ${appSettings.autoLaunchInterface}`)
+          );
         }
+      } else {
+        ErrorLogger.debug('[AutoLaunch] Auto-launch conditions not met', 'ConnectionStateContext', {
+          autoLaunchInterface: appSettings.autoLaunchInterface,
+          isConnected: state.isConnected,
+          hasConnectionHost: !!state.connectionHost
+        });
       }
     } catch (error) {
       ErrorLogger.error('[AutoLaunch] Error in auto-launch', 'ConnectionStateContext', error instanceof Error ? error : new Error(String(error)));
     }
-  };
+  }, [state.isConnected, state.connectionHost]);
+
+  // Trigger auto-launch when connection becomes connected (backup for auto-connect)
+  useEffect(() => {
+    if (state.isConnected && state.connectionHost && navigationRef.current) {
+      ErrorLogger.debug('[ConnectionProvider] Connection established, checking for auto-launch', 'ConnectionStateContext');
+      setTimeout(async () => {
+        await triggerAutoLaunch();
+      }, 500);
+    }
+  }, [state.isConnected, state.connectionHost, triggerAutoLaunch]);
 
   const actions: ConnectionActions = {
     connect,
