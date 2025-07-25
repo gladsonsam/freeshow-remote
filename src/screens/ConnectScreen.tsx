@@ -37,6 +37,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [stagePort, setStagePort] = useState(defaultPorts.stage.toString());
   const [controlPort, setControlPort] = useState(defaultPorts.control.toString());
   const [outputPort, setOutputPort] = useState(defaultPorts.output.toString());
+  const [apiPort, setApiPort] = useState(defaultPorts.api.toString());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
@@ -173,6 +174,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         stage: stagePort,
         control: controlPort,
         output: outputPort,
+        api: apiPort,
       };
 
       const validatedPorts: any = {};
@@ -245,6 +247,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         setStagePort(validatedShowPorts.stage.toString());
         setControlPort(validatedShowPorts.control.toString());
         setOutputPort(validatedShowPorts.output.toString());
+        setApiPort(validatedShowPorts.api.toString());
       } else {
         // Use default ports if none stored
         validatedShowPorts = configService.getDefaultShowPorts();
@@ -252,6 +255,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         setStagePort(validatedShowPorts.stage.toString());
         setControlPort(validatedShowPorts.control.toString());
         setOutputPort(validatedShowPorts.output.toString());
+        setApiPort(validatedShowPorts.api.toString());
       }
       
       ErrorLogger.info('Attempting connection from history with validated inputs', 'ConnectScreen', 
@@ -678,6 +682,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
+                      editable={!isConnected}
                     />
                   </View>
 
@@ -691,6 +696,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
+                      editable={!isConnected}
                     />
                   </View>
 
@@ -704,6 +710,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
+                      editable={!isConnected}
                     />
                   </View>
 
@@ -717,6 +724,21 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
+                      editable={!isConnected}
+                    />
+                  </View>
+
+                  <View style={styles.portItem}>
+                    <Text style={styles.portLabel}>API</Text>
+                    <TextInput
+                      style={styles.portInput}
+                      value={apiPort}
+                      onChangeText={setApiPort}
+                      placeholder="5505"
+                      placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                      keyboardType="numeric"
+                      maxLength={5}
+                      editable={!isConnected}
                     />
                   </View>
                 </View>
