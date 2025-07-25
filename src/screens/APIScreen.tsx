@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { io, Socket } from 'socket.io-client';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
 
@@ -45,134 +46,154 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const [currentShow, setCurrentShow] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (isConnected && connectionHost) {
-      testAPIConnection();
+      connectWebSocket();
     } else {
       setIsLoading(false);
+      disconnectWebSocket();
     }
+
+    return () => {
+      disconnectWebSocket();
+    };
   }, [isConnected, connectionHost]);
 
-  const testAPIConnection = async () => {
+  const connectWebSocket = async () => {
     if (!connectionHost) return;
 
     try {
       setIsLoading(true);
+      console.log('Connecting to FreeShow WebSocket API on port 5505...');
       
-      // Test FreeShow API connection using correct ports from documentation
-      console.log('Testing FreeShow API connection...');
+      // Disconnect existing socket if any
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+
+      // Create new socket connection
+      const socketUrl = `http://${connectionHost}:5505`;
+      console.log('Socket URL:', socketUrl);
       
-      // According to FreeShow docs: HTTP should use port 5506
-      let testUrl = `http://${connectionHost}:5506?action=get_shows&data=${JSON.stringify({})}`;
-      console.log('Testing HTTP method on port 5506:', testUrl);
-      
-      let testResponse = await fetch(testUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
+      socketRef.current = io(socketUrl, { 
+        transports: ["websocket"],
+        timeout: 10000,
+        reconnection: true,
+        reconnectionAttempts: 3,
+        reconnectionDelay: 1000,
       });
-      
-      console.log('HTTP method response status:', testResponse.status);
-      
-      // If HTTP GET fails, try REST POST method on same port
-      if (!testResponse.ok) {
-        console.log('HTTP GET failed, trying REST POST method on port 5506...');
-        testUrl = `http://${connectionHost}:5506`;
-        testResponse = await fetch(testUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({ 
-            action: 'get_shows'
-          })
-        });
-        
-        console.log('POST method response status:', testResponse.status);
-      }
-      
-      // If both fail, show detailed error
-      if (!testResponse.ok) {
-        const errorText = await testResponse.text();
-        console.log('API Error response:', errorText);
-        
-        if (testResponse.status === 404) {
-          throw new Error(`FreeShow API not accessible on port 5506.\n\nPlease check:\n1. FreeShow is running\n2. Go to FreeShow → Connections\n3. Enable "WebSocket/REST API"\n4. Check the port settings (should be 5506 for HTTP)\n5. Restart FreeShow after enabling API`);
-        } else {
-          throw new Error(`API server error (${testResponse.status}): ${testResponse.statusText}\n\nResponse: ${errorText.substring(0, 200)}`);
-        }
-      }
-      
-      // Try to parse response
-      const responseText = await testResponse.text();
-      console.log('API response:', responseText.substring(0, 200) + '...');
-      
-      if (responseText.includes('<!DOCTYPE html>')) {
-        throw new Error('Received HTML instead of JSON. The FreeShow API may not be enabled.\n\nGo to FreeShow → Connections → Enable "WebSocket/REST API"');
-      }
-      
-      // If we get here, try to fetch shows
-      await fetchShows();
-      
+
+      // Set up socket event listeners
+      socketRef.current.on('connect', () => {
+        console.log('WebSocket connected to FreeShow API');
+        setSocketConnected(true);
+        fetchShows();
+      });
+
+      socketRef.current.on('disconnect', () => {
+        console.log('WebSocket disconnected from FreeShow API');
+        setSocketConnected(false);
+      });
+
+      socketRef.current.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        setSocketConnected(false);
+        setIsLoading(false);
+        Alert.alert(
+          'FreeShow API Connection Failed',
+          `Cannot connect to FreeShow WebSocket API:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled in FreeShow → Connections\n• Port 5505 is accessible\n• Restart FreeShow if needed`,
+          [
+            { text: 'Retry', onPress: connectWebSocket },
+            { text: 'OK' }
+          ]
+        );
+      });
+
+      // Listen for API responses
+      socketRef.current.on('data', (response) => {
+        console.log('Received WebSocket response:', response);
+        handleSocketResponse(response);
+      });
+
     } catch (error) {
-      console.error('API connection test failed:', error);
+      console.error('Failed to setup WebSocket connection:', error);
       setIsLoading(false);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(
-        'FreeShow API Connection Failed', 
-        `${errorMessage}\n\nTroubleshooting:\n• Make sure FreeShow is running\n• Enable API in FreeShow → Connections\n• Try restarting FreeShow\n• Check firewall settings`,
+        'WebSocket Setup Failed',
+        `${errorMessage}\n\nMake sure FreeShow WebSocket API is enabled.`,
         [
-          { text: 'Retry', onPress: testAPIConnection },
+          { text: 'Retry', onPress: connectWebSocket },
           { text: 'OK' }
         ]
       );
     }
   };
 
+  const disconnectWebSocket = () => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+    setSocketConnected(false);
+  };
+
+  const handleSocketResponse = (response: any) => {
+    try {
+      const data = typeof response === 'string' ? JSON.parse(response) : response;
+      console.log('Parsed socket response:', data);
+      
+      // Handle different types of responses here if needed
+      // For now, we'll handle show data in fetchShows
+    } catch (error) {
+      console.error('Error parsing socket response:', error);
+    }
+  };
+
   const fetchShows = async () => {
-    if (!connectionHost) return;
+    if (!connectionHost || !socketRef.current || !socketConnected) {
+      console.log('Cannot fetch shows: socket not connected');
+      return;
+    }
 
     try {
       setIsLoading(true);
-      // Try the correct FreeShow API endpoint format
-      // According to the docs: HTTP uses port 5506
-      const url = `http://${connectionHost}:5506?action=get_shows&data=${JSON.stringify({})}`;
-      console.log('Fetching shows from:', url);
+      console.log('Fetching shows via WebSocket...');
       
-      const showsResponse = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
+      // Send get_shows command via WebSocket
+      const command = { action: 'get_shows' };
+      console.log('Sending command:', command);
+      socketRef.current.emit('data', JSON.stringify(command));
+      
+      // Listen for the response (we'll handle this in a separate listener)
+      const responsePromise = new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout waiting for shows data'));
+        }, 10000);
+
+        const handleResponse = (response: any) => {
+          clearTimeout(timeout);
+          try {
+            const data = typeof response === 'string' ? JSON.parse(response) : response;
+            resolve(data);
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        // Listen for the next data event
+        socketRef.current?.once('data', handleResponse);
       });
-      
-      console.log('Response status:', showsResponse.status);
-      console.log('Response headers:', showsResponse.headers);
-      
-      if (!showsResponse.ok) {
-        throw new Error(`HTTP ${showsResponse.status}: ${showsResponse.statusText}`);
-      }
-      
-      const responseText = await showsResponse.text();
-      console.log('Raw response:', responseText.substring(0, 200) + '...');
-      
-      let showsData;
-      try {
-        showsData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        console.error('Response was:', responseText);
-        throw new Error('Invalid JSON response from FreeShow API. Make sure WebSocket/REST API is enabled in FreeShow Connections settings.');
-      }
+
+      const showsData = await responsePromise;
+      console.log('Received shows data:', showsData);
       
       const showsList: ShowData[] = [];
       const slidesList: SlideData[] = [];
-      
-      console.log('Shows data:', showsData);
       
       if (showsData && typeof showsData === 'object') {
         // Iterate through each show
@@ -212,7 +233,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(
         'API Connection Error', 
-        `Failed to connect to FreeShow API:\n\n${errorMessage}\n\nMake sure:\n• FreeShow is running\n• WebSocket/REST API is enabled in FreeShow > Connections settings\n• Port 5506 is accessible`,
+        `Failed to get shows from FreeShow API:\n\n${errorMessage}\n\nMake sure:\n• FreeShow is running\n• WebSocket/REST API is enabled in FreeShow > Connections settings\n• WebSocket connection is stable`,
         [
           { text: 'Retry', onPress: fetchShows },
           { text: 'OK' }
@@ -224,51 +245,30 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   };
 
   const sendAPICommand = async (action: string, data: any = {}) => {
-    if (!connectionHost) {
-      Alert.alert('Error', 'Not connected to FreeShow');
+    if (!connectionHost || !socketRef.current || !socketConnected) {
+      Alert.alert('Error', 'WebSocket not connected to FreeShow');
       return;
     }
 
     try {
       setIsConnecting(true);
-      // Using FreeShow's HTTP API format on port 5506
-      const url = `http://${connectionHost}:5506?action=${action}&data=${JSON.stringify(data)}`;
-      console.log('Sending API command:', action, 'to:', url);
+      console.log('Sending WebSocket command:', action, 'with data:', data);
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('API Response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const responseText = await response.text();
-      console.log('API Response:', responseText);
+      // Send command via WebSocket
+      const command = { action, ...data };
+      socketRef.current.emit('data', JSON.stringify(command));
       
-      let result;
-      try {
-        result = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        console.warn('Could not parse API response as JSON:', responseText);
-        result = { success: true }; // Assume success if no JSON response
-      }
+      // For most commands, we don't need to wait for a response
+      // The command is fire-and-forget
+      console.log('Command sent successfully');
       
-      return result;
+      return { success: true };
     } catch (error) {
-      console.error('API command failed:', error);
+      console.error('WebSocket command failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       Alert.alert(
         'Command Failed', 
-        `Failed to execute "${action}":\n\n${errorMessage}\n\nCheck that FreeShow API is enabled and accessible on port 5506.`
+        `Failed to execute "${action}":\n\n${errorMessage}\n\nCheck that FreeShow WebSocket API is connected.`
       );
     } finally {
       setIsConnecting(false);
@@ -331,7 +331,11 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   };
 
   const handleRefresh = () => {
-    testAPIConnection();
+    if (socketConnected) {
+      fetchShows();
+    } else {
+      connectWebSocket();
+    }
   };
 
   if (!isConnected) {
@@ -381,9 +385,10 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             <Text style={styles.sectionTitle}>Connection Info</Text>
             <View style={styles.debugCard}>
               <Text style={styles.debugText}>Host: {connectionHost}</Text>
-              <Text style={styles.debugText}>API Port: 5506 (HTTP)</Text>
+              <Text style={styles.debugText}>API Port: 5505 (WebSocket)</Text>
               <Text style={styles.debugText}>Status: {isConnected ? 'Connected' : 'Disconnected'}</Text>
-              <Text style={styles.debugText}>API URL: http://{connectionHost}:5506</Text>
+              <Text style={styles.debugText}>WebSocket: {socketConnected ? 'Connected' : 'Disconnected'}</Text>
+              <Text style={styles.debugText}>API URL: ws://{connectionHost}:5505</Text>
             </View>
           </View>
 
