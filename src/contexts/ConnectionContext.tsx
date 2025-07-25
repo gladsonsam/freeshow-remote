@@ -446,27 +446,15 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     autoDiscoveryService.onServicesUpdated((services) => {
       console.log('📡 Discovered services updated:', services);
       
-      // Deduplicate by IP address and ignore the discovered port
-      const uniqueServices: DiscoveredFreeShowInstance[] = [];
-      const seenIPs = new Set<string>();
+      // Show all services without deduplication
+      const allServices: DiscoveredFreeShowInstance[] = services.map(service => ({
+        ...service,
+        port: 5505, // Always use default port regardless of discovery
+        ip: service.ip || service.host
+      }));
       
-      services.forEach(service => {
-        const ip = service.ip || service.host;
-        if (!seenIPs.has(ip)) {
-          seenIPs.add(ip);
-          // Always use default port 5505 and IP as the primary identifier
-          uniqueServices.push({
-            ...service,
-            name: ip, // Use IP as display name
-            host: ip,
-            port: 5505, // Always use default port regardless of discovery
-            ip: ip
-          });
-        }
-      });
-      
-      console.log('📡 Deduplicated services by IP:', uniqueServices);
-      setDiscoveredServices(uniqueServices);
+      console.log('📡 All discovered services:', allServices);
+      setDiscoveredServices(allServices);
     });
 
     autoDiscoveryService.onError((error) => {

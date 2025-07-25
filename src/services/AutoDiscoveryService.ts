@@ -1,8 +1,8 @@
 import Zeroconf, { ZeroconfService, ZeroconfError } from 'react-native-zeroconf';
 
 export interface DiscoveredFreeShowInstance {
-  name: string; // Display name (IP address)
-  host: string;
+  name: string; // Display name (hostname or IP)
+  host: string; // mDNS hostname, e.g. 'MyMacBook.local.'
   port: number; // Always use default port 5505
   ip: string; // Primary IP for deduplication
 }
@@ -101,9 +101,11 @@ class AutoDiscoveryService {
         return;
       }
       
+      // Prefer the service name (human-friendly) if available, else fallback to IP
+      const displayName = service.name && service.name.trim() !== '' ? service.name : primaryIP;
       const instance: DiscoveredFreeShowInstance = {
-        name: primaryIP, // Just show the IP address
-        host: primaryIP,
+        name: displayName,
+        host: service.host || '',
         port: 5505, // Always use default FreeShow API port
         ip: primaryIP,
       };

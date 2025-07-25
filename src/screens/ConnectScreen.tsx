@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Animated } from 'react-native';
 import {
   View,
   Text,
@@ -9,14 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
   Dimensions,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useConnection, useDiscovery, useConnectionHistory } from '../contexts';
+import { useConnection, useDiscovery, useConnectionHistory, useDiscoveryActions } from '../contexts';
 import { DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 import { ConnectionHistory } from '../repositories';
 import QRScannerModal from '../components/QRScannerModal';
@@ -41,6 +41,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
   const [connectionPulse] = useState(new Animated.Value(1));
+  const [animatedScanProgress] = useState(new Animated.Value(0));
   
   // Use focused contexts
   const connection = useConnection();
@@ -59,34 +60,60 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   } = actions;
   
   const discovery = useDiscovery();
-  const { state: discoveryState, actions: discoveryActions } = discovery;
+  const discoveryActions = useDiscoveryActions();
+  const { state: discoveryState } = discovery;
   const { discoveredServices, isDiscovering, isDiscoveryAvailable } = discoveryState;
-  const { startDiscovery, stopDiscovery } = discoveryActions;
-  
+  const { startDiscovery, stopDiscovery, clearDiscoveredServices } = discoveryActions;
+
+  // Progress state for scan
+  const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanComplete, setScanComplete] = useState(false);
+  const [isScanActive, setIsScanActive] = useState(false);
+  const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Restore connection history hook and variables
   const [connectionHistory, historyActions] = useConnectionHistory();
   const { remove: removeFromHistory, clear: clearAllHistory, getLast: getLastConnection } = historyActions;
 
-  // Connection pulse animation for visual feedback
+  // Clear discovered services and progress when screen mounts
   useEffect(() => {
-    if (isConnected) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(connectionPulse, {
-            toValue: 1.1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(connectionPulse, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
+    clearDiscoveredServices();
+    setScanProgress(0);
+    setScanComplete(false);
+  }, []);
+
+  // Handle scan progress
+  useEffect(() => {
+    if (isScanActive) {
+      setScanProgress(0);
+      setScanComplete(false);
+      const start = Date.now();
+      scanTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(elapsed / discoveryTimeout, 1);
+        setScanProgress(progress);
+        if (progress >= 1) {
+          clearInterval(scanTimerRef.current!);
+          setScanComplete(true);
+          setIsScanActive(false);
+          stopDiscovery();
+        }
+      }, 50);
+      return () => clearInterval(scanTimerRef.current!);
     } else {
-      connectionPulse.setValue(1);
+      setScanProgress(0);
+      animatedScanProgress.setValue(0);
+      if (scanTimerRef.current) clearInterval(scanTimerRef.current);
     }
-  }, [isConnected]);
+  }, [isScanActive, discoveryTimeout, stopDiscovery]);
+
+  // When discovery stops for any reason, also end scan feedback
+  useEffect(() => {
+    if (!isDiscovering && isScanActive) {
+      setIsScanActive(false);
+    }
+  }, [isDiscovering]);
 
   // Update form fields when connection changes (auto-connect or manual connect)
   useEffect(() => {
@@ -116,6 +143,20 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       updateShowPorts(showPorts);
     }
   }, [isConnected, remotePort, stagePort, controlPort, outputPort]);
+
+  // In the scan progress effect, animate the fill smoothly
+  useEffect(() => {
+    if (isScanActive) {
+      Animated.timing(animatedScanProgress, {
+        toValue: scanProgress,
+        duration: 100,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      // Reset animation when not scanning
+      animatedScanProgress.setValue(0);
+    }
+  }, [scanProgress, isScanActive]);
 
   const handleConnect = async () => {
     try {
@@ -284,10 +325,26 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     );
   };
 
-  const toggleDiscovery = () => {
-    if (isDiscovering) {
+  // Update: Scan button clears results and rescans, or cancels if already scanning
+  const handleScanPress = () => {
+    if (isScanActive) {
+      // Cancel scanning
       stopDiscovery();
+      setIsScanActive(false);
+      setScanProgress(0);
+      setScanComplete(false);
+      animatedScanProgress.setValue(0);
+      if (scanTimerRef.current) {
+        clearInterval(scanTimerRef.current);
+      }
     } else {
+      // Start scanning
+      clearDiscoveredServices();
+      setScanProgress(0);
+      setScanComplete(false);
+      setIsScanActive(true);
+      // Reset animated progress
+      animatedScanProgress.setValue(0);
       startDiscovery();
     }
   };
@@ -364,6 +421,9 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const status = getStatusDisplay();
 
+  // Utility to check if a string is an IP address
+  const isIpAddress = (str: string) => /^(\d{1,3}\.){3}\d{1,3}$/.test(str);
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
@@ -423,52 +483,93 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                         <Ionicons name="scan" size={16} color={FreeShowTheme.colors.secondary} />
                         <Text style={styles.discoveryTitle}>Network Scan</Text>
                       </View>
-                      <TouchableOpacity 
-                        onPress={toggleDiscovery}
-                        style={[styles.discoveryToggle, isDiscovering && styles.discoveryToggleActive]}
+                      <TouchableOpacity
+                        onPress={handleScanPress}
+                        style={[
+                          styles.discoveryToggle,
+                          isScanActive && styles.discoveryToggleActive,
+                          { overflow: 'hidden', position: 'relative' },
+                        ]}
                       >
-                        <Ionicons 
-                          name={isDiscovering ? "stop" : "search"} 
-                          size={16} 
-                          color={isDiscovering ? 'white' : FreeShowTheme.colors.secondary} 
-                        />
-                        <Text style={[styles.discoveryToggleText, isDiscovering && styles.discoveryToggleTextActive]}>
-                          {isDiscovering ? 'Stop' : 'Scan'}
-                        </Text>
+                        {/* Progress fill overlay */}
+                        {isScanActive && (
+                          <Animated.View
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: animatedScanProgress.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['0%', '100%'],
+                              }),
+                              backgroundColor: FreeShowTheme.colors.secondary,
+                              opacity: 0.3,
+                              borderRadius: 20,
+                              zIndex: 1,
+                            }}
+                          />
+                        )}
+                        {/* Icon and label */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 2 }}>
+                          <Ionicons
+                            name={isScanActive ? 'stop' : 'search'}
+                            size={16}
+                            color={isScanActive ? 'white' : FreeShowTheme.colors.secondary}
+                          />
+                          <Text
+                            style={[
+                              styles.discoveryToggleText,
+                              isScanActive && styles.discoveryToggleTextActive,
+                              { marginLeft: 6 },
+                            ]}
+                          >
+                            {isScanActive ? 'Scanning...' : 'Scan'}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
                     </View>
-                    
                     {discoveredServices.length > 0 ? (
                       <View style={styles.discoveredDevices}>
-                        {discoveredServices.map((service: DiscoveredFreeShowInstance, index: number) => (
-                          <TouchableOpacity
-                            key={service.ip}
-                            style={styles.discoveredDevice}
-                            onPress={() => handleDiscoveredConnect(service)}
-                          >
-                            <View style={styles.discoveredDeviceIcon}>
-                              <Ionicons name="desktop" size={18} color={FreeShowTheme.colors.secondary} />
-                            </View>
-                            <View style={styles.discoveredDeviceInfo}>
-                              <Text style={styles.discoveredDeviceIP}>{service.ip}</Text>
-                              <Text style={styles.discoveredDeviceStatus}>FreeShow Instance</Text>
-                            </View>
-                            <View style={styles.discoveredDeviceAction}>
-                              <Ionicons name="arrow-forward-circle" size={24} color={FreeShowTheme.colors.secondary} />
-                            </View>
-                          </TouchableOpacity>
-                        ))}
+                        {discoveredServices.map((service: DiscoveredFreeShowInstance, index: number) => {
+                          const showHost = service.host && !isIpAddress(service.host);
+                          return (
+                            <TouchableOpacity
+                              key={service.ip}
+                              style={styles.discoveredDevice}
+                              onPress={() => handleDiscoveredConnect(service)}
+                            >
+                              <View style={styles.discoveredDeviceIcon}>
+                                <Ionicons name="desktop" size={18} color={FreeShowTheme.colors.secondary} />
+                              </View>
+                              <View style={styles.discoveredDeviceInfo}>
+                                <Text style={styles.discoveredDeviceIP}>
+                                  {showHost ? service.host : service.ip}
+                                </Text>
+                                {showHost && (
+                                  <Text style={styles.discoveredDeviceStatus}>{service.ip}</Text>
+                                )}
+                              </View>
+                              <View style={styles.discoveredDeviceAction}>
+                                <Ionicons name="arrow-forward-circle" size={24} color={FreeShowTheme.colors.secondary} />
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </View>
                     ) : (
                       <View style={styles.emptyDiscovery}>
-                        <Ionicons 
-                          name={isDiscovering ? "hourglass" : "search-outline"} 
-                          size={24} 
-                          color={FreeShowTheme.colors.textSecondary} 
-                        />
-                        <Text style={styles.emptyDiscoveryText}>
-                          {isDiscovering ? 'Scanning network...' : 'Tap scan to find devices'}
-                        </Text>
+                        {scanComplete && !isScanActive ? (
+                          <>
+                            <Ionicons name="alert-circle-outline" size={24} color={FreeShowTheme.colors.textSecondary} />
+                            <Text style={styles.emptyDiscoveryText}>No devices found</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Ionicons name="search-outline" size={24} color={FreeShowTheme.colors.textSecondary} />
+                            <Text style={styles.emptyDiscoveryText}>Tap scan to find devices</Text>
+                          </>
+                        )}
                       </View>
                     )}
                   </View>
