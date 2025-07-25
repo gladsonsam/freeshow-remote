@@ -7,7 +7,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   autoReconnect: boolean;
-  autoLaunchInterface: boolean;
+  autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output';
   connectionTimeout: number; // in seconds
 }
 
@@ -47,7 +47,7 @@ export class SettingsRepository {
           theme: 'dark',
           notifications: true,
           autoReconnect: true,
-          autoLaunchInterface: false,
+          autoLaunchInterface: 'none',
           connectionTimeout: 10,
         };
         await this.setAppSettings(defaultSettings);

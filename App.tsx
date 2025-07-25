@@ -22,23 +22,13 @@ const Stack = createStackNavigator();
 // Create the main tab navigator
 function MainTabs() {
   const { state } = useConnection();
-  const { isConnected, connectionStatus } = state;
+  const { isConnected, connectionStatus, connectionHost, currentShowPorts } = state;
   const { state: settingsState } = useSettings();
   const { appSettings } = settingsState;
 
-  // Auto-launch interface if setting is enabled
-  useEffect(() => {
-    if (appSettings.autoLaunchInterface) {
-      // Small delay to ensure navigation is ready
-      setTimeout(() => {
-        // This will be handled by the tab navigator's initial route
-      }, 100);
-    }
-  }, [appSettings.autoLaunchInterface]);
-
   return (
     <Tab.Navigator
-      initialRouteName={appSettings.autoLaunchInterface ? 'Interface' : 'Connect'}
+      initialRouteName={appSettings.autoLaunchInterface !== 'none' ? 'Interface' : 'Connect'}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
