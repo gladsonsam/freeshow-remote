@@ -44,9 +44,19 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   
   // Use focused contexts
   const connection = useConnection();
-  const { state: connectionState, actions: connectionActions } = connection;
-  const { isConnected, connectionStatus, connectionHost, currentShowPorts } = connectionState;
-  const { connect, disconnect, updateShowPorts } = connectionActions;
+  const { state, actions } = connection;
+  const {
+    isConnected,
+    connectionStatus,
+    connectionHost,
+    currentShowPorts
+  } = state;
+  const {
+    connect,
+    disconnect,
+    updateShowPorts,
+    cancelConnection
+  } = actions;
   
   const discovery = useDiscovery();
   const { state: discoveryState, actions: discoveryActions } = discovery;
@@ -633,23 +643,32 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.connectButton, isConnecting && styles.connectingButton]}
-                  onPress={handleConnect}
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? (
-                    <>
+                isConnecting ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.connectingButton]}
+                      disabled
+                    >
                       <View style={styles.spinner} />
                       <Text style={styles.buttonText}>Connecting...</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Ionicons name="wifi" size={20} color="white" />
-                      <Text style={styles.buttonText}>Connect</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.cancelButton]}
+                      onPress={cancelConnection}
+                    >
+                      <Ionicons name="close-circle-outline" size={20} color="white" />
+                      <Text style={styles.buttonText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.connectButton]}
+                    onPress={handleConnect}
+                  >
+                    <Ionicons name="wifi" size={20} color="white" />
+                    <Text style={styles.buttonText}>Connect</Text>
+                  </TouchableOpacity>
+                )
               )}
             </View>
           </View>
@@ -1132,6 +1151,10 @@ const styles = StyleSheet.create({
     borderColor: 'white',
     borderTopColor: 'transparent',
     borderRadius: 10,
+  },
+  cancelButton: {
+    backgroundColor: FreeShowTheme.colors.disconnected,
+    marginLeft: FreeShowTheme.spacing.md,
   },
   
   // Quick Actions

@@ -1,6 +1,6 @@
 // Connection State Context - Handles basic connection state and operations
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
@@ -34,6 +34,7 @@ export interface ConnectionActions {
     control: number;
     output: number;
   }) => void;
+  cancelConnection: () => void;
 }
 
 export interface ConnectionContextType {
@@ -67,6 +68,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   // Use injected service or default
   const service = injectedService || getDefaultFreeShowService();
   const logContext = 'ConnectionProvider';
+  const cancelConnectionRef = useRef(false);
 
   // Update state when service connection changes
   useEffect(() => {
@@ -198,30 +200,40 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const connect = useCallback(async (host: string, port: number = 5505): Promise<boolean> => {
+  const connect = useCallback(async (host: string, port?: number): Promise<boolean> => {
+    setState(prev => ({ ...prev, connectionStatus: 'connecting', lastError: null }));
+    cancelConnectionRef.current = false;
     try {
-      setState(prev => ({
-        ...prev,
-        connectionStatus: 'connecting',
-        lastError: null,
-      }));
-
-      await service.connect(host, port);
-      
-      // Service will emit 'connect' event which will update state
-      return true;
+      const connectPromise = service.connect(host, port);
+      await Promise.race([
+        connectPromise,
+        new Promise((_, reject) => {
+          const checkCancel = () => {
+            if (cancelConnectionRef.current) {
+              reject(new Error('Connection cancelled by user'));
+            } else {
+              setTimeout(checkCancel, 100);
+            }
+          };
+          checkCancel();
+        })
+      ]);
+      if (service.isConnected()) {
+        setState(prev => ({ ...prev, isConnected: true, connectionHost: host, connectionPort: port || null, connectionStatus: 'connected', lastError: null }));
+        return true;
+      } else {
+        setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Failed to connect to FreeShow' }));
+        return false;
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
-      setState(prev => ({
-        ...prev,
-        connectionStatus: 'error',
-        lastError: errorMessage,
-      }));
-      
-      ErrorLogger.error('Failed to connect', logContext, error instanceof Error ? error : new Error(String(error)));
+      if (error instanceof Error && error.message === 'Connection cancelled by user') {
+        setState(prev => ({ ...prev, connectionStatus: 'disconnected', lastError: 'Connection cancelled' }));
+      } else {
+        setState(prev => ({ ...prev, connectionStatus: 'error', lastError: error instanceof Error ? error.message : 'Connection failed' }));
+      }
       return false;
     }
-  }, [service, logContext]);
+  }, [service]);
 
   const disconnect = useCallback(async (): Promise<void> => {
     try {
@@ -279,6 +291,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }));
   }, []);
 
+  const cancelConnection = useCallback(() => {
+    cancelConnectionRef.current = true;
+    service.disconnect();
+    setState(prev => ({ ...prev, connectionStatus: 'disconnected', lastError: 'Connection cancelled' }));
+  }, [service]);
+
   const actions: ConnectionActions = {
     connect,
     disconnect,
@@ -286,6 +304,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     checkConnection,
     clearError,
     updateShowPorts,
+    cancelConnection,
   };
 
   const contextValue: ConnectionContextType = {
