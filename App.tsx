@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -22,13 +22,11 @@ const Stack = createStackNavigator();
 // Create the main tab navigator
 function MainTabs() {
   const { state } = useConnection();
-  const { isConnected, connectionStatus, connectionHost, currentShowPorts } = state;
-  const { state: settingsState } = useSettings();
-  const { appSettings } = settingsState;
+  const { isConnected, connectionStatus } = state;
 
   return (
     <Tab.Navigator
-      initialRouteName={appSettings.autoLaunchInterface !== 'none' ? 'Interface' : 'Connect'}
+      initialRouteName="Connect"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
@@ -132,6 +130,8 @@ const FreeShowNavigationTheme = {
 };
 
 export default function App() {
+  const navigationRef = useNavigationContainerRef();
+  
   // Initialize configuration on app startup
   useEffect(() => {
     const initializeApp = async () => {
@@ -154,8 +154,8 @@ export default function App() {
       }}
     >
       <SafeAreaProvider>
-        <AppContextProvider>
-          <NavigationContainer theme={FreeShowNavigationTheme}>
+        <AppContextProvider navigation={navigationRef}>
+          <NavigationContainer ref={navigationRef} theme={FreeShowNavigationTheme}>
             <Stack.Navigator
               screenOptions={{
                 headerShown: false,

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
-import { settingsRepository, AppSettings } from '../repositories';
+import { settingsRepository, AppSettings, ConnectionHistory } from '../repositories';
 
 export interface ConnectionState {
   isConnected: boolean;
@@ -20,6 +20,7 @@ export interface ConnectionState {
     control: number;
     output: number;
   } | null;
+  autoConnectAttempted: boolean;
 }
 
 export interface ConnectionActions {
@@ -35,6 +36,8 @@ export interface ConnectionActions {
     output: number;
   }) => void;
   cancelConnection: () => void;
+  setAutoConnectAttempted: (attempted: boolean) => void;
+  triggerAutoLaunch?: (navigation: any) => Promise<void>;
 }
 
 export interface ConnectionContextType {
@@ -48,11 +51,13 @@ const ConnectionContext = createContext<ConnectionContextType | undefined>(undef
 interface ConnectionProviderProps {
   children: ReactNode;
   service?: IFreeShowService; // Allow dependency injection for testing
+  navigation?: any;
 }
 
 export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ 
   children, 
-  service: injectedService 
+  service: injectedService,
+  navigation 
 }) => {
   const [state, setState] = useState<ConnectionState>({
     isConnected: false,
@@ -63,6 +68,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     connectionStartTime: null,
     lastActivity: null,
     currentShowPorts: null,
+    autoConnectAttempted: false,
   });
 
   // Use injected service or default
@@ -188,6 +194,13 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         if (didTimeout) return;
         if (success) {
           ErrorLogger.info('[AutoConnect] Auto-connect successful', 'AutoConnect', { host: lastConnection.host });
+          
+          // Trigger auto-launch if enabled
+          if (navigation) {
+            setTimeout(async () => {
+              await triggerAutoLaunch(navigation);
+            }, 1000); // Small delay to ensure connection is fully established
+          }
         } else {
           ErrorLogger.info('[AutoConnect] Auto-connect failed', 'AutoConnect', { host: lastConnection.host });
         }
@@ -297,6 +310,45 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     setState(prev => ({ ...prev, connectionStatus: 'disconnected', lastError: 'Connection cancelled' }));
   }, [service]);
 
+  const setAutoConnectAttempted = useCallback((attempted: boolean) => {
+    setState(prev => ({
+      ...prev,
+      autoConnectAttempted: attempted,
+    }));
+  }, []);
+
+  const triggerAutoLaunch = async (nav: any) => {
+    try {
+      const appSettings = await settingsRepository.getAppSettings();
+      if (appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
+        const showOptions = [
+          { id: 'remote', port: 5510 },
+          { id: 'stage', port: 5511 },
+          { id: 'control', port: 5512 },
+          { id: 'output', port: 5513 },
+        ];
+        
+        const selectedShow = showOptions.find(show => show.id === appSettings.autoLaunchInterface);
+        if (selectedShow && nav) {
+          const url = `http://${state.connectionHost}:${selectedShow.port}`;
+          ErrorLogger.info('[AutoLaunch] Navigating to auto-launch interface', 'ConnectionStateContext', {
+            interface: appSettings.autoLaunchInterface,
+            url
+          });
+          
+          // Navigate to WebView
+          nav.navigate('WebView', {
+            url,
+            title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show',
+            showId: appSettings.autoLaunchInterface,
+          });
+        }
+      }
+    } catch (error) {
+      ErrorLogger.error('[AutoLaunch] Error in auto-launch', 'ConnectionStateContext', error instanceof Error ? error : new Error(String(error)));
+    }
+  };
+
   const actions: ConnectionActions = {
     connect,
     disconnect,
@@ -305,6 +357,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     clearError,
     updateShowPorts,
     cancelConnection,
+    setAutoConnectAttempted,
+    triggerAutoLaunch,
   };
 
   const contextValue: ConnectionContextType = {

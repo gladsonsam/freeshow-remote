@@ -9,6 +9,7 @@ interface AppContextProviderProps {
   children: ReactNode;
   autoStartDiscovery?: boolean;
   autoLoadSettings?: boolean;
+  navigation?: any;
 }
 
 /**
@@ -19,10 +20,11 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   children,
   autoStartDiscovery = false,
   autoLoadSettings = true,
+  navigation,
 }) => {
   return (
     <SettingsProvider autoLoad={autoLoadSettings}>
-      <ConnectionProvider>
+      <ConnectionProvider navigation={navigation}>
         <DiscoveryProvider autoStartDiscovery={autoStartDiscovery}>
           {children}
         </DiscoveryProvider>

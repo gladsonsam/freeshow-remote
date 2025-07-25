@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
-import { useSettings } from '../contexts';
 import { ShowOption } from '../types';
 
 interface ShowSelectorScreenProps {
@@ -22,8 +21,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const { state, actions } = useConnection();
   const { isConnected, connectionHost, currentShowPorts } = state;
   const { disconnect } = actions;
-  const { state: settingsState } = useSettings();
-  const { appSettings } = settingsState;
 
   const getShowOptions = (): ShowOption[] => {
     const defaultPorts = {
@@ -73,19 +70,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   };
 
   const showOptions = getShowOptions();
-
-  // Auto-launch specific show if setting is enabled
-  useEffect(() => {
-    if (isConnected && connectionHost && appSettings.autoLaunchInterface !== 'none') {
-      const selectedShow = showOptions.find(show => show.id === appSettings.autoLaunchInterface);
-      if (selectedShow) {
-        // Small delay to ensure screen is ready
-        setTimeout(() => {
-          handleShowSelect(selectedShow);
-        }, 300);
-      }
-    }
-  }, [isConnected, connectionHost, appSettings.autoLaunchInterface]);
 
   const handleShowSelect = (show: ShowOption) => {
     if (!isConnected || !connectionHost) {
