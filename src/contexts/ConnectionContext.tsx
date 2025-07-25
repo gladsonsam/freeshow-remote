@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { settingsRepository, AppSettings, ConnectionHistory } from '../repositories/SettingsRepository';
@@ -230,6 +231,19 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
       }
     };
   }, [isDataLoaded]); // Removed hasAttemptedAutoConnect from dependencies to prevent cleanup loop
+
+  // Clear discovered services when app is backgrounded or closed
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        setDiscoveredServices([]);
+      }
+    };
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const loadAppSettings = async (): Promise<void> => {
     try {
