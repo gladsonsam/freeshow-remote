@@ -18,7 +18,8 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      }
+      },
+      "bundleIdentifier": "com.gladsonsam.freeshowremote"
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +34,7 @@
         "android.permission.ACCESS_WIFI_STATE",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.gladson1205.freeshowremote"
+      "package": "com.gladsonsam.freeshowremote"
     },
     "plugins": [
       [
@@ -65,6 +66,6 @@
         "projectId": "a8981839-843a-4268-b544-cde35e549de6"
       }
     },
-    "owner": "gladson1205"
+    "owner": "gladsonsam"
   }
 }

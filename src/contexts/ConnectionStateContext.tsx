@@ -139,6 +139,65 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     };
   }, [service]);
 
+  // Auto-reconnect on mount
+  useEffect(() => {
+    let didAttempt = false;
+    const autoReconnect = async () => {
+      ErrorLogger.info('[AutoConnect] useEffect triggered', 'AutoConnect');
+      try {
+        const appSettings: AppSettings = await settingsRepository.getAppSettings();
+        ErrorLogger.info('[AutoConnect] Loaded app settings', 'AutoConnect', appSettings);
+        if (!appSettings.autoReconnect) {
+          ErrorLogger.info('[AutoConnect] autoReconnect is false, skipping', 'AutoConnect');
+          return;
+        }
+        if (didAttempt) return;
+        didAttempt = true;
+        const lastConnection = await settingsRepository.getLastConnection();
+        if (lastConnection) {
+          ErrorLogger.info('[AutoConnect] Last connection', 'AutoConnect', lastConnection);
+        } else {
+          ErrorLogger.info('[AutoConnect] Last connection is null', 'AutoConnect');
+        }
+        if (!lastConnection || !lastConnection.host) {
+          ErrorLogger.info('[AutoConnect] No valid last connection found, skipping', 'AutoConnect');
+          return;
+        }
+        const timeoutMs = require('../config/AppConfig').configService.getNetworkConfig().connectionTimeout;
+        ErrorLogger.info('[AutoConnect] Attempting to connect', 'AutoConnect', {
+          host: lastConnection.host,
+          port: lastConnection.showPorts?.remote || 5505,
+          showPorts: lastConnection.showPorts,
+          timeoutMs
+        });
+        let timeoutHandle: NodeJS.Timeout | null = null;
+        let didTimeout = false;
+        timeoutHandle = setTimeout(() => {
+          didTimeout = true;
+          ErrorLogger.info('[AutoConnect] Connection attempt timed out', 'AutoConnect');
+          service.disconnect();
+          setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout - connection took too long' }));
+        }, timeoutMs);
+        const success = await service.connect(
+          lastConnection.host,
+          lastConnection.showPorts?.remote || 5505
+        ).then(() => true).catch(() => false);
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        if (didTimeout) return;
+        if (success) {
+          ErrorLogger.info('[AutoConnect] Auto-connect successful', 'AutoConnect', { host: lastConnection.host });
+        } else {
+          ErrorLogger.info('[AutoConnect] Auto-connect failed', 'AutoConnect', { host: lastConnection.host });
+        }
+      } catch (err) {
+        ErrorLogger.error('[AutoConnect] Error in auto-reconnect', 'AutoConnect', err instanceof Error ? err : new Error(String(err)));
+      }
+    };
+    autoReconnect();
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const connect = useCallback(async (host: string, port: number = 5505): Promise<boolean> => {
     try {
       setState(prev => ({
