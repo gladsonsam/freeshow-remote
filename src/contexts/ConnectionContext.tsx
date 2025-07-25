@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
@@ -45,6 +45,7 @@ interface ConnectionContextType {
   isDiscoveryAvailable: boolean;
   startDiscovery: () => void;
   stopDiscovery: () => void;
+  cancelConnection: () => void;
 }
 
 const ConnectionContext = createContext<ConnectionContextType | undefined>(undefined);
@@ -88,6 +89,9 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
   
   // Track when initial data loading is complete
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Ref to track if a connection attempt should be cancelled
+  const cancelConnectionRef = useRef(false);
 
   // Load app settings and connection history on startup
   useEffect(() => {
@@ -355,13 +359,27 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     output: number;
   }): Promise<boolean> => {
     ErrorLogger.debug('🔌 ConnectionContext.connect called', 'ConnectionContext', { host, port, showPorts });
-    
     setConnectionStatus('connecting');
     setLastError(null);
-    
+    cancelConnectionRef.current = false; // Reset cancel flag at start
     try {
       ErrorLogger.debug('🔌 Calling FreeShowService.connect', 'ConnectionContext', { host, port });
-      await freeShowService.connect(host, port);
+      // Start connection attempt
+      const connectPromise = freeShowService.connect(host, port);
+      // Wait for either connection or cancellation
+      const result = await Promise.race([
+        connectPromise,
+        new Promise((_, reject) => {
+          const checkCancel = () => {
+            if (cancelConnectionRef.current) {
+              reject(new Error('Connection cancelled by user'));
+            } else {
+              setTimeout(checkCancel, 100);
+            }
+          };
+          checkCancel();
+        })
+      ]);
       
       ErrorLogger.debug('🔌 FreeShowService.connect completed', 'ConnectionContext', { host, port });
       
@@ -391,9 +409,15 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
         return false;
       }
     } catch (error) {
-      ErrorLogger.error('🔌 Exception in ConnectionContext.connect', 'ConnectionContext', error instanceof Error ? error : new Error(String(error)));
-      setConnectionStatus('error');
-      setLastError(error instanceof Error ? error.message : 'Connection failed');
+      if (error instanceof Error && error.message === 'Connection cancelled by user') {
+        ErrorLogger.info('🔌 Connection attempt cancelled by user', 'ConnectionContext');
+        setConnectionStatus('disconnected');
+        setLastError('Connection cancelled');
+      } else {
+        ErrorLogger.error('🔌 Exception in ConnectionContext.connect', 'ConnectionContext', error instanceof Error ? error : new Error(String(error)));
+        setConnectionStatus('error');
+        setLastError(error instanceof Error ? error.message : 'Connection failed');
+      }
       return false;
     }
   };
@@ -472,6 +496,13 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     };
   }, []);
 
+  const cancelConnection = () => {
+    cancelConnectionRef.current = true;
+    freeShowService.disconnect(); // Optionally force disconnect
+    setConnectionStatus('disconnected');
+    setLastError('Connection cancelled');
+  };
+
   const contextValue: ConnectionContextType = {
     isConnected,
     connectionHost,
@@ -495,6 +526,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children
     isDiscoveryAvailable: autoDiscoveryService.isAvailable(),
     startDiscovery,
     stopDiscovery,
+    cancelConnection,
   };
 
   return (
