@@ -20,14 +20,21 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { appSettings } = state;
   const { updateAppSettings } = actions;
   const [autoReconnect, setAutoReconnect] = useState(appSettings.autoReconnect || false);
+  const [autoLaunchInterface, setAutoLaunchInterface] = useState(appSettings.autoLaunchInterface || false);
 
   useEffect(() => {
     setAutoReconnect(appSettings.autoReconnect || false);
-  }, [appSettings.autoReconnect]);
+    setAutoLaunchInterface(appSettings.autoLaunchInterface || false);
+  }, [appSettings.autoReconnect, appSettings.autoLaunchInterface]);
 
   const handleAutoReconnectToggle = async (value: boolean) => {
     setAutoReconnect(value);
     await updateAppSettings({ autoReconnect: value });
+  };
+
+  const handleAutoLaunchInterfaceToggle = async (value: boolean) => {
+    setAutoLaunchInterface(value);
+    await updateAppSettings({ autoLaunchInterface: value });
   };
 
   return (
@@ -63,6 +70,30 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 true: FreeShowTheme.colors.secondary + '40' 
               }}
               thumbColor={autoReconnect ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary}
+              ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
+            />
+          </View>
+
+          <View style={styles.settingDivider} />
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingTitleRow}>
+                <Ionicons name="play-circle" size={20} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.settingTitle}>Auto-Launch Interface</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                Automatically open the interface screen when the app starts
+              </Text>
+            </View>
+            <Switch
+              value={autoLaunchInterface}
+              onValueChange={handleAutoLaunchInterfaceToggle}
+              trackColor={{ 
+                false: FreeShowTheme.colors.primaryLighter, 
+                true: FreeShowTheme.colors.secondary + '40' 
+              }}
+              thumbColor={autoLaunchInterface ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary}
               ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
             />
           </View>
@@ -129,6 +160,11 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
     lineHeight: 20,
+  },
+  settingDivider: {
+    height: 1,
+    backgroundColor: FreeShowTheme.colors.primaryLighter,
+    marginVertical: FreeShowTheme.spacing.lg,
   },
 });
 

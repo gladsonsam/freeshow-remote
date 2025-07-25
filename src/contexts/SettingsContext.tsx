@@ -41,6 +41,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
       theme: 'dark',
       notifications: true,
       autoReconnect: true,
+      autoLaunchInterface: false,
       connectionTimeout: 10,
     },
     connectionHistory: [],

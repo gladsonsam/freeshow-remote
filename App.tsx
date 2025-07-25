@@ -11,7 +11,7 @@ import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
-import { AppContextProvider, useConnection } from './src/contexts';
+import { AppContextProvider, useConnection, useSettings } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
@@ -23,9 +23,22 @@ const Stack = createStackNavigator();
 function MainTabs() {
   const { state } = useConnection();
   const { isConnected, connectionStatus } = state;
+  const { state: settingsState } = useSettings();
+  const { appSettings } = settingsState;
+
+  // Auto-launch interface if setting is enabled
+  useEffect(() => {
+    if (appSettings.autoLaunchInterface) {
+      // Small delay to ensure navigation is ready
+      setTimeout(() => {
+        // This will be handled by the tab navigator's initial route
+      }, 100);
+    }
+  }, [appSettings.autoLaunchInterface]);
 
   return (
     <Tab.Navigator
+      initialRouteName={appSettings.autoLaunchInterface ? 'Interface' : 'Connect'}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
