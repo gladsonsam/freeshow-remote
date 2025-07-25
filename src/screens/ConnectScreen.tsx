@@ -858,6 +858,7 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 40,
     height: 40,
+    backgroundColor: 'transparent',
   },
   logoText: {
     fontSize: 28,
