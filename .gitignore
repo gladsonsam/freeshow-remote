@@ -37,8 +37,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-#builds
-.builds
 
 # Build output
 .build/

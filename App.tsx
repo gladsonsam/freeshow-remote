@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ConnectScreen from './src/screens/ConnectScreen';
 import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { AppContextProvider, useConnection } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -44,6 +45,8 @@ function MainTabs() {
             } else {
               iconColor = FreeShowTheme.colors.text + '80'; // Gray when not focused and not connected
             }
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
           } else {
             iconName = 'help-circle-outline';
           }
@@ -92,6 +95,18 @@ function MainTabs() {
         {(props) => (
           <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ConnectScreen Error', 'App', error, { errorInfo })}>
             <ConnectScreen {...props} />
+          </ErrorBoundary>
+        )}
+      </Tab.Screen>
+      <Tab.Screen 
+        name="Settings"
+        options={{
+          tabBarLabel: 'Settings',
+        }}
+      >
+        {(props) => (
+          <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('SettingsScreen Error', 'App', error, { errorInfo })}>
+            <SettingsScreen {...props} />
           </ErrorBoundary>
         )}
       </Tab.Screen>
