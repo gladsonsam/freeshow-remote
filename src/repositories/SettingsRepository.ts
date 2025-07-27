@@ -15,7 +15,7 @@ export interface AppSettings {
 export interface ConnectionHistory {
   id: string; // Now just the IP address
   host: string; // IP address
-  name?: string; // User-friendly name
+  nickname?: string; // User-friendly nickname/display name
   lastUsed: string; // ISO date string
   successfulConnections: number;
   showPorts?: { // Interface port configs stored per IP
@@ -107,7 +107,7 @@ export class SettingsRepository {
   async addToConnectionHistory(
     host: string,
     port: number = 5505,
-    name?: string,
+    nickname?: string,
     showPorts?: { remote: number; stage: number; control: number; output: number }
   ): Promise<void> {
     try {
@@ -120,7 +120,7 @@ export class SettingsRepository {
           ...history[existingIndex],
           lastUsed: new Date().toISOString(),
           successfulConnections: history[existingIndex].successfulConnections + 1,
-          name: name || history[existingIndex].name,
+          nickname: nickname || history[existingIndex].nickname,
           showPorts: showPorts || history[existingIndex].showPorts,
         };
       } else {
@@ -128,7 +128,7 @@ export class SettingsRepository {
         const newEntry: ConnectionHistory = {
           id: host,
           host,
-          name,
+          nickname: nickname || host, // Default nickname to hostname/IP
           lastUsed: new Date().toISOString(),
           successfulConnections: 1,
           showPorts,
@@ -151,6 +151,31 @@ export class SettingsRepository {
       });
     } catch (error) {
       ErrorLogger.error('Failed to add to connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  async updateConnectionNickname(hostId: string, nickname: string): Promise<void> {
+    try {
+      const history = await this.getConnectionHistory();
+      const existingIndex = history.findIndex(item => item.id === hostId || item.host === hostId);
+      
+      if (existingIndex >= 0) {
+        history[existingIndex] = {
+          ...history[existingIndex],
+          nickname: nickname.trim() || history[existingIndex].host, // Fallback to host if empty
+        };
+        
+        await this.setConnectionHistory(history);
+        ErrorLogger.info('Updated connection nickname', this.logContext, { 
+          hostId, 
+          nickname: nickname.trim() || history[existingIndex].host 
+        });
+      } else {
+        throw new Error(`Connection with ID ${hostId} not found in history`);
+      }
+    } catch (error) {
+      ErrorLogger.error('Failed to update connection nickname', this.logContext, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }

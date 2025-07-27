@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnectionHistory } from '../contexts';
-import { ConnectionHistory } from '../repositories';
+import { ConnectionHistory, settingsRepository } from '../repositories';
 
 interface ConnectionHistoryScreenProps {
   navigation: any;
@@ -19,6 +21,9 @@ interface ConnectionHistoryScreenProps {
 
 const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navigation }) => {
   const [connectionHistory, historyActions] = useConnectionHistory();
+  const [showEditNickname, setShowEditNickname] = useState(false);
+  const [editingConnection, setEditingConnection] = useState<ConnectionHistory | null>(null);
+  const [editNicknameText, setEditNicknameText] = useState('');
 
   const handleRemoveFromHistory = async (id: string) => {
     Alert.alert(
@@ -64,6 +69,32 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
     );
   };
 
+  const handleEditNickname = (item: ConnectionHistory) => {
+    setEditingConnection(item);
+    setEditNicknameText(item.nickname || item.host);
+    setShowEditNickname(true);
+  };
+
+  const handleSaveNickname = async () => {
+    if (!editingConnection) return;
+    
+    try {
+      await settingsRepository.updateConnectionNickname(editingConnection.id, editNicknameText);
+      setShowEditNickname(false);
+      setEditingConnection(null);
+      setEditNicknameText('');
+    } catch (error) {
+      console.error('Failed to update nickname:', error);
+      Alert.alert('Error', 'Failed to update connection name');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditNickname(false);
+    setEditingConnection(null);
+    setEditNicknameText('');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -103,18 +134,26 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                 <View style={styles.historyItemIcon}>
                   <Ionicons name="desktop" size={20} color={FreeShowTheme.colors.secondary} />
                 </View>
-                <View style={styles.historyItemInfo}>
-                  <Text style={styles.historyItemHost}>{item.host}</Text>
-                  <Text style={styles.historyItemTime}>
-                    Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString()}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleRemoveFromHistory(item.id)}
-                >
-                  <Ionicons name="trash-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
-                </TouchableOpacity>
+                                 <View style={styles.historyItemInfo}>
+                   <Text style={styles.historyItemHost}>{item.nickname || item.host}</Text>
+                   <Text style={styles.historyItemTime}>
+                     {item.nickname && item.nickname !== item.host ? `${item.host} • ` : ''}Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString()}
+                   </Text>
+                 </View>
+                                 <View style={styles.historyItemActions}>
+                   <TouchableOpacity
+                     style={styles.editButton}
+                     onPress={() => handleEditNickname(item)}
+                   >
+                     <Ionicons name="create-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
+                   </TouchableOpacity>
+                   <TouchableOpacity
+                     style={styles.deleteButton}
+                     onPress={() => handleRemoveFromHistory(item.id)}
+                   >
+                     <Ionicons name="trash-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
+                   </TouchableOpacity>
+                 </View>
               </View>
               
               {item.showPorts && (
@@ -234,6 +273,16 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
   },
+  historyItemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    padding: FreeShowTheme.spacing.sm,
+    borderRadius: FreeShowTheme.borderRadius.sm,
+    backgroundColor: FreeShowTheme.colors.primary,
+    marginRight: FreeShowTheme.spacing.xs,
+  },
   deleteButton: {
     padding: FreeShowTheme.spacing.sm,
     borderRadius: FreeShowTheme.borderRadius.sm,
@@ -294,6 +343,84 @@ const styles = StyleSheet.create({
     color: FreeShowTheme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  
+  // Edit Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editModalContent: {
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    padding: FreeShowTheme.spacing.lg,
+    margin: FreeShowTheme.spacing.lg,
+    minWidth: 280,
+    maxWidth: 400,
+    width: '80%',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: FreeShowTheme.spacing.lg,
+  },
+  editModalTitle: {
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+  },
+  editModalCloseButton: {
+    padding: FreeShowTheme.spacing.xs,
+  },
+  editModalBody: {
+    marginBottom: FreeShowTheme.spacing.lg,
+  },
+  editModalLabel: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    marginBottom: FreeShowTheme.spacing.sm,
+  },
+  editModalInput: {
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    padding: FreeShowTheme.spacing.md,
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.text,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  editModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: FreeShowTheme.spacing.sm,
+  },
+  editModalButton: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingVertical: FreeShowTheme.spacing.sm,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  editModalCancelButton: {
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  editModalSaveButton: {
+    backgroundColor: FreeShowTheme.colors.secondary,
+  },
+  editModalCancelText: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  editModalSaveText: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.text,
+    fontWeight: '600',
   },
 });
 
