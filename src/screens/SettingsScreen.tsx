@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useSettings } from '../contexts';
+import { useSettings, useConnectionHistory } from '../contexts';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -29,9 +29,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { state, actions } = useSettings();
   const { appSettings } = state;
   const { updateAppSettings } = actions;
+  const [connectionHistory] = useConnectionHistory();
   const [autoReconnect, setAutoReconnect] = useState(appSettings.autoReconnect || false);
   const [autoLaunchInterface, setAutoLaunchInterface] = useState(appSettings.autoLaunchInterface || 'none');
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
+
 
   const showOptions: ShowOption[] = [
     {
@@ -101,6 +103,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
   const selectedShow = getSelectedShow();
 
+
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView 
@@ -162,7 +166,31 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Connection History Section */}
+        <View style={styles.settingsCard}>
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingTitleRow}>
+                <Ionicons name="time" size={20} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.settingTitle}>Connection History</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                View and manage all past connections ({connectionHistory.length} total)
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => navigation.navigate('ConnectionHistory')}
+            >
+              <Text style={styles.historyButtonText}>View All</Text>
+              <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.secondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
+
+
 
       {/* Auto-Launch Picker Modal */}
       <Modal
@@ -354,6 +382,24 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
     lineHeight: 18,
+  },
+  
+  // Connection History Styles
+  historyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  historyButtonText: {
+    fontSize: 14,
+    color: FreeShowTheme.colors.secondary,
+    fontWeight: '600',
+    marginRight: 4,
   },
 });
 

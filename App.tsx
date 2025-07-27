@@ -11,6 +11,7 @@ import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import APIScreen from './src/screens/APIScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { AppContextProvider, useConnection } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -237,6 +238,18 @@ export default function App() {
                 {(props) => (
                   <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('APIScreen Error', 'App', error, { errorInfo })}>
                     <APIScreen {...props} />
+                  </ErrorBoundary>
+                )}
+              </Stack.Screen>
+              <Stack.Screen 
+                name="ConnectionHistory"
+                options={{
+                  headerShown: false,
+                }}
+              >
+                {(props) => (
+                  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ConnectionHistoryScreen Error', 'App', error, { errorInfo })}>
+                    <ConnectionHistoryScreen {...props} />
                   </ErrorBoundary>
                 )}
               </Stack.Screen>

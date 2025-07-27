@@ -1,6 +1,7 @@
 import { IStorageRepository, StorageKeys } from './IStorageRepository';
 import { storageRepository } from './AsyncStorageRepository';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { configService } from '../config/AppConfig';
 
 // Types for settings domain
 export interface AppSettings {
@@ -135,13 +136,19 @@ export class SettingsRepository {
         history.push(newEntry);
       }
 
-      // Keep only the most recent 10 connections
+      // Keep only the most recent connections based on config
+      const maxConnections = configService.getStorageConfig().maxConnectionHistory;
       const sortedHistory = history
         .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
-        .slice(0, 10);
+        .slice(0, maxConnections);
 
       await this.setConnectionHistory(sortedHistory);
-      ErrorLogger.info('Added to connection history', this.logContext, { host, port });
+      ErrorLogger.info('Added to connection history', this.logContext, { 
+        host, 
+        port, 
+        totalConnections: sortedHistory.length,
+        maxConnections 
+      });
     } catch (error) {
       ErrorLogger.error('Failed to add to connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
       throw error;

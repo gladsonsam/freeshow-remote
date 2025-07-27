@@ -34,10 +34,15 @@ export interface ValidationConfig {
   hostRegexPattern: string;
 }
 
+export interface StorageConfig {
+  maxConnectionHistory: number;
+}
+
 export interface AppConfig {
   network: NetworkConfig;
   defaultShowPorts: ShowPortsConfig;
   validation: ValidationConfig;
+  storage: StorageConfig;
   isDevelopment: boolean;
   platform: 'ios' | 'android' | 'web';
 }
@@ -74,6 +79,9 @@ const DEFAULT_CONFIG: AppConfig = {
     ipRegexPattern: '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$',
     // Hostname validation (RFC 1123 compliant)
     hostRegexPattern: '^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(?:\\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$',
+  },
+  storage: {
+    maxConnectionHistory: 50, // Maximum number of connections to store in history
   },
   isDevelopment: __DEV__,
   platform: Platform.OS as 'ios' | 'android' | 'web',
@@ -114,6 +122,13 @@ class ConfigService {
   }
 
   /**
+   * Get storage configuration
+   */
+  getStorageConfig(): StorageConfig {
+    return { ...this.config.storage };
+  }
+
+  /**
    * Update configuration (for testing or runtime changes)
    */
   updateConfig(updates: Partial<AppConfig>): void {
@@ -123,6 +138,7 @@ class ConfigService {
       network: { ...this.config.network, ...updates.network },
       defaultShowPorts: { ...this.config.defaultShowPorts, ...updates.defaultShowPorts },
       validation: { ...this.config.validation, ...updates.validation },
+      storage: { ...this.config.storage, ...updates.storage },
     };
   }
 
