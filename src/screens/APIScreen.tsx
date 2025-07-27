@@ -261,8 +261,8 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={FreeShowTheme.colors.text} />
+          <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Interface' })} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{title}</Text>
         </View>
@@ -283,8 +283,8 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={FreeShowTheme.colors.text} />
+        <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Interface' })} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
         </TouchableOpacity>
         
         <ShowSwitcher
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
   },
-  backButton: {
+  closeButton: {
     padding: FreeShowTheme.spacing.sm,
   },
   titleContainer: {
@@ -714,9 +714,6 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.xl,
     fontWeight: '600',
     color: FreeShowTheme.colors.text,
-  },
-  closeButton: {
-    padding: FreeShowTheme.spacing.sm,
   },
   advancedContent: {
     flex: 1,
