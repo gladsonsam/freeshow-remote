@@ -163,6 +163,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         ErrorLogger.info('[AutoConnect] Loaded app settings', 'AutoConnect', appSettings);
         if (!appSettings.autoReconnect) {
           ErrorLogger.info('[AutoConnect] autoReconnect is false, skipping', 'AutoConnect');
+          // Mark auto-connect as attempted even if disabled
+          setState(prev => ({ ...prev, autoConnectAttempted: true }));
           return;
         }
         if (didAttempt) return;
@@ -175,6 +177,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         }
         if (!lastConnection || !lastConnection.host) {
           ErrorLogger.info('[AutoConnect] No valid last connection found, skipping', 'AutoConnect');
+          // Mark auto-connect as attempted even if no last connection
+          setState(prev => ({ ...prev, autoConnectAttempted: true }));
           return;
         }
         const timeoutMs = require('../config/AppConfig').configService.getNetworkConfig().connectionTimeout;
@@ -201,15 +205,28 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         if (success) {
           ErrorLogger.info('[AutoConnect] Auto-connect successful', 'AutoConnect', { host: lastConnection.host });
           
-          // Trigger auto-launch if enabled
+          // Trigger auto-launch if enabled (with shorter delay since no navigation needed)
           setTimeout(async () => {
             await triggerAutoLaunch();
-          }, 1500); // Increased delay to ensure connection is fully established and navigation is ready
+          }, 500);
         } else {
           ErrorLogger.info('[AutoConnect] Auto-connect failed', 'AutoConnect', { host: lastConnection.host });
+          
+          // Navigate back to Connect tab if auto-connect failed
+          setTimeout(() => {
+            if (navigationRef.current) {
+              ErrorLogger.info('[AutoConnect] Auto-connect failed, navigating to Connect tab', 'AutoConnect');
+              navigationRef.current.navigate('Main', { screen: 'Connect' });
+            }
+          }, 100);
         }
+        
+        // Mark auto-connect attempt as completed regardless of success/failure
+        setState(prev => ({ ...prev, autoConnectAttempted: true }));
       } catch (err) {
         ErrorLogger.error('[AutoConnect] Error in auto-reconnect', 'AutoConnect', err instanceof Error ? err : new Error(String(err)));
+        // Mark auto-connect as attempted even if there was an error
+        setState(prev => ({ ...prev, autoConnectAttempted: true }));
       }
     };
     autoReconnect();

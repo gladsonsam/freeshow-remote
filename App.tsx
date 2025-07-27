@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -16,18 +16,68 @@ import { AppContextProvider, useConnection } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
+import { settingsRepository } from './src/repositories';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+// Hook to check if auto-connect should be attempted
+const useAutoConnectExpected = () => {
+  const [autoConnectExpected, setAutoConnectExpected] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAutoConnectConditions = async () => {
+      try {
+        const appSettings = await settingsRepository.getAppSettings();
+        if (!appSettings.autoReconnect) {
+          setAutoConnectExpected(false);
+          return;
+        }
+        
+        const lastConnection = await settingsRepository.getLastConnection();
+        const shouldAutoConnect = !!(lastConnection && lastConnection.host);
+        setAutoConnectExpected(shouldAutoConnect);
+        
+        ErrorLogger.info('[AutoConnectCheck] Conditions checked', 'App', {
+          autoReconnect: appSettings.autoReconnect,
+          hasLastConnection: !!lastConnection?.host,
+          shouldAutoConnect
+        });
+      } catch (error) {
+        ErrorLogger.error('[AutoConnectCheck] Error checking conditions', 'App', error instanceof Error ? error : new Error(String(error)));
+        setAutoConnectExpected(false);
+      }
+    };
+
+    checkAutoConnectConditions();
+  }, []);
+
+  return autoConnectExpected;
+};
+
 // Create the main tab navigator
 function MainTabs() {
   const { state } = useConnection();
-  const { isConnected, connectionStatus } = state;
+  const { isConnected, connectionStatus, autoConnectAttempted } = state;
+  const autoConnectExpected = useAutoConnectExpected();
+
+  // Don't render the navigator until we know if auto-connect should be attempted
+  if (autoConnectExpected === null) {
+    return null; // Or a loading spinner if you prefer
+  }
+
+  // Determine initial route
+  const initialRouteName = autoConnectExpected ? "Interface" : "Connect";
+
+  // Log the initial route decision for debugging
+  ErrorLogger.info(`[Navigation] Initial route determined: ${initialRouteName}`, 'App', {
+    autoConnectExpected,
+    initialRouteName
+  });
 
   return (
     <Tab.Navigator
-      initialRouteName="Connect"
+      initialRouteName={initialRouteName}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
