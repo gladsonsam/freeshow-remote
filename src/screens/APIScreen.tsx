@@ -3,16 +3,21 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Alert,
   ActivityIndicator,
+  TextInput,
+  Modal,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
+import ShowSwitcher from '../components/ShowSwitcher';
+import { ShowOption } from '../types';
 
 interface APIScreenProps {
   route: {
@@ -24,37 +29,30 @@ interface APIScreenProps {
   navigation: any;
 }
 
-interface SlideData {
-  id: string;
-  name: string;
-  group?: string;
-}
-
-interface ShowData {
-  id: string;
-  name: string;
-}
-
 const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const { state } = useConnection();
-  const { connectionHost, isConnected } = state;
-  const { title = 'API Controls' } = route.params || {};
+  const { connectionHost, isConnected, currentShowPorts } = state;
+  const { title = 'FreeShow Remote' } = route.params || {};
 
-  const [slides, setSlides] = useState<SlideData[]>([]);
-  const [shows, setShows] = useState<ShowData[]>([]);
-  const [currentSlide, setCurrentSlide] = useState<string | null>(null);
-  const [currentShow, setCurrentShow] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
+  // State management
   const [socketConnected, setSocketConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Advanced mode state
+  const [customCommand, setCustomCommand] = useState('');
+  const [apiResponse, setApiResponse] = useState<string>('');
+  const [shows, setShows] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   
   const socketRef = useRef<Socket | null>(null);
+  const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasShownErrorRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (isConnected && connectionHost) {
       connectWebSocket();
     } else {
-      setIsLoading(false);
       disconnectWebSocket();
     }
 
@@ -63,278 +61,204 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     };
   }, [isConnected, connectionHost]);
 
+  const handleShowSelect = (show: ShowOption) => {
+    navigation.navigate('WebView', {
+      title: show.title,
+      url: `http://${connectionHost}:${show.port}`,
+      showId: show.id,
+    });
+  };
+
   const connectWebSocket = async () => {
     if (!connectionHost) return;
 
     try {
-      setIsLoading(true);
-      console.log('Connecting to FreeShow WebSocket API on port 5505...');
+      hasShownErrorRef.current = false;
+      console.log('Connecting to FreeShow WebSocket API...');
       
-      // Disconnect existing socket if any
+      if (connectionErrorTimeoutRef.current) {
+        clearTimeout(connectionErrorTimeoutRef.current);
+      }
+      
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
 
-      // Create new socket connection
       const socketUrl = `http://${connectionHost}:5505`;
-      console.log('Socket URL:', socketUrl);
-      
       socketRef.current = io(socketUrl, { 
         transports: ["websocket"],
         timeout: 10000,
         reconnection: true,
-        reconnectionAttempts: 3,
-        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
       });
 
-      // Set up socket event listeners
       socketRef.current.on('connect', () => {
-        console.log('WebSocket connected to FreeShow API');
+        console.log('FreeShow Remote connected successfully');
         setSocketConnected(true);
-        fetchShows();
+        
+        if (connectionErrorTimeoutRef.current) {
+          clearTimeout(connectionErrorTimeoutRef.current);
+        }
+        hasShownErrorRef.current = false;
       });
 
-      socketRef.current.on('disconnect', () => {
-        console.log('WebSocket disconnected from FreeShow API');
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('FreeShow Remote disconnected:', reason);
         setSocketConnected(false);
       });
 
       socketRef.current.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
-        setSocketConnected(false);
-        setIsLoading(false);
-        Alert.alert(
-          'FreeShow API Connection Failed',
-          `Cannot connect to FreeShow WebSocket API:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled in FreeShow → Connections\n• Port 5505 is accessible\n• Restart FreeShow if needed`,
-          [
-            { text: 'Retry', onPress: connectWebSocket },
-            { text: 'OK' }
-          ]
-        );
+        console.error('Connection error:', error);
+        
+        if (!hasShownErrorRef.current) {
+          connectionErrorTimeoutRef.current = setTimeout(() => {
+            if (!socketConnected && !hasShownErrorRef.current) {
+              hasShownErrorRef.current = true;
+              Alert.alert(
+                'Connection Failed',
+                `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port 5505 is accessible`,
+                [
+                  { 
+                    text: 'Retry', 
+                    onPress: () => {
+                      hasShownErrorRef.current = false;
+                      connectWebSocket();
+                    }
+                  },
+                  { text: 'OK' }
+                ]
+              );
+            }
+          }, 3000);
+        }
       });
 
-      // Listen for API responses
       socketRef.current.on('data', (response) => {
-        console.log('Received WebSocket response:', response);
-        handleSocketResponse(response);
+        handleApiResponse(response);
       });
 
     } catch (error) {
       console.error('Failed to setup WebSocket connection:', error);
-      setIsLoading(false);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert(
-        'WebSocket Setup Failed',
-        `${errorMessage}\n\nMake sure FreeShow WebSocket API is enabled.`,
-        [
-          { text: 'Retry', onPress: connectWebSocket },
-          { text: 'OK' }
-        ]
-      );
+      if (!hasShownErrorRef.current) {
+        hasShownErrorRef.current = true;
+        Alert.alert(
+          'Setup Failed',
+          `Failed to setup connection: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
   const disconnectWebSocket = () => {
+    if (connectionErrorTimeoutRef.current) {
+      clearTimeout(connectionErrorTimeoutRef.current);
+    }
+    
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
     setSocketConnected(false);
+    hasShownErrorRef.current = false;
   };
 
-  const handleSocketResponse = (response: any) => {
+  const handleApiResponse = (response: any) => {
     try {
-      const data = typeof response === 'string' ? JSON.parse(response) : response;
-      console.log('Parsed socket response:', data);
-      
-      // Handle different types of responses here if needed
-      // For now, we'll handle show data in fetchShows
-    } catch (error) {
-      console.error('Error parsing socket response:', error);
-    }
-  };
+      let data;
+      if (typeof response === 'string') {
+        try {
+          data = JSON.parse(response);
+        } catch {
+          data = response;
+        }
+      } else {
+        data = response;
+      }
 
-  const fetchShows = async () => {
-    if (!connectionHost || !socketRef.current || !socketConnected) {
-      console.log('Cannot fetch shows: socket not connected');
-      return;
-    }
+      console.log('API Response:', data);
+      setApiResponse(JSON.stringify(data, null, 2));
 
-    try {
-      setIsLoading(true);
-      console.log('Fetching shows via WebSocket...');
-      
-      // Send get_shows command via WebSocket
-      const command = { action: 'get_shows' };
-      console.log('Sending command:', command);
-      socketRef.current.emit('data', JSON.stringify(command));
-      
-      // Listen for the response (we'll handle this in a separate listener)
-      const responsePromise = new Promise<any>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Timeout waiting for shows data'));
-        }, 10000);
-
-        const handleResponse = (response: any) => {
-          clearTimeout(timeout);
-          try {
-            const data = typeof response === 'string' ? JSON.parse(response) : response;
-            resolve(data);
-          } catch (error) {
-            reject(error);
-          }
-        };
-
-        // Listen for the next data event
-        socketRef.current?.once('data', handleResponse);
-      });
-
-      const showsData = await responsePromise;
-      console.log('Received shows data:', showsData);
-      
-      const showsList: ShowData[] = [];
-      const slidesList: SlideData[] = [];
-      
-      if (showsData && typeof showsData === 'object') {
-        // Iterate through each show
-        for (const [showId, showData] of Object.entries(showsData)) {
+      // Handle shows data for advanced mode
+      if (data && typeof data === 'object' && isShowsData(data)) {
+        const showsList: any[] = [];
+        for (const [showId, showData] of Object.entries(data)) {
           if (showData && typeof showData === 'object') {
-            const showName = (showData as any).name || showId;
             showsList.push({
               id: showId,
-              name: showName,
+              name: (showData as any).name || showId,
             });
-
-            // Extract slides from this show
-            if ((showData as any).slides) {
-              const slides = (showData as any).slides;
-              
-              // Iterate through slides in this show
-              for (const [slideIndex, slideData] of Object.entries(slides)) {
-                if (slideData && typeof slideData === 'object') {
-                  slidesList.push({
-                    id: `${showId}_${slideIndex}`,
-                    name: (slideData as any).group || (slideData as any).text || `Slide ${parseInt(slideIndex) + 1}`,
-                    group: showName,
-                  });
-                }
-              }
-            }
           }
         }
+        setShows(showsList);
       }
-      
-      setShows(showsList);
-      setSlides(slidesList);
-      console.log(`Loaded ${showsList.length} shows and ${slidesList.length} slides`);
-      
     } catch (error) {
-      console.error('Failed to fetch shows:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert(
-        'API Connection Error', 
-        `Failed to get shows from FreeShow API:\n\n${errorMessage}\n\nMake sure:\n• FreeShow is running\n• WebSocket/REST API is enabled in FreeShow > Connections settings\n• WebSocket connection is stable`,
-        [
-          { text: 'Retry', onPress: fetchShows },
-          { text: 'OK' }
-        ]
-      );
-    } finally {
-      setIsLoading(false);
+      console.error('Error parsing API response:', error);
+      setApiResponse(`Parse error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const sendAPICommand = async (action: string, data: any = {}) => {
-    if (!connectionHost || !socketRef.current || !socketConnected) {
-      Alert.alert('Error', 'WebSocket not connected to FreeShow');
+  const isShowsData = (data: any): boolean => {
+    if (!data || typeof data !== 'object') return false;
+    const firstKey = Object.keys(data)[0];
+    if (!firstKey) return false;
+    const firstItem = data[firstKey];
+    return firstItem && (
+      firstItem.hasOwnProperty('name') || 
+      firstItem.hasOwnProperty('slides') ||
+      firstItem.hasOwnProperty('category')
+    );
+  };
+
+  const sendApiCommand = async (action: string, data: any = {}, showAlert: boolean = true): Promise<void> => {
+    if (!connectionHost || !socketRef.current || !socketRef.current.connected) {
+      if (showAlert) {
+        Alert.alert('Error', 'Not connected to FreeShow');
+      }
       return;
     }
 
     try {
       setIsConnecting(true);
-      console.log('Sending WebSocket command:', action, 'with data:', data);
-      
-      // Send command via WebSocket
       const command = { action, ...data };
+      console.log('Sending command:', command);
       socketRef.current.emit('data', JSON.stringify(command));
-      
-      // For most commands, we don't need to wait for a response
-      // The command is fire-and-forget
-      console.log('Command sent successfully');
-      
-      return { success: true };
     } catch (error) {
-      console.error('WebSocket command failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert(
-        'Command Failed', 
-        `Failed to execute "${action}":\n\n${errorMessage}\n\nCheck that FreeShow WebSocket API is connected.`
-      );
+      console.error('Command failed:', error);
+      if (showAlert) {
+        Alert.alert('Command Failed', `Failed to execute "${action}"`);
+      }
     } finally {
       setIsConnecting(false);
     }
   };
 
-  const handleSlideSelect = async (slideId: string) => {
-    setCurrentSlide(slideId);
-    // Parse the slideId to get showId and slide index
-    const [showId, slideIndex] = slideId.split('_');
-    await sendAPICommand('index_select_slide', { 
-      showId: showId,
-      index: parseInt(slideIndex) 
-    });
+  // Core remote functions
+  const handleNextSlide = () => sendApiCommand('next_slide');
+  const handlePreviousSlide = () => sendApiCommand('previous_slide');
+  const handleNextProject = () => sendApiCommand('next_project_item');
+  const handlePreviousProject = () => sendApiCommand('previous_project_item');
+  const handleClearAll = () => sendApiCommand('clear_all');
+
+  // Navigation to Bible screen
+  const handleBibleNavigation = () => {
+    navigation.navigate('Bible');
   };
 
-  const handleNextSlide = async () => {
-    await sendAPICommand('next_slide', {});
-  };
-
-  const handlePreviousSlide = async () => {
-    await sendAPICommand('previous_slide', {});
-  };
-
-  const handleClearOutput = async () => {
-    await sendAPICommand('clear_all', {});
-  };
-
-  const handleClearBackground = async () => {
-    await sendAPICommand('clear_background', {});
-  };
-
-  const handleClearSlide = async () => {
-    await sendAPICommand('clear_slide', {});
-  };
-
-  const handleClearOverlays = async () => {
-    await sendAPICommand('clear_overlays', {});
-  };
-
-  const handleShowSelect = async (showId: string) => {
-    setCurrentShow(showId);
-    await sendAPICommand('name_select_show', { value: shows.find(s => s.id === showId)?.name || showId });
-  };
-
-  const handleStartShow = async (showId: string) => {
-    await sendAPICommand('start_show', { id: showId });
-  };
-
-  const handleNextProject = async () => {
-    await sendAPICommand('next_project_item', {});
-  };
-
-  const handlePreviousProject = async () => {
-    await sendAPICommand('previous_project_item', {});
-  };
-
-  const handleRandomSlide = async () => {
-    await sendAPICommand('random_slide', {});
-  };
-
-  const handleRefresh = () => {
-    if (socketConnected) {
-      fetchShows();
-    } else {
-      connectWebSocket();
+  // Advanced functions
+  const handleCustomCommand = () => {
+    if (!customCommand.trim()) return;
+    
+    try {
+      const parsed = JSON.parse(customCommand);
+      if (parsed.action) {
+        sendApiCommand(parsed.action, parsed.data || {}, false);
+      } else {
+        sendApiCommand(customCommand.trim(), {}, false);
+      }
+    } catch (error) {
+      sendApiCommand(customCommand.trim(), {}, false);
     }
   };
 
@@ -351,10 +275,10 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           <Ionicons name="wifi-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
           <Text style={styles.errorText}>Not connected to FreeShow</Text>
           <TouchableOpacity 
-            style={styles.reconnectButton}
+            style={styles.connectButton}
             onPress={() => navigation.navigate('Connect')}
           >
-            <Text style={styles.reconnectButtonText}>Go to Connect</Text>
+            <Text style={styles.connectButtonText}>Go to Connect</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -362,213 +286,261 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={FreeShowTheme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{title}</Text>
-        <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color={FreeShowTheme.colors.text} />
+        
+        <ShowSwitcher
+          currentTitle={title}
+          currentShowId="api"
+          connectionHost={connectionHost || ''}
+          showPorts={currentShowPorts || undefined}
+          onShowSelect={handleShowSelect}
+        />
+
+        <View style={styles.headerRight}>
+          {/* Connection dot removed as per request */}
+        </View>
+      </View>
+
+      <View style={styles.container}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Slide Controls */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Slide Control</Text>
+          <View style={styles.controlRow}>
+            <TouchableOpacity 
+              style={[styles.controlButton, styles.previousButton]}
+              onPress={handlePreviousSlide}
+              disabled={isConnecting || !socketConnected}
+            >
+              <Ionicons name="chevron-back" size={32} color="white" />
+              <Text style={styles.controlButtonText}>Previous</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.controlButton, styles.nextButton]}
+              onPress={handleNextSlide}
+              disabled={isConnecting || !socketConnected}
+            >
+              <Ionicons name="chevron-forward" size={32} color="white" />
+              <Text style={styles.controlButtonText}>Next</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Project Controls */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Project Control</Text>
+          <View style={styles.controlRow}>
+            <TouchableOpacity 
+              style={[styles.controlButton, styles.projectButton]}
+              onPress={handlePreviousProject}
+              disabled={isConnecting || !socketConnected}
+            >
+              <Ionicons name="folder-open" size={24} color="white" />
+              <Text style={styles.controlButtonText}>Previous Project</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.controlButton, styles.projectButton]}
+              onPress={handleNextProject}
+              disabled={isConnecting || !socketConnected}
+            >
+              <Ionicons name="folder" size={24} color="white" />
+              <Text style={styles.controlButtonText}>Next Project</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bible Navigation Button */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bible Scripture</Text>
+          <TouchableOpacity 
+            style={[styles.bibleNavigationButton, !socketConnected && styles.bibleNavigationButtonDisabled]}
+            onPress={handleBibleNavigation}
+            disabled={!socketConnected}
+          >
+            <View style={styles.bibleButtonContent}>
+              <Ionicons name="book" size={28} color="white" />
+              <View style={styles.bibleButtonTextContainer}>
+                <Text style={styles.bibleButtonTitle}>Open Bible</Text>
+                <Text style={styles.bibleButtonSubtitle}>Search and display any scripture</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="white" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Advanced Button */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Advanced</Text>
+          <TouchableOpacity
+            style={[styles.advancedButton, !socketConnected && styles.advancedButtonDisabled]}
+            onPress={() => setShowAdvanced(true)}
+            disabled={!socketConnected}
+          >
+            <View style={styles.advancedButtonContent}>
+              <Ionicons name="settings-outline" size={28} color="white" />
+              <View style={styles.advancedButtonTextContainer}>
+                <Text style={styles.advancedButtonTitle}>Advanced Controls</Text>
+                <Text style={styles.advancedButtonSubtitle}>Access advanced API functions</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="white" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Clear All - Always at bottom */}
+      <View style={styles.bottomSection}>
+        <TouchableOpacity 
+          style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
+          onPress={handleClearAll}
+          disabled={isConnecting || !socketConnected}
+        >
+          <Ionicons name="close-circle" size={24} color="white" />
+          <Text style={styles.clearAllButtonText}>Clear All</Text>
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={FreeShowTheme.colors.secondary} />
-          <Text style={styles.loadingText}>Loading slides...</Text>
-        </View>
-      ) : (
-        <ScrollView style={styles.content}>
-          {/* Debug Info */}
-          <View style={styles.debugSection}>
-            <Text style={styles.sectionTitle}>Connection Info</Text>
-            <View style={styles.debugCard}>
-              <Text style={styles.debugText}>Host: {connectionHost}</Text>
-              <Text style={styles.debugText}>API Port: 5505 (WebSocket)</Text>
-              <Text style={styles.debugText}>Status: {isConnected ? 'Connected' : 'Disconnected'}</Text>
-              <Text style={styles.debugText}>WebSocket: {socketConnected ? 'Connected' : 'Disconnected'}</Text>
-              <Text style={styles.debugText}>API URL: ws://{connectionHost}:5505</Text>
-            </View>
-          </View>
+      </View>
 
-          {/* Show Selection */}
-          {shows.length > 0 && (
-            <View style={styles.showSection}>
-              <Text style={styles.sectionTitle}>Shows ({shows.length})</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.showScrollView}>
-                {shows.map((show) => (
-                  <TouchableOpacity
-                    key={show.id}
-                    style={[
-                      styles.showCard,
-                      currentShow === show.id && styles.showCardActive
-                    ]}
-                    onPress={() => handleShowSelect(show.id)}
-                    disabled={isConnecting}
-                  >
-                    <Text style={styles.showName}>{show.name}</Text>
-                    <TouchableOpacity
-                      style={styles.startShowButton}
-                      onPress={() => handleStartShow(show.id)}
-                      disabled={isConnecting}
-                    >
-                      <Ionicons name="play" size={16} color="white" />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Project Navigation */}
-          <View style={styles.controlSection}>
-            <Text style={styles.sectionTitle}>Project Navigation</Text>
-            <View style={styles.controlRow}>
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.projectButton]}
-                onPress={handlePreviousProject}
-                disabled={isConnecting}
-              >
-                <Ionicons name="chevron-back" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Prev Project</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.projectButton]}
-                onPress={handleNextProject}
-                disabled={isConnecting}
-              >
-                <Ionicons name="chevron-forward" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Next Project</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Slide Control Buttons */}
-          <View style={styles.controlSection}>
-            <Text style={styles.sectionTitle}>Slide Controls</Text>
-            <View style={styles.controlRow}>
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.previousButton]}
-                onPress={handlePreviousSlide}
-                disabled={isConnecting}
-              >
-                <Ionicons name="play-back" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Previous</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.nextButton]}
-                onPress={handleNextSlide}
-                disabled={isConnecting}
-              >
-                <Ionicons name="play-forward" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Next</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.randomButton]}
-                onPress={handleRandomSlide}
-                disabled={isConnecting}
-              >
-                <Ionicons name="shuffle" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Random</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Clear Options */}
-          <View style={styles.controlSection}>
-            <Text style={styles.sectionTitle}>Clear Options</Text>
-            <View style={styles.controlGrid}>
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.clearButton]}
-                onPress={handleClearOutput}
-                disabled={isConnecting}
-              >
-                <Ionicons name="close-circle" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Clear All</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.clearButton]}
-                onPress={handleClearSlide}
-                disabled={isConnecting}
-              >
-                <Ionicons name="document" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Clear Slide</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.clearButton]}
-                onPress={handleClearBackground}
-                disabled={isConnecting}
-              >
-                <Ionicons name="image" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Clear BG</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.controlButton, styles.clearButton]}
-                onPress={handleClearOverlays}
-                disabled={isConnecting}
-              >
-                <Ionicons name="layers" size={24} color="white" />
-                <Text style={styles.controlButtonText}>Clear Overlays</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Slides List */}
-          <View style={styles.slidesSection}>
-            <Text style={styles.sectionTitle}>Slides ({slides.length})</Text>
-            {slides.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="document-outline" size={48} color={FreeShowTheme.colors.textSecondary} />
-                <Text style={styles.emptyStateText}>No slides available</Text>
-                <Text style={styles.emptyStateSubtext}>Make sure FreeShow has a presentation loaded</Text>
-              </View>
-            ) : (
-              slides.map((slide) => (
-                <TouchableOpacity
-                  key={slide.id}
-                  style={[
-                    styles.slideCard,
-                    currentSlide === slide.id && styles.slideCardActive
-                  ]}
-                  onPress={() => handleSlideSelect(slide.id)}
-                  disabled={isConnecting}
-                >
-                  <View style={styles.slideInfo}>
-                    <Text style={styles.slideName}>{slide.name}</Text>
-                    {slide.group && (
-                      <Text style={styles.slideGroup}>{slide.group}</Text>
-                    )}
-                  </View>
-                  <View style={styles.slideActions}>
-                    {currentSlide === slide.id && (
-                      <Ionicons name="checkmark-circle" size={20} color={FreeShowTheme.colors.secondary} />
-                    )}
-                    <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.textSecondary} />
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        </ScrollView>
-      )}
-
+      {/* Loading Overlay */}
       {isConnecting && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="small" color={FreeShowTheme.colors.secondary} />
         </View>
       )}
+
+      {/* Advanced Modal */}
+      <Modal
+        visible={showAdvanced}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAdvanced(false)}
+      >
+        <SafeAreaView style={styles.advancedContainer}>
+          <View style={styles.advancedHeader}>
+            <Text style={styles.advancedTitle}>Advanced API Controls</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowAdvanced(false)}
+            >
+              <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.advancedContent}>
+            {/* Connection Status */}
+            <View style={styles.advancedSection}>
+              <Text style={styles.advancedSectionTitle}>Connection Status</Text>
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>WebSocket:</Text>
+                <View style={styles.statusIndicator}>
+                  <View style={[styles.statusDot, { backgroundColor: socketConnected ? '#28a745' : '#dc3545' }]} />
+                  <Text style={styles.statusText}>{socketConnected ? 'Connected' : 'Disconnected'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Quick Data Loading */}
+            <View style={styles.advancedSection}>
+              <Text style={styles.advancedSectionTitle}>Data Loading</Text>
+              <View style={styles.advancedButtonRow}>
+                <TouchableOpacity 
+                  style={styles.advancedModalButton}
+                  onPress={() => sendApiCommand('get_shows', {}, false)}
+                  disabled={isConnecting || !socketConnected}
+                >
+                  <Text style={styles.advancedButtonText}>Load Shows</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.advancedModalButton}
+                  onPress={() => sendApiCommand('get_projects', {}, false)}
+                  disabled={isConnecting || !socketConnected}
+                >
+                  <Text style={styles.advancedButtonText}>Load Projects</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Custom Command */}
+            <View style={styles.advancedSection}>
+              <Text style={styles.advancedSectionTitle}>Custom API Command</Text>
+              <View style={styles.customCommandContainer}>
+                <TextInput
+                  style={styles.customCommandInput}
+                  value={customCommand}
+                  onChangeText={setCustomCommand}
+                  placeholder='e.g., get_shows or {"action":"get_slide","showId":"show1"}'
+                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.sendButton, !customCommand.trim() && styles.sendButtonDisabled]}
+                  onPress={handleCustomCommand}
+                  disabled={isConnecting || !customCommand.trim() || !socketConnected}
+                >
+                  <Ionicons name="send" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* API Response */}
+            <View style={styles.advancedSection}>
+              <Text style={styles.advancedSectionTitle}>API Response</Text>
+              <ScrollView style={styles.responseContainer} nestedScrollEnabled>
+                <Text style={styles.responseText}>{apiResponse || 'No response yet'}</Text>
+              </ScrollView>
+            </View>
+
+            {/* Shows List (if loaded) */}
+            {shows.length > 0 && (
+              <View style={styles.advancedSection}>
+                <Text style={styles.advancedSectionTitle}>Shows ({shows.length})</Text>
+                {shows.slice(0, 10).map((show) => (
+                  <TouchableOpacity
+                    key={show.id}
+                    style={styles.showItem}
+                    onPress={() => sendApiCommand('name_select_show', { value: show.name }, false)}
+                    disabled={isConnecting}
+                  >
+                    <Text style={styles.showItemText}>{show.name}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                ))}
+                {shows.length > 10 && (
+                  <Text style={styles.moreItemsText}>... and {shows.length - 10} more shows</Text>
+                )}
+              </View>
+            )}
+
+            {/* Clear All in Advanced Mode too */}
+            <View style={styles.advancedSection}>
+              <TouchableOpacity 
+                style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
+                onPress={handleClearAll}
+                disabled={isConnecting || !socketConnected}
+              >
+                <Ionicons name="close-circle" size={24} color="white" />
+                <Text style={styles.clearAllButtonText}>Clear All</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.primary,
+  },
   container: {
     flex: 1,
     backgroundColor: FreeShowTheme.colors.primary,
@@ -576,22 +548,33 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    paddingVertical: FreeShowTheme.spacing.sm,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
   },
   backButton: {
-    marginRight: FreeShowTheme.spacing.md,
+    padding: FreeShowTheme.spacing.sm,
+  },
+  titleContainer: {
+    flex: 1,
+    marginHorizontal: FreeShowTheme.spacing.md,
   },
   title: {
-    flex: 1,
-    fontSize: FreeShowTheme.fontSize.xl,
-    fontWeight: '600',
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
+    fontFamily: FreeShowTheme.fonts.system,
   },
-  refreshButton: {
-    marginLeft: FreeShowTheme.spacing.md,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: FreeShowTheme.spacing.md,
+  },
+  headerAdvancedButton: {
+    padding: FreeShowTheme.spacing.sm,
+    marginLeft: FreeShowTheme.spacing.sm,
   },
   content: {
     flex: 1,
@@ -609,51 +592,50 @@ const styles = StyleSheet.create({
     marginTop: FreeShowTheme.spacing.lg,
     textAlign: 'center',
   },
-  loadingText: {
-    fontSize: FreeShowTheme.fontSize.md,
-    color: FreeShowTheme.colors.textSecondary,
-    marginTop: FreeShowTheme.spacing.md,
-  },
-  reconnectButton: {
+  connectButton: {
     backgroundColor: FreeShowTheme.colors.secondary,
     paddingHorizontal: FreeShowTheme.spacing.xl,
     paddingVertical: FreeShowTheme.spacing.md,
     borderRadius: FreeShowTheme.borderRadius.lg,
     marginTop: FreeShowTheme.spacing.xl,
   },
-  reconnectButtonText: {
+  connectButtonText: {
     color: 'white',
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
   },
-  controlSection: {
-    marginBottom: FreeShowTheme.spacing.xl,
+  section: {
+    marginBottom: FreeShowTheme.spacing.xl * 1.5,
   },
   sectionTitle: {
     fontSize: FreeShowTheme.fontSize.lg,
     fontWeight: '600',
     color: FreeShowTheme.colors.text,
-    marginBottom: FreeShowTheme.spacing.md,
+    marginBottom: FreeShowTheme.spacing.lg,
   },
+  // Control Buttons
   controlRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: FreeShowTheme.spacing.md,
-  },
-  controlGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: FreeShowTheme.spacing.md,
+    gap: FreeShowTheme.spacing.lg,
   },
   controlButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: FreeShowTheme.spacing.lg,
+    paddingVertical: FreeShowTheme.spacing.xl,
     borderRadius: FreeShowTheme.borderRadius.lg,
     gap: FreeShowTheme.spacing.sm,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  controlButtonText: {
+    color: 'white',
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
   },
   previousButton: {
     backgroundColor: '#FF851B',
@@ -661,70 +643,107 @@ const styles = StyleSheet.create({
   nextButton: {
     backgroundColor: FreeShowTheme.colors.secondary,
   },
-  randomButton: {
-    backgroundColor: '#6c757d',
-  },
   projectButton: {
     backgroundColor: '#007bff',
   },
-  clearButton: {
-    backgroundColor: '#a82727',
-  },
-  controlButtonText: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.sm,
-    fontWeight: '600',
-  },
-  slidesSection: {
-    flex: 1,
-  },
-  slideCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
+  // Bible Navigation Button
+  bibleNavigationButton: {
+    backgroundColor: '#6f42c1',
     borderRadius: FreeShowTheme.borderRadius.lg,
     padding: FreeShowTheme.spacing.lg,
-    marginBottom: FreeShowTheme.spacing.md,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  slideCardActive: {
-    borderColor: FreeShowTheme.colors.secondary,
-    backgroundColor: FreeShowTheme.colors.primaryLighter,
+  bibleNavigationButtonDisabled: {
+    backgroundColor: '#6c757d',
+    opacity: 0.6,
   },
-  slideInfo: {
-    flex: 1,
-  },
-  slideName: {
-    fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-    marginBottom: FreeShowTheme.spacing.xs,
-  },
-  slideGroup: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
-  },
-  slideActions: {
+  bibleButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: FreeShowTheme.spacing.sm,
+    justifyContent: 'space-between',
   },
-  emptyState: {
-    alignItems: 'center',
-    padding: FreeShowTheme.spacing.xl,
+  bibleButtonTextContainer: {
+    flex: 1,
+    marginLeft: FreeShowTheme.spacing.lg,
+    marginRight: FreeShowTheme.spacing.md,
   },
-  emptyStateText: {
+  bibleButtonTitle: {
+    color: 'white',
     fontSize: FreeShowTheme.fontSize.lg,
-    color: FreeShowTheme.colors.textSecondary,
-    marginTop: FreeShowTheme.spacing.md,
-    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: FreeShowTheme.spacing.xs,
   },
-  emptyStateSubtext: {
+  bibleButtonSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
-    marginTop: FreeShowTheme.spacing.sm,
-    textAlign: 'center',
+  },
+  // Advanced Button
+  advancedButton: {
+    backgroundColor: '#333',
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    padding: FreeShowTheme.spacing.lg,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  advancedButtonDisabled: {
+    backgroundColor: '#6c757d',
+    opacity: 0.6,
+  },
+  advancedButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  advancedButtonTextContainer: {
+    flex: 1,
+    marginLeft: FreeShowTheme.spacing.lg,
+    marginRight: FreeShowTheme.spacing.md,
+  },
+  advancedButtonTitle: {
+    color: 'white',
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '600',
+    marginBottom: FreeShowTheme.spacing.xs,
+  },
+  advancedButtonSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: FreeShowTheme.fontSize.sm,
+  },
+  // Bottom Section
+  bottomSection: {
+    padding: FreeShowTheme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: FreeShowTheme.colors.primaryLighter,
+  },
+  clearAllButton: {
+    backgroundColor: '#dc3545',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: FreeShowTheme.spacing.lg,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    gap: FreeShowTheme.spacing.sm,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  clearAllButtonDisabled: {
+    backgroundColor: '#6c757d',
+    opacity: 0.6,
+  },
+  clearAllButtonText: {
+    color: 'white',
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
   },
   loadingOverlay: {
     position: 'absolute',
@@ -736,39 +755,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  showSection: {
-    marginBottom: FreeShowTheme.spacing.xl,
+  // Advanced Modal Styles
+  advancedContainer: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.primary,
   },
-  showScrollView: {
-    paddingVertical: FreeShowTheme.spacing.sm,
-  },
-  showCard: {
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    marginRight: FreeShowTheme.spacing.sm,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
+  advancedHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingVertical: FreeShowTheme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: FreeShowTheme.colors.primaryLighter,
   },
-  showCardActive: {
-    borderColor: FreeShowTheme.colors.secondary,
-    backgroundColor: FreeShowTheme.colors.primaryLighter,
-  },
-  showName: {
-    fontSize: FreeShowTheme.fontSize.md,
+  advancedTitle: {
+    fontSize: FreeShowTheme.fontSize.xl,
     fontWeight: '600',
     color: FreeShowTheme.colors.text,
-    marginBottom: FreeShowTheme.spacing.xs,
   },
-  startShowButton: {
-    backgroundColor: FreeShowTheme.colors.secondary,
-    paddingVertical: FreeShowTheme.spacing.xs,
-    paddingHorizontal: FreeShowTheme.spacing.sm,
-    borderRadius: FreeShowTheme.borderRadius.sm,
+  closeButton: {
+    padding: FreeShowTheme.spacing.sm,
   },
-  debugSection: {
+  advancedContent: {
+    flex: 1,
+    padding: FreeShowTheme.spacing.lg,
+  },
+  advancedSection: {
     marginBottom: FreeShowTheme.spacing.xl,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
@@ -776,13 +789,117 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
   },
-  debugCard: {
-    paddingVertical: FreeShowTheme.spacing.md,
+  advancedSectionTitle: {
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+    marginBottom: FreeShowTheme.spacing.md,
   },
-  debugText: {
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusLabel: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.textSecondary,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: FreeShowTheme.spacing.xs,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.text,
+    fontWeight: '600',
+  },
+  advancedButtonRow: {
+    flexDirection: 'row',
+    gap: FreeShowTheme.spacing.md,
+  },
+  advancedModalButton: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.secondary,
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    alignItems: 'center',
+  },
+  advancedButtonText: {
+    color: 'white',
+    fontSize: FreeShowTheme.fontSize.sm,
+    fontWeight: '600',
+  },
+  customCommandContainer: {
+    flexDirection: 'row',
+    gap: FreeShowTheme.spacing.md,
+    alignItems: 'flex-start',
+  },
+  customCommandInput: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    padding: FreeShowTheme.spacing.md,
+    color: FreeShowTheme.colors.text,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    maxHeight: 100,
+    fontSize: FreeShowTheme.fontSize.sm,
+  },
+  sendButton: {
+    backgroundColor: FreeShowTheme.colors.secondary,
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#6c757d',
+    opacity: 0.6,
+  },
+  responseContainer: {
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    padding: FreeShowTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    maxHeight: 200,
+  },
+  responseText: {
+    fontSize: FreeShowTheme.fontSize.xs,
+    color: FreeShowTheme.colors.text,
+    fontFamily: 'monospace',
+  },
+  showItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    marginBottom: FreeShowTheme.spacing.sm,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  showItemText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.text,
+    fontWeight: '500',
+  },
+  moreItemsText: {
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
-    marginBottom: FreeShowTheme.spacing.xs,
+    textAlign: 'center',
+    padding: FreeShowTheme.spacing.md,
+    fontStyle: 'italic',
   },
 });
 
