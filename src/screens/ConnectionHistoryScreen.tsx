@@ -270,13 +270,13 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.lg,
     fontWeight: '600',
     color: FreeShowTheme.colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   historyItemIP: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
-    marginBottom: 2,
-    fontFamily: 'monospace',
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 4,
   },
   historyItemTime: {
     fontSize: FreeShowTheme.fontSize.sm,
