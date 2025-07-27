@@ -39,7 +39,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'remote',
         title: 'RemoteShow',
-        description: 'Control slides and presentations remotely',
+        description: 'Control slides and presentations',
         port: showPorts.remote,
         icon: 'play-circle',
         color: '#f0008c',
@@ -47,7 +47,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'stage',
         title: 'StageShow',
-        description: 'Stage display for performers and speakers',
+        description: 'Stage display for performers',
         port: showPorts.stage,
         icon: 'desktop',
         color: '#2ECC40',
@@ -71,7 +71,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'api',
         title: 'API Controls',
-        description: 'Custom native controls using FreeShow API',
+        description: 'Custom native API controls',
         port: showPorts.api,
         icon: 'code-slash',
         color: '#B10DC9',
@@ -176,7 +176,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
               
               <View style={styles.showInfo}>
                 <Text style={styles.showTitle}>{show.title}</Text>
-                <Text style={styles.showDescription}>{show.description}</Text>
+                <Text style={styles.showDescription} numberOfLines={1}>{show.description}</Text>
                 <Text style={styles.showPort}>Port: {show.port}</Text>
               </View>
               
@@ -280,13 +280,13 @@ const styles = StyleSheet.create({
     fontWeight: '700', // Increase font weight
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 2,
+    marginBottom: 8, 
   },
   showDescription: {
     fontSize: isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + 'BB', // Increase opacity slightly
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 4,
+    marginBottom: 2, 
     lineHeight: 16,
   },
   showPort: {
