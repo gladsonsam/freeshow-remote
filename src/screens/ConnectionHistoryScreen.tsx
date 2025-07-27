@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.lg,
     fontWeight: '600',
     color: FreeShowTheme.colors.text,
-    marginBottom: 2,
+    marginBottom: 8,
   },
   historyItemIP: {
     fontSize: FreeShowTheme.fontSize.sm,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   historyItemTime: {
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 0,
   },
   historyItemActions: {
     flexDirection: 'row',
