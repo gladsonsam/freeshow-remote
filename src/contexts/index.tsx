@@ -5,27 +5,15 @@ import { ConnectionProvider } from './ConnectionStateContext';
 import { DiscoveryProvider } from './DiscoveryContext';
 import { SettingsProvider } from './SettingsContext';
 
-interface AppContextProviderProps {
+// Combine all providers into a single AppContext
+export const AppContextProvider: React.FC<{
   children: ReactNode;
-  autoStartDiscovery?: boolean;
-  autoLoadSettings?: boolean;
   navigation?: any;
-}
-
-/**
- * Combined provider that wraps all focused contexts
- * Maintains the same API as the original ConnectionContext for backward compatibility
- */
-export const AppContextProvider: React.FC<AppContextProviderProps> = ({
-  children,
-  autoStartDiscovery = false,
-  autoLoadSettings = true,
-  navigation,
-}) => {
+}> = ({ children, navigation }) => {
   return (
-    <SettingsProvider autoLoad={autoLoadSettings}>
+    <SettingsProvider>
       <ConnectionProvider navigation={navigation}>
-        <DiscoveryProvider autoStartDiscovery={autoStartDiscovery}>
+        <DiscoveryProvider autoStartDiscovery={false}>
           {children}
         </DiscoveryProvider>
       </ConnectionProvider>
@@ -33,31 +21,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   );
 };
 
-// Re-export all hooks for easy access
-export {
-  // Connection hooks
-  useConnection,
-  useConnectionState,
-  useConnectionActions,
-  useFreeShowService,
-} from './ConnectionStateContext';
-
-export {
-  // Discovery hooks
-  useDiscovery,
-  useDiscoveryState,
-  useDiscoveryActions,
-} from './DiscoveryContext';
-
-export {
-  // Settings hooks
-  useSettings,
-  useAppSettings,
-  useConnectionHistory,
-  useSettingsError,
-} from './SettingsContext';
-
-// Re-export types
-export type { ConnectionState, ConnectionActions, ConnectionContextType } from './ConnectionStateContext';
-export type { DiscoveryState, DiscoveryActions, DiscoveryContextType } from './DiscoveryContext';
-export type { SettingsState, SettingsActions, SettingsContextType } from './SettingsContext';
+export * from './ConnectionStateContext';
+export * from './DiscoveryContext';
+export * from './SettingsContext';

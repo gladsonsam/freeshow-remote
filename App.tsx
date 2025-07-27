@@ -258,7 +258,6 @@ export default function App() {
             </Stack.Navigator>
             <StatusBar 
               style="light" 
-              backgroundColor="transparent"
               translucent={true}
             />
           </NavigationContainer>

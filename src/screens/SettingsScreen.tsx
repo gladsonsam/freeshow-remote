@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useSettings, useConnectionHistory } from '../contexts';
+import { useSettings } from '../contexts';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -27,8 +27,7 @@ interface ShowOption {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
-  const { settings, actions } = useSettings();
-  const [history] = useConnectionHistory();
+  const { settings, history, actions } = useSettings();
   const [autoReconnect, setAutoReconnect] = useState(settings?.autoReconnect || false);
   const [autoLaunchInterface, setAutoLaunchInterface] = useState(settings?.autoLaunchInterface || 'none');
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);

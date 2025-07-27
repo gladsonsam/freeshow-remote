@@ -21,7 +21,6 @@ import {
   useConnection,
   useDiscovery,
   useSettings,
-  useConnectionHistory,
   useDiscoveryActions,
 } from '../contexts';
 import { DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
@@ -69,8 +68,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     updateShowPorts,
     cancelConnection
   } = actions;
-
-  const [connectionHistory, historyActions] = useConnectionHistory();
+  
+  const { history, actions: historyActions } = useSettings();
   
   const discovery = useDiscovery();
   const discoveryActions = useDiscoveryActions();
@@ -84,14 +83,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [scanComplete, setScanComplete] = useState(false);
   const [isScanActive, setIsScanActive] = useState(false);
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Restore connection history hook and variables
-  const {
-    remove: removeFromHistory,
-    clear: clearAllHistory,
-    getLast: getLastConnection,
-    refresh: refreshHistory,
-  } = historyActions;
 
   // Clear discovered services and progress when screen mounts
   useEffect(() => {
@@ -146,7 +137,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       ErrorLogger.debug('Updating form with current connection', 'ConnectScreen', { connectionHost });
       setHost(connectionHost);
     }
-  }, [isConnected, connectionHost, connectionHistory]);
+  }, [isConnected, connectionHost, history]);
 
   // Update current show ports whenever port values change and we're connected
   useEffect(() => {
@@ -216,15 +207,16 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       const sanitizedShowPorts = showPortsValidation.sanitizedValue;
       const defaultPort = configService.getNetworkConfig().defaultPort;
 
+      // Find existing nickname before connecting
+      const historyMatch = history.find(h => h.host === sanitizedHost);
+      const nameToUse = historyMatch?.nickname;
+
       ErrorLogger.info('Attempting manual connection with validated inputs', 'ConnectScreen', 
         new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}`)
       );
 
-      const connected = await connect(sanitizedHost, defaultPort);
+      const connected = await connect(sanitizedHost, defaultPort, nameToUse);
       if (connected) {
-        // Find a matching nickname from history
-        const historyMatch = connectionHistory.find(h => h.host === sanitizedHost);
-
         // Update show ports after successful connection
         updateShowPorts(sanitizedShowPorts);
         navigation.navigate('Interface');
@@ -316,7 +308,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       };
       
       // Check for a stored nickname for the discovered service
-      const historyMatch = connectionHistory.find(h => h.host === ip);
+      const historyMatch = history.find(h => h.host === ip);
       const nameToUse = historyMatch?.nickname || service.name;
       
       const connected = await connect(ip, 5505, nameToUse); // Always use port 5505
@@ -331,7 +323,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const handleRemoveFromHistory = async (itemId: string) => {
-    await removeFromHistory(itemId);
+    await historyActions.removeFromHistory(itemId);
   };
 
   const handleEditNickname = (item: ConnectionHistory) => {
@@ -345,7 +337,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     
     try {
       await settingsRepository.updateConnectionNickname(editingConnection.id, editNicknameText);
-      await refreshHistory(); // Use the destructured action
+      await historyActions.refreshHistory(); // Use the destructured action
       setShowEditNickname(false);
       setEditingConnection(null);
       setEditNicknameText('');
@@ -374,7 +366,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           text: 'Clear All',
           style: 'destructive',
           onPress: async () => {
-            await clearAllHistory();
+            await historyActions.clearHistory();
           },
         },
       ]
@@ -520,7 +512,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           </View>
 
           {/* Quick Connect Section - Premium placement */}
-          {!isConnected && (connectionHistory.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
+          {!isConnected && (history.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
             <View style={styles.quickConnectCard}>
               <View style={styles.quickConnectHeader}>
                 <View style={styles.quickConnectTitleContainer}>
@@ -632,7 +624,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                 )}
 
                 {/* Recent Connections */}
-                {connectionHistory.length > 0 && (
+                {history.length > 0 && (
                   <View style={styles.recentSection}>
                     <View style={styles.recentSectionHeader}>
                       <View style={styles.recentTitleRow}>
@@ -648,7 +640,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       </TouchableOpacity>
                     </View>
                     <View style={styles.recentDevices}>
-                      {connectionHistory.slice(0, 3).map((item: ConnectionHistory, index: number) => (
+                      {history.slice(0, 3).map((item: ConnectionHistory, index: number) => (
                         <TouchableOpacity
                           key={item.id}
                           style={styles.recentDevice}

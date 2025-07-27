@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useConnectionHistory } from '../contexts';
+import { useSettings } from '../contexts';
 import { ConnectionHistory, settingsRepository } from '../repositories';
 
 interface ConnectionHistoryScreenProps {
@@ -20,7 +20,7 @@ interface ConnectionHistoryScreenProps {
 }
 
 const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navigation }) => {
-  const [connectionHistory, historyActions] = useConnectionHistory();
+  const { history, actions } = useSettings();
   const [showEditNickname, setShowEditNickname] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionHistory | null>(null);
   const [editNicknameText, setEditNicknameText] = useState('');
@@ -36,7 +36,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           style: 'destructive',
           onPress: async () => {
             try {
-              await historyActions.remove(id);
+              await actions.removeFromHistory(id);
             } catch (error) {
               console.error('Failed to remove connection from history:', error);
               Alert.alert('Error', 'Failed to remove connection from history');
@@ -58,7 +58,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           style: 'destructive',
           onPress: async () => {
             try {
-              await historyActions.clear();
+              await actions.clearHistory();
             } catch (error) {
               console.error('Failed to clear connection history:', error);
               Alert.alert('Error', 'Failed to clear connection history');
@@ -80,6 +80,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
     
     try {
       await settingsRepository.updateConnectionNickname(editingConnection.id, editNicknameText);
+      await actions.refreshHistory();
       setShowEditNickname(false);
       setEditingConnection(null);
       setEditNicknameText('');
@@ -108,10 +109,10 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
         <View style={styles.headerContent}>
           <Text style={styles.title}>Connection History</Text>
           <Text style={styles.subtitle}>
-            {connectionHistory.length} {connectionHistory.length === 1 ? 'connection' : 'connections'}
+            {history.length} {history.length === 1 ? 'connection' : 'connections'}
           </Text>
         </View>
-        {connectionHistory.length > 0 && (
+        {history.length > 0 && (
           <TouchableOpacity
             style={styles.clearAllButton}
             onPress={handleClearAllHistory}
@@ -122,13 +123,13 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
       </View>
 
       {/* Content */}
-      {connectionHistory.length > 0 ? (
+      {history.length > 0 ? (
         <ScrollView 
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {connectionHistory.map((item: ConnectionHistory, index: number) => (
+          {history.map((item: ConnectionHistory, index: number) => (
             <View key={item.id} style={styles.historyItem}>
               <View style={styles.historyItemHeader}>
                 <View style={styles.historyItemIcon}>
@@ -194,6 +195,58 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           </Text>
         </View>
       )}
+
+      {/* Edit Nickname Modal */}
+      <Modal
+        visible={showEditNickname}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelEdit}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModalContent}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Connection Name</Text>
+              <TouchableOpacity
+                style={styles.editModalCloseButton}
+                onPress={handleCancelEdit}
+              >
+                <Ionicons name="close" size={24} color={FreeShowTheme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.editModalBody}>
+              <Text style={styles.editModalLabel}>
+                Connection: {editingConnection?.host}
+              </Text>
+              <TextInput
+                style={styles.editModalInput}
+                value={editNicknameText}
+                onChangeText={setEditNicknameText}
+                placeholder="Enter connection name"
+                placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                autoFocus={true}
+                selectTextOnFocus={true}
+              />
+            </View>
+            
+            <View style={styles.editModalButtons}>
+              <TouchableOpacity
+                style={[styles.editModalButton, styles.editModalCancelButton]}
+                onPress={handleCancelEdit}
+              >
+                <Text style={styles.editModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editModalButton, styles.editModalSaveButton]}
+                onPress={handleSaveNickname}
+              >
+                <Text style={styles.editModalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
