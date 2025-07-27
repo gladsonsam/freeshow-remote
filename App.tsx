@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -12,7 +12,7 @@ import WebViewScreen from './src/screens/WebViewScreen';
 import APIScreen from './src/screens/APIScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
-import { AppContextProvider, useConnection, useSettings } from './src/contexts';
+import { AppContextProvider, useConnection } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
