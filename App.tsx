@@ -10,7 +10,7 @@ import ConnectScreen from './src/screens/ConnectScreen';
 import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import APIScreen from './src/screens/APIScreen';
-import BibleScreen from './src/screens/BibleScreen';
+
 import SettingsScreen from './src/screens/SettingsScreen';
 import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
@@ -242,18 +242,7 @@ export default function App() {
                   </ErrorBoundary>
                 )}
               </Stack.Screen>
-              <Stack.Screen 
-                name="Bible"
-                options={{
-                  headerShown: false,
-                }}
-              >
-                {(props) => (
-                  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('BibleScreen Error', 'App', error, { errorInfo })}>
-                    <BibleScreen {...props} />
-                  </ErrorBoundary>
-                )}
-              </Stack.Screen>
+
               <Stack.Screen 
                 name="ConnectionHistory"
                 options={{

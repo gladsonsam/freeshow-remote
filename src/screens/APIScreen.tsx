@@ -241,11 +241,6 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const handlePreviousProject = () => sendApiCommand('previous_project_item');
   const handleClearAll = () => sendApiCommand('clear_all');
 
-  // Navigation to Bible screen
-  const handleBibleNavigation = () => {
-    navigation.navigate('Bible');
-  };
-
   // Advanced functions
   const handleCustomCommand = () => {
     if (!customCommand.trim()) return;
@@ -353,25 +348,6 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
               <Text style={styles.controlButtonText}>Next Project</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Bible Navigation Button */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bible Scripture</Text>
-          <TouchableOpacity 
-            style={[styles.bibleNavigationButton, !socketConnected && styles.bibleNavigationButtonDisabled]}
-            onPress={handleBibleNavigation}
-            disabled={!socketConnected}
-          >
-            <View style={styles.bibleButtonContent}>
-              <Ionicons name="book" size={28} color="white" />
-              <View style={styles.bibleButtonTextContainer}>
-                <Text style={styles.bibleButtonTitle}>Open Bible</Text>
-                <Text style={styles.bibleButtonSubtitle}>Search and display any scripture</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="white" />
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Advanced Button */}
@@ -645,41 +621,6 @@ const styles = StyleSheet.create({
   },
   projectButton: {
     backgroundColor: '#007bff',
-  },
-  // Bible Navigation Button
-  bibleNavigationButton: {
-    backgroundColor: '#6f42c1',
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    padding: FreeShowTheme.spacing.lg,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  bibleNavigationButtonDisabled: {
-    backgroundColor: '#6c757d',
-    opacity: 0.6,
-  },
-  bibleButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  bibleButtonTextContainer: {
-    flex: 1,
-    marginLeft: FreeShowTheme.spacing.lg,
-    marginRight: FreeShowTheme.spacing.md,
-  },
-  bibleButtonTitle: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '600',
-    marginBottom: FreeShowTheme.spacing.xs,
-  },
-  bibleButtonSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: FreeShowTheme.fontSize.sm,
   },
   // Advanced Button
   advancedButton: {
