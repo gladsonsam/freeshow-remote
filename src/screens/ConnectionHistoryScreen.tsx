@@ -136,9 +136,9 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                 </View>
                                  <View style={styles.historyItemInfo}>
                    <Text style={styles.historyItemHost}>{item.nickname || item.host}</Text>
-                   <Text style={styles.historyItemTime}>
-                     {item.nickname && item.nickname !== item.host ? `${item.host} • ` : ''}Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString()}
-                   </Text>
+                                        <Text style={styles.historyItemTime}>
+                       {item.nickname && item.nickname !== item.host ? `${item.host} • ` : ''}Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                     </Text>
                  </View>
                                  <View style={styles.historyItemActions}>
                    <TouchableOpacity
