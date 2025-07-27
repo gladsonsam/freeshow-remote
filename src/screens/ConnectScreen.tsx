@@ -17,7 +17,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useConnection, useDiscovery, useConnectionHistory, useDiscoveryActions } from '../contexts';
+import {
+  useConnection,
+  useDiscovery,
+  useSettings,
+  useConnectionHistory,
+  useDiscoveryActions,
+} from '../contexts';
 import { DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 import { ConnectionHistory, settingsRepository } from '../repositories';
 import QRScannerModal from '../components/QRScannerModal';
@@ -63,6 +69,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     updateShowPorts,
     cancelConnection
   } = actions;
+
+  const [connectionHistory, historyActions] = useConnectionHistory();
   
   const discovery = useDiscovery();
   const discoveryActions = useDiscoveryActions();
@@ -78,8 +86,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Restore connection history hook and variables
-  const [connectionHistory, historyActions] = useConnectionHistory();
-  const { remove: removeFromHistory, clear: clearAllHistory, getLast: getLastConnection } = historyActions;
+  const {
+    remove: removeFromHistory,
+    clear: clearAllHistory,
+    getLast: getLastConnection,
+    refresh: refreshHistory,
+  } = historyActions;
 
   // Clear discovered services and progress when screen mounts
   useEffect(() => {
@@ -144,10 +156,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         stage: parseInt(stagePort) || 5511,
         control: parseInt(controlPort) || 5512,
         output: parseInt(outputPort) || 5513,
+        api: parseInt(apiPort) || 5505,
       };
       updateShowPorts(showPorts);
     }
-  }, [isConnected, remotePort, stagePort, controlPort, outputPort]);
+  }, [isConnected, remotePort, stagePort, controlPort, outputPort, apiPort]);
 
   // In the scan progress effect, animate the fill smoothly
   useEffect(() => {
@@ -209,6 +222,9 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
       const connected = await connect(sanitizedHost, defaultPort);
       if (connected) {
+        // Find a matching nickname from history
+        const historyMatch = connectionHistory.find(h => h.host === sanitizedHost);
+
         // Update show ports after successful connection
         updateShowPorts(sanitizedShowPorts);
         navigation.navigate('Interface');
@@ -267,7 +283,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       );
 
       const defaultPort = configService.getNetworkConfig().defaultPort;
-      const connected = await connect(sanitizedHost, defaultPort);
+      const connected = await connect(sanitizedHost, defaultPort, historyItem.nickname);
       
       if (connected) {
         // Update show ports after successful connection
@@ -296,9 +312,14 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         stage: parseInt(stagePort),
         control: parseInt(controlPort),
         output: parseInt(outputPort),
+        api: parseInt(apiPort),
       };
       
-      const connected = await connect(ip, 5505); // Always use port 5505
+      // Check for a stored nickname for the discovered service
+      const historyMatch = connectionHistory.find(h => h.host === ip);
+      const nameToUse = historyMatch?.nickname || service.name;
+      
+      const connected = await connect(ip, 5505, nameToUse); // Always use port 5505
       if (connected) {
         // Update show ports after successful connection
         updateShowPorts(showPorts);
@@ -324,7 +345,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     
     try {
       await settingsRepository.updateConnectionNickname(editingConnection.id, editNicknameText);
-      await historyActions.refresh(); // Refresh the history
+      await refreshHistory(); // Use the destructured action
       setShowEditNickname(false);
       setEditingConnection(null);
       setEditNicknameText('');

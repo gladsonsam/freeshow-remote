@@ -120,7 +120,7 @@ export class SettingsRepository {
           ...history[existingIndex],
           lastUsed: new Date().toISOString(),
           successfulConnections: history[existingIndex].successfulConnections + 1,
-          nickname: nickname || history[existingIndex].nickname,
+          nickname: nickname || history[existingIndex].nickname || host,
           showPorts: showPorts || history[existingIndex].showPorts,
         };
       } else {

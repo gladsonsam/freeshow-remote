@@ -20,7 +20,7 @@ interface ShowSelectorScreenProps {
 
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
   const { state, actions } = useConnection();
-  const { isConnected, connectionHost, currentShowPorts } = state;
+  const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
   const { disconnect } = actions;
 
   const getShowOptions = () => {
@@ -152,7 +152,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
             <View style={styles.headerTitle}>
               <Text style={styles.title}>FreeShow Interfaces</Text>
               <Text style={styles.subtitle}>
-                Connected to {connectionHost}
+                Connected to {connectionName || connectionHost}
               </Text>
             </View>
             <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>

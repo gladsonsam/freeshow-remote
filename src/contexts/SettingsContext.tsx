@@ -1,7 +1,11 @@
 // Settings Context - Handles app settings and connection history
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { settingsRepository, AppSettings, ConnectionHistory } from '../repositories';
+import {
+  settingsRepository,
+  AppSettings,
+  ConnectionHistory,
+} from '../repositories/SettingsRepository';
 import { ErrorLogger } from '../services/ErrorLogger';
 
 export interface SettingsState {
@@ -21,11 +25,23 @@ export interface SettingsActions {
 }
 
 export interface SettingsContextType {
-  state: SettingsState;
-  actions: SettingsActions;
+  settings: AppSettings | null;
+  history: ConnectionHistory[];
+  isLoading: boolean;
+  error: string | null;
+  actions: {
+    updateSettings: (partialSettings: Partial<AppSettings>) => Promise<void>;
+    reloadSettings: () => Promise<void>;
+    refreshHistory: () => Promise<void>;
+    removeFromHistory: (id: string) => Promise<void>;
+    clearHistory: () => Promise<void>;
+    clearError: () => void;
+  };
 }
 
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+const SettingsContext = createContext<SettingsContextType | undefined>(
+  undefined
+);
 
 interface SettingsProviderProps {
   children: ReactNode;
@@ -36,170 +52,115 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
   children, 
   autoLoad = true 
 }) => {
-  const [state, setState] = useState<SettingsState>({
-    appSettings: {
-      theme: 'dark',
-      notifications: true,
-      autoReconnect: true,
-      autoLaunchInterface: 'none',
-      connectionTimeout: 10,
-    },
-    connectionHistory: [],
-    isLoading: autoLoad,
-    error: null,
-  });
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [history, setHistory] = useState<ConnectionHistory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const logContext = 'SettingsProvider';
 
-  // Load initial data
-  useEffect(() => {
-    if (autoLoad) {
-      loadAllData();
-    }
-  }, [autoLoad]);
-
   const loadAllData = useCallback(async () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
     try {
+      setIsLoading(true);
       const [appSettings, connectionHistory] = await Promise.all([
         settingsRepository.getAppSettings(),
         settingsRepository.getConnectionHistory(),
       ]);
-
-      setState(prev => ({
-        ...prev,
-        appSettings,
-        connectionHistory,
-        isLoading: false,
-      }));
-
-      ErrorLogger.debug('Settings and history loaded', logContext, {
+      setSettings(appSettings);
+      setHistory(connectionHistory);
+      setError(null);
+      ErrorLogger.debug('Settings and history loaded', 'SettingsProvider', {
         settingsLoaded: !!appSettings,
         historyCount: connectionHistory.length,
       });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load settings';
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        isLoading: false,
-      }));
-
-      ErrorLogger.error('Failed to load settings data', logContext, error instanceof Error ? error : new Error(String(error)));
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      setError(err.message);
+      ErrorLogger.error(
+        'Failed to load settings or history',
+        'SettingsProvider',
+        err
+      );
+    } finally {
+      setIsLoading(false);
     }
-  }, [logContext]);
-
-  const updateAppSettings = useCallback(async (partialSettings: Partial<AppSettings>): Promise<void> => {
-    try {
-      setState(prev => ({ ...prev, error: null }));
-
-      const updatedSettings = await settingsRepository.updateAppSettings(partialSettings);
-      
-      setState(prev => ({
-        ...prev,
-        appSettings: updatedSettings,
-      }));
-
-      ErrorLogger.info('App settings updated', logContext, partialSettings);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update settings';
-      setState(prev => ({ ...prev, error: errorMessage }));
-      
-      ErrorLogger.error('Failed to update app settings', logContext, error instanceof Error ? error : new Error(String(error)));
-      throw error; // Re-throw for component handling
-    }
-  }, [logContext]);
-
-  const refreshConnectionHistory = useCallback(async (): Promise<void> => {
-    try {
-      setState(prev => ({ ...prev, error: null }));
-
-      const connectionHistory = await settingsRepository.getConnectionHistory();
-      
-      setState(prev => ({
-        ...prev,
-        connectionHistory,
-      }));
-
-      ErrorLogger.debug('Connection history refreshed', logContext, { count: connectionHistory.length });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to refresh history';
-      setState(prev => ({ ...prev, error: errorMessage }));
-      
-      ErrorLogger.error('Failed to refresh connection history', logContext, error instanceof Error ? error : new Error(String(error)));
-    }
-  }, [logContext]);
-
-  const removeFromHistory = useCallback(async (id: string): Promise<void> => {
-    try {
-      setState(prev => ({ ...prev, error: null }));
-
-      await settingsRepository.removeFromConnectionHistory(id);
-      
-      // Update local state
-      setState(prev => ({
-        ...prev,
-        connectionHistory: prev.connectionHistory.filter(item => item.id !== id),
-      }));
-
-      ErrorLogger.info('Removed connection from history', logContext, { id });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to remove from history';
-      setState(prev => ({ ...prev, error: errorMessage }));
-      
-      ErrorLogger.error('Failed to remove from connection history', logContext, error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }, [logContext]);
-
-  const clearAllHistory = useCallback(async (): Promise<void> => {
-    try {
-      setState(prev => ({ ...prev, error: null }));
-
-      await settingsRepository.clearConnectionHistory();
-      
-      // Update local state
-      setState(prev => ({
-        ...prev,
-        connectionHistory: [],
-      }));
-
-      ErrorLogger.info('Cleared all connection history', logContext);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to clear history';
-      setState(prev => ({ ...prev, error: errorMessage }));
-      
-      ErrorLogger.error('Failed to clear connection history', logContext, error instanceof Error ? error : new Error(String(error)));
-      throw error;
-    }
-  }, [logContext]);
-
-  const getLastConnection = useCallback(async (): Promise<ConnectionHistory | null> => {
-    try {
-      return await settingsRepository.getLastConnection();
-    } catch (error) {
-      ErrorLogger.error('Failed to get last connection', logContext, error instanceof Error ? error : new Error(String(error)));
-      return null;
-    }
-  }, [logContext]);
-
-  const clearError = useCallback((): void => {
-    setState(prev => ({ ...prev, error: null }));
   }, []);
 
-  const actions: SettingsActions = {
-    updateAppSettings,
-    refreshConnectionHistory,
-    removeFromHistory,
-    clearAllHistory,
-    getLastConnection,
-    clearError,
-  };
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+  const updateSettings = useCallback(
+    async (partialSettings: Partial<AppSettings>) => {
+      try {
+        const updatedSettings = await settingsRepository.updateAppSettings(
+          partialSettings
+        );
+        setSettings(updatedSettings);
+      } catch (e) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        setError(err.message);
+        ErrorLogger.error('Failed to update settings', 'SettingsProvider', err);
+      }
+    },
+    []
+  );
+
+  const reloadSettings = useCallback(async () => {
+    await loadAllData();
+  }, [loadAllData]);
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const connectionHistory = await settingsRepository.getConnectionHistory();
+      setHistory(connectionHistory);
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      setError(err.message);
+      ErrorLogger.error('Failed to refresh history', 'SettingsProvider', err);
+    }
+  }, []);
+
+  const removeFromHistory = useCallback(async (id: string) => {
+    try {
+      await settingsRepository.removeFromConnectionHistory(id);
+      await refreshHistory();
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      setError(err.message);
+      ErrorLogger.error('Failed to remove from history', 'SettingsProvider', err);
+    }
+  }, [refreshHistory]);
+
+  const clearHistory = useCallback(async () => {
+    try {
+      await settingsRepository.clearConnectionHistory();
+      await refreshHistory();
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      setError(err.message);
+      ErrorLogger.error('Failed to clear history', 'SettingsProvider', err);
+    }
+  }, [refreshHistory]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
 
   const contextValue: SettingsContextType = {
-    state,
-    actions,
+    settings,
+    history,
+    isLoading,
+    error,
+    actions: {
+      updateSettings,
+      reloadSettings,
+      refreshHistory,
+      removeFromHistory,
+      clearHistory,
+      clearError,
+    },
   };
 
   return (
@@ -218,9 +179,9 @@ export const useSettings = (): SettingsContextType => {
 };
 
 // Convenience hooks for specific parts of the context
-export const useAppSettings = (): [AppSettings, (settings: Partial<AppSettings>) => Promise<void>] => {
-  const { state, actions } = useSettings();
-  return [state.appSettings, actions.updateAppSettings];
+export const useAppSettings = (): [AppSettings | null, (settings: Partial<AppSettings>) => Promise<void>] => {
+  const { settings, actions } = useSettings();
+  return [settings, actions.updateSettings];
 };
 
 export const useConnectionHistory = (): [
@@ -232,19 +193,24 @@ export const useConnectionHistory = (): [
     getLast: () => Promise<ConnectionHistory | null>;
   }
 ] => {
-  const { state, actions } = useSettings();
+  const { history, actions } = useSettings();
+
+  const getLast = useCallback(async () => {
+    return settingsRepository.getLastConnection();
+  }, []);
+
   return [
-    state.connectionHistory,
+    history,
     {
-      refresh: actions.refreshConnectionHistory,
+      refresh: actions.refreshHistory,
       remove: actions.removeFromHistory,
-      clear: actions.clearAllHistory,
-      getLast: actions.getLastConnection,
-    }
+      clear: actions.clearHistory,
+      getLast,
+    },
   ];
 };
 
 export const useSettingsError = (): [string | null, () => void] => {
-  const { state, actions } = useSettings();
-  return [state.error, actions.clearError];
+  const { error, actions } = useSettings();
+  return [error, actions.clearError];
 };

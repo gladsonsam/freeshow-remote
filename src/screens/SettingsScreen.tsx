@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,12 +27,10 @@ interface ShowOption {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
-  const { state, actions } = useSettings();
-  const { appSettings } = state;
-  const { updateAppSettings } = actions;
-  const [connectionHistory] = useConnectionHistory();
-  const [autoReconnect, setAutoReconnect] = useState(appSettings.autoReconnect || false);
-  const [autoLaunchInterface, setAutoLaunchInterface] = useState(appSettings.autoLaunchInterface || 'none');
+  const { settings, actions } = useSettings();
+  const [history] = useConnectionHistory();
+  const [autoReconnect, setAutoReconnect] = useState(settings?.autoReconnect || false);
+  const [autoLaunchInterface, setAutoLaunchInterface] = useState(settings?.autoLaunchInterface || 'none');
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
 
 
@@ -81,19 +80,21 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   ];
 
   useEffect(() => {
-    setAutoReconnect(appSettings.autoReconnect || false);
-    setAutoLaunchInterface(appSettings.autoLaunchInterface || 'none');
-  }, [appSettings.autoReconnect, appSettings.autoLaunchInterface]);
+    if (settings) {
+      setAutoReconnect(settings.autoReconnect || false);
+      setAutoLaunchInterface(settings.autoLaunchInterface || 'none');
+    }
+  }, [settings]);
 
   const handleAutoReconnectToggle = async (value: boolean) => {
     setAutoReconnect(value);
-    await updateAppSettings({ autoReconnect: value });
+    await actions.updateSettings({ autoReconnect: value });
   };
 
   const handleAutoLaunchSelect = async (showId: string) => {
     const typedShowId = showId as 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
     setAutoLaunchInterface(typedShowId);
-    await updateAppSettings({ autoLaunchInterface: typedShowId });
+    await actions.updateSettings({ autoLaunchInterface: typedShowId });
     setShowLaunchPicker(false);
   };
 
@@ -103,6 +104,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
   const selectedShow = getSelectedShow();
 
+  if (!settings) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={FreeShowTheme.colors.secondary} />
+      </View>
+    );
+  }
 
 
   return (
@@ -176,7 +184,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 <Text style={styles.settingTitle}>Connection History</Text>
               </View>
               <Text style={styles.settingDescription}>
-                View and manage all past connections ({connectionHistory.length} total)
+                View and manage all past connections ({history.length} total)
               </Text>
             </View>
             <TouchableOpacity
@@ -244,6 +252,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: FreeShowTheme.colors.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: FreeShowTheme.colors.primary,
   },
   scrollView: {

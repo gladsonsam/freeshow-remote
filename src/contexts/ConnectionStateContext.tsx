@@ -9,6 +9,7 @@ import { settingsRepository, AppSettings, ConnectionHistory } from '../repositor
 export interface ConnectionState {
   isConnected: boolean;
   connectionHost: string | null;
+  connectionName: string | null;
   connectionPort: number | null;
   connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error';
   lastError: string | null;
@@ -25,7 +26,7 @@ export interface ConnectionState {
 }
 
 export interface ConnectionActions {
-  connect: (host: string, port?: number) => Promise<boolean>;
+  connect: (host: string, port?: number, name?: string) => Promise<boolean>;
   disconnect: () => Promise<void>;
   reconnect: () => Promise<boolean>;
   checkConnection: () => boolean;
@@ -64,6 +65,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   const [state, setState] = useState<ConnectionState>({
     isConnected: false,
     connectionHost: null,
+    connectionName: null,
     connectionPort: null,
     connectionStatus: 'disconnected',
     lastError: null,
@@ -236,7 +238,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const connect = useCallback(async (host: string, port?: number): Promise<boolean> => {
+  const connect = useCallback(async (host: string, port?: number, name?: string): Promise<boolean> => {
     setState(prev => ({ ...prev, connectionStatus: 'connecting', lastError: null }));
     cancelConnectionRef.current = false;
     try {
@@ -255,7 +257,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         })
       ]);
       if (service.isConnected()) {
-        setState(prev => ({ ...prev, isConnected: true, connectionHost: host, connectionPort: port || null, connectionStatus: 'connected', lastError: null }));
+        setState(prev => ({ ...prev, isConnected: true, connectionHost: host, connectionName: name || host, connectionPort: port || null, connectionStatus: 'connected', lastError: null }));
         return true;
       } else {
         setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Failed to connect to FreeShow' }));
