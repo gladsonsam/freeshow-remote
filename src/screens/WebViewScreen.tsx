@@ -15,6 +15,7 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { useConnection } from '../contexts';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { ShowOption } from '../types';
 
 interface WebViewScreenProps {
   navigation: any;
@@ -89,7 +90,17 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  const handleShowSelect = (show: any) => {
+  const handleShowSelect = (show: ShowOption) => {
+    if (show.id === 'api') {
+      // Navigate to the native APIScreen
+      navigation.navigate('APIScreen', {
+        title: show.title,
+        showId: show.id,
+        animationEnabled: false,
+      });
+      return;
+    }
+
     if (!connectionHost) {
       Alert.alert('Error', 'No connection host available');
       return;

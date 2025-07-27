@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -145,53 +146,61 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerTitle}>
-            <Text style={styles.title}>FreeShow Interfaces</Text>
-            <Text style={styles.subtitle}>
-              Connected to {connectionHost}
-            </Text>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerTitle}>
+              <Text style={styles.title}>FreeShow Interfaces</Text>
+              <Text style={styles.subtitle}>
+                Connected to {connectionHost}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
+              <Ionicons name="log-out-outline" size={22} color={FreeShowTheme.colors.text + 'CC'} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
-            <Ionicons name="log-out-outline" size={22} color={FreeShowTheme.colors.text + 'CC'} />
-          </TouchableOpacity>
         </View>
-      </View>
 
-      <ScrollView style={styles.showList} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Choose an interface:</Text>
-        {showOptions.map((show) => (
-          <TouchableOpacity
-            key={show.id}
-            style={[styles.showCard, { borderLeftColor: show.color }]}
-            onPress={() => handleShowSelect(show)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: show.color + '20' }]}>
-              <Ionicons name={show.icon as any} size={28} color={show.color} />
-            </View>
-            
-            <View style={styles.showInfo}>
-              <Text style={styles.showTitle}>{show.title}</Text>
-              <Text style={styles.showDescription}>{show.description}</Text>
-              <Text style={styles.showPort}>Port: {show.port}</Text>
-            </View>
-            
-            <View style={styles.chevron}>
-              <Ionicons name="chevron-forward" size={20} color={FreeShowTheme.colors.text + '66'} />
-            </View>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.showList}>
+          <Text style={styles.sectionTitle}>Choose an interface:</Text>
+          {showOptions.map((show) => (
+            <TouchableOpacity
+              key={show.id}
+              style={[styles.showCard, { borderLeftColor: show.color }]}
+              onPress={() => handleShowSelect(show)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: show.color + '20' }]}>
+                <Ionicons name={show.icon as any} size={28} color={show.color} />
+              </View>
+              
+              <View style={styles.showInfo}>
+                <Text style={styles.showTitle}>{show.title}</Text>
+                <Text style={styles.showDescription}>{show.description}</Text>
+                <Text style={styles.showPort}>Port: {show.port}</Text>
+              </View>
+              
+              <View style={styles.chevron}>
+                <Ionicons name="chevron-forward" size={20} color={FreeShowTheme.colors.text + '66'} />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+const screenHeight = Dimensions.get('window').height;
+const isSmallScreen = screenHeight < 700; 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: FreeShowTheme.colors.primary,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
   },
   header: {
     paddingHorizontal: FreeShowTheme.spacing.lg,
@@ -227,7 +236,7 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
     color: FreeShowTheme.colors.text + 'CC',
-    marginBottom: FreeShowTheme.spacing.lg,
+    marginBottom: FreeShowTheme.spacing.md,
     paddingHorizontal: 2, // Align with card content
     fontFamily: FreeShowTheme.fonts.system,
   },
@@ -241,11 +250,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
-    borderWidth: 1.5, // Reduce border width
+    borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 4,
-    padding: FreeShowTheme.spacing.lg,
-    marginBottom: FreeShowTheme.spacing.md,
+    padding: isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md,
+    marginBottom: isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md,
     gap: FreeShowTheme.spacing.md,
     shadowColor: '#000',
     shadowOffset: {
@@ -257,8 +266,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   iconContainer: {
-    width: 52, // Slightly smaller
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: FreeShowTheme.borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -267,18 +276,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   showTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
+    fontSize: isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg,
     fontWeight: '700', // Increase font weight
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 4, // Increase spacing
+    marginBottom: 2,
   },
   showDescription: {
-    fontSize: FreeShowTheme.fontSize.sm,
+    fontSize: isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + 'BB', // Increase opacity slightly
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 6, // Increase spacing
-    lineHeight: 18, // Add line height for better readability
+    marginBottom: 4,
+    lineHeight: 16,
   },
   showPort: {
     fontSize: FreeShowTheme.fontSize.xs,

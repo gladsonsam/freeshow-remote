@@ -19,6 +19,7 @@ export interface ConnectionState {
     stage: number;
     control: number;
     output: number;
+    api: number;
   } | null;
   autoConnectAttempted: boolean;
 }
@@ -34,6 +35,7 @@ export interface ConnectionActions {
     stage: number;
     control: number;
     output: number;
+    api: number;
   }) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
@@ -318,6 +320,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     stage: number;
     control: number;
     output: number;
+    api: number;
   }): void => {
     setState(prev => ({
       ...prev,

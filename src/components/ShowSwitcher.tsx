@@ -22,6 +22,7 @@ interface ShowSwitcherProps {
     stage: number;
     control: number;
     output: number;
+    api: number;
   };
   onShowSelect: (show: ShowOption) => void;
 }
@@ -75,6 +76,14 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         port: actualPorts.output,
         icon: 'tv',
         color: '#FF851B',
+      },
+      {
+        id: 'api',
+        title: 'API Controls',
+        description: 'Custom native controls using FreeShow API',
+        port: actualPorts.api,
+        icon: 'code-slash',
+        color: '#B10DC9',
       },
     ];
   }, [showPorts, defaultPorts]);
