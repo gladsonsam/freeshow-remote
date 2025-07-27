@@ -134,11 +134,14 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                 <View style={styles.historyItemIcon}>
                   <Ionicons name="desktop" size={20} color={FreeShowTheme.colors.secondary} />
                 </View>
-                                 <View style={styles.historyItemInfo}>
+                                                  <View style={styles.historyItemInfo}>
                    <Text style={styles.historyItemHost}>{item.nickname || item.host}</Text>
-                                        <Text style={styles.historyItemTime}>
-                       {item.nickname && item.nickname !== item.host ? `${item.host} • ` : ''}Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                     </Text>
+                   {item.nickname && item.nickname !== item.host && (
+                     <Text style={styles.historyItemIP}>{item.host}</Text>
+                   )}
+                   <Text style={styles.historyItemTime}>
+                     Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                   </Text>
                  </View>
                                  <View style={styles.historyItemActions}>
                    <TouchableOpacity
@@ -269,9 +272,16 @@ const styles = StyleSheet.create({
     color: FreeShowTheme.colors.text,
     marginBottom: 4,
   },
+  historyItemIP: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    marginBottom: 2,
+    fontFamily: 'monospace',
+  },
   historyItemTime: {
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
+    marginTop: 4,
   },
   historyItemActions: {
     flexDirection: 'row',
