@@ -143,7 +143,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
 
         <View style={styles.instructions}>
           <Text style={styles.instructionText}>
-            Point your camera at the FreeShow QR code to automatically connect
+            Point your camera at the FreeShow QR code to scan and connect automatically
           </Text>
           {scanned && (
             <TouchableOpacity 

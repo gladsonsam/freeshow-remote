@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -18,24 +19,92 @@ interface ShareQRModalProps {
   port: string;
 }
 
-const { width } = Dimensions.get('window');
+// Responsive sizing utility
+const getResponsiveDimensions = () => {
+  const { width, height } = Dimensions.get('window');
+  const isTablet = Math.min(width, height) > 600;
+  const isLandscape = width > height;
+  
+  // Calculate QR size based on device type and orientation
+  let qrSize: number;
+  let modalMaxWidth: number;
+  
+  if (isTablet) {
+    // Tablet sizing
+    qrSize = isLandscape ? Math.min(300, height * 0.4) : Math.min(280, width * 0.4);
+    modalMaxWidth = isLandscape ? Math.min(500, width * 0.5) : Math.min(450, width * 0.7);
+  } else {
+    // Phone sizing
+    qrSize = isLandscape ? Math.min(200, height * 0.5) : Math.min(250, width * 0.65);
+    modalMaxWidth = isLandscape ? Math.min(400, width * 0.6) : Math.min(350, width * 0.85);
+  }
+  
+  return {
+    qrSize,
+    modalMaxWidth,
+    isTablet,
+    isLandscape,
+    screenWidth: width,
+    screenHeight: height,
+  };
+};
 
 const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, port }) => {
   const connectionUrl = `http://${host}:${port}`;
-  const qrSize = width * 0.6;
+  const [dimensions, setDimensions] = useState(getResponsiveDimensions());
+
+  // Update dimensions when orientation changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', () => {
+      setDimensions(getResponsiveDimensions());
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
+  // Recalculate dimensions when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      setDimensions(getResponsiveDimensions());
+    }
+  }, [visible]);
+
+  const { qrSize, modalMaxWidth, isTablet } = dimensions;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
+        <View style={[
+          styles.modalContainer,
+          {
+            maxWidth: modalMaxWidth,
+            paddingHorizontal: isTablet ? FreeShowTheme.spacing.xxl : FreeShowTheme.spacing.xl,
+            paddingVertical: isTablet ? FreeShowTheme.spacing.xxl : FreeShowTheme.spacing.xl,
+          }
+        ]}>
           <View style={styles.header}>
-            <Text style={styles.title}>Share Connection</Text>
+            <Text style={[
+              styles.title,
+              { fontSize: isTablet ? FreeShowTheme.fontSize.xxl : FreeShowTheme.fontSize.xl }
+            ]}>
+              Share Connection
+            </Text>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+              <Ionicons 
+                name="close" 
+                size={isTablet ? 28 : 24} 
+                color={FreeShowTheme.colors.text} 
+              />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.qrContainer}>
+          <View style={[
+            styles.qrContainer,
+            {
+              padding: isTablet ? FreeShowTheme.spacing.xl : FreeShowTheme.spacing.lg,
+              marginBottom: isTablet ? FreeShowTheme.spacing.xxl : FreeShowTheme.spacing.xl,
+            }
+          ]}>
             <QRCode
               value={connectionUrl}
               size={qrSize}
@@ -44,15 +113,43 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
             />
           </View>
 
-          <View style={styles.infoContainer}>
-            <Text style={styles.urlText}>{connectionUrl}</Text>
-            <Text style={styles.instructionText}>
+          <View style={[
+            styles.infoContainer,
+            { marginBottom: isTablet ? FreeShowTheme.spacing.xxl : FreeShowTheme.spacing.xl }
+          ]}>
+            <Text style={[
+              styles.urlText,
+              {
+                fontSize: isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md,
+                marginBottom: isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+              }
+            ]}>
+              {connectionUrl}
+            </Text>
+            <Text style={[
+              styles.instructionText,
+              {
+                fontSize: isTablet ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.sm,
+                lineHeight: isTablet ? 24 : 20,
+              }
+            ]}>
               Scan this QR code with another device to connect to the same FreeShow server
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.doneButton} onPress={onClose}>
-            <Text style={styles.doneButtonText}>Done</Text>
+          <TouchableOpacity style={[
+            styles.doneButton,
+            {
+              paddingVertical: isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+              paddingHorizontal: isTablet ? FreeShowTheme.spacing.xxl : FreeShowTheme.spacing.xl,
+            }
+          ]} onPress={onClose}>
+            <Text style={[
+              styles.doneButtonText,
+              { fontSize: isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+            ]}>
+              Done
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -66,67 +163,93 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: FreeShowTheme.spacing.xl,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingVertical: FreeShowTheme.spacing.xl,
   },
   modalContainer: {
     backgroundColor: FreeShowTheme.colors.primary,
     borderRadius: FreeShowTheme.borderRadius.xl,
-    padding: FreeShowTheme.spacing.xl,
     width: '100%',
-    maxWidth: 400,
     alignItems: 'center',
+    // Removed fixed padding and maxWidth - now handled dynamically
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: FreeShowTheme.spacing.xl,
+    marginBottom: FreeShowTheme.spacing.lg, // Reduced for tablets
   },
   title: {
-    fontSize: FreeShowTheme.fontSize.xl,
     fontWeight: 'bold',
     color: FreeShowTheme.colors.secondary,
     fontFamily: FreeShowTheme.fonts.system,
+    // fontSize now handled dynamically
   },
   closeButton: {
     padding: FreeShowTheme.spacing.sm,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    backgroundColor: FreeShowTheme.colors.primary + '20',
   },
   qrContainer: {
     backgroundColor: 'white',
-    padding: FreeShowTheme.spacing.lg,
     borderRadius: FreeShowTheme.borderRadius.lg,
-    marginBottom: FreeShowTheme.spacing.xl,
+    // Padding and marginBottom now handled dynamically
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   infoContainer: {
     alignItems: 'center',
-    marginBottom: FreeShowTheme.spacing.xl,
+    width: '100%',
+    // marginBottom now handled dynamically
   },
   urlText: {
-    fontSize: FreeShowTheme.fontSize.md,
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: FreeShowTheme.spacing.md,
     textAlign: 'center',
+    fontWeight: '500',
+    // fontSize and marginBottom now handled dynamically
   },
   instructionText: {
-    fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + '99',
     fontFamily: FreeShowTheme.fonts.system,
     textAlign: 'center',
-    lineHeight: 20,
+    // fontSize and lineHeight now handled dynamically
   },
   doneButton: {
     backgroundColor: FreeShowTheme.colors.secondary,
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.xl,
     borderRadius: FreeShowTheme.borderRadius.lg,
+    minWidth: 120,
+    alignItems: 'center',
+    // Padding now handled dynamically
+    shadowColor: FreeShowTheme.colors.secondary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   doneButtonText: {
     color: 'white',
-    fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
     fontFamily: FreeShowTheme.fonts.system,
+    // fontSize now handled dynamically
   },
 });
 

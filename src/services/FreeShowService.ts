@@ -86,7 +86,7 @@ export class FreeShowService implements IFreeShowService {
   }
 
   // Connection management
-  async connect(host: string, port: number = 5505): Promise<void> {
+  async connect(host: string, port: number = 5505, nickname?: string): Promise<void> {
     try {
       // Validate inputs
       const hostValidation = this.dependencies.validationService.validateHost(host);
@@ -134,7 +134,7 @@ export class FreeShowService implements IFreeShowService {
         await this.dependencies.settingsRepository.addToConnectionHistory(
           this.currentHost,
           this.currentPort,
-          `${this.currentHost}:${this.currentPort}`
+          nickname // Only pass nickname if explicitly provided, otherwise preserve existing
         );
       }
 
@@ -225,6 +225,7 @@ export class FreeShowService implements IFreeShowService {
     // Wait before reconnecting
     await new Promise(resolve => setTimeout(resolve, networkConfig.reconnectDelay));
 
+    // Don't pass nickname during reconnect to preserve existing nickname
     await this.connect(this.currentHost, this.currentPort);
   }
 

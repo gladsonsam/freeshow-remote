@@ -202,12 +202,21 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         }, timeoutMs);
         const success = await service.connect(
           lastConnection.host,
-          lastConnection.showPorts?.remote || 5505
+          lastConnection.showPorts?.remote || 5505,
+          lastConnection.nickname // Pass the stored nickname to preserve it
         ).then(() => true).catch(() => false);
         if (timeoutHandle) clearTimeout(timeoutHandle);
         if (didTimeout) return;
         if (success) {
           ErrorLogger.info('[AutoConnect] Auto-connect successful', 'AutoConnect', { host: lastConnection.host });
+          // Set the connection name in state to preserve nickname in UI
+          setState(prev => ({ 
+            ...prev, 
+            isConnected: true, 
+            connectionHost: lastConnection.host, 
+            connectionName: lastConnection.nickname || lastConnection.host, 
+            connectionStatus: 'connected' 
+          }));
           
           // Trigger auto-launch if enabled (with shorter delay since no navigation needed)
           setTimeout(async () => {
@@ -242,7 +251,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     setState(prev => ({ ...prev, connectionStatus: 'connecting', lastError: null }));
     cancelConnectionRef.current = false;
     try {
-      const connectPromise = service.connect(host, port);
+      const connectPromise = service.connect(host, port, name);
       await Promise.race([
         connectPromise,
         new Promise((_, reject) => {

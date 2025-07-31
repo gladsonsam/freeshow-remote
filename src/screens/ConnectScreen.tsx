@@ -60,6 +60,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     isConnected,
     connectionStatus,
     connectionHost,
+    connectionName,
     currentShowPorts
   } = state;
   const {
@@ -397,7 +398,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleQRScan = (scannedContent: string) => {
+  const handleQRScan = async (scannedContent: string) => {
     try {
       // Validate QR content
       const qrValidation = ValidationService.validateQRContent(scannedContent);
@@ -426,12 +427,77 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         return;
       }
 
-      ErrorLogger.info('QR scan successful', 'ConnectScreen', 
-        new Error(`Scanned: ${scannedContent}, Extracted: ${hostValidation.sanitizedValue}`)
+      const validatedHost = hostValidation.sanitizedValue as string;
+
+      ErrorLogger.info('QR scan successful - auto-connecting', 'ConnectScreen', 
+        new Error(`Scanned: ${scannedContent}, Extracted: ${validatedHost}`)
       );
 
-      setHost(hostValidation.sanitizedValue as string);
+      // Update UI with scanned host
+      setHost(validatedHost);
       setShowQRScanner(false);
+
+      // Auto-connect after QR scan
+      try {
+        // Validate current port configuration for auto-connect
+        const portsToValidate = {
+          remote: remotePort,
+          stage: stagePort,
+          control: controlPort,
+          output: outputPort,
+          api: apiPort,
+        };
+
+        const validatedPorts: any = {};
+        for (const [portName, portValue] of Object.entries(portsToValidate)) {
+          const portValidation = ValidationService.validatePort(portValue);
+          if (!portValidation.isValid) {
+            Alert.alert(
+              'Connection Error', 
+              `Invalid ${portName} port configuration. Please check your port settings and try again.`
+            );
+            return;
+          }
+          validatedPorts[portName] = portValidation.sanitizedValue;
+        }
+
+        // Additional validation for show ports as a group
+        const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
+        if (!showPortsValidation.isValid) {
+          Alert.alert(
+            'Port Configuration Error', 
+            showPortsValidation.error || 'Invalid port configuration. Please check your settings.'
+          );
+          return;
+        }
+
+        const sanitizedShowPorts = showPortsValidation.sanitizedValue;
+        const defaultPort = configService.getNetworkConfig().defaultPort;
+
+        // Find existing nickname before connecting
+        const historyMatch = history.find(h => h.host === validatedHost);
+        const nameToUse = historyMatch?.nickname;
+
+        ErrorLogger.info('Attempting auto-connection from QR scan', 'ConnectScreen', 
+          new Error(`Host: ${validatedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}`)
+        );
+
+        const connected = await connect(validatedHost, defaultPort, nameToUse);
+
+        if (connected) {
+          // Update show ports after successful connection
+          updateShowPorts(sanitizedShowPorts);
+          navigation.navigate('Interface');
+        }
+      } catch (connectionError) {
+        ErrorLogger.error('Auto-connection from QR scan failed', 'ConnectScreen', 
+          connectionError instanceof Error ? connectionError : new Error(String(connectionError))
+        );
+        Alert.alert(
+          'Connection Failed', 
+          'Could not connect to the scanned FreeShow instance. Please check that FreeShow is running and try again.'
+        );
+      }
     } catch (error) {
       ErrorLogger.error('QR scan processing failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
       Alert.alert('QR Scan Error', 'Failed to process QR code content');
@@ -449,7 +515,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     if (isConnected) {
       return {
         color: FreeShowTheme.colors.connected,
-        text: 'Connected',
+        text: `Connected to ${connectionName || connectionHost}`,
         icon: 'checkmark-circle',
       };
     } else if (isConnecting) {

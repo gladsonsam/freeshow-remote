@@ -110,7 +110,7 @@ export interface IFreeShowServiceConfig {
  */
 export interface IFreeShowService {
   // Connection management
-  connect(host: string, port?: number): Promise<void>;
+  connect(host: string, port?: number, nickname?: string): Promise<void>;
   disconnect(): Promise<void>;
   reconnect(): Promise<void>;
   
