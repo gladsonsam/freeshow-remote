@@ -206,8 +206,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Section Separator */}
+        <View style={styles.sectionSeparator}>
+          <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>HISTORY</Text>
+          <View style={styles.separatorLine} />
+        </View>
+
         {/* Connection History Section */}
-        <View style={styles.settingsCard}>
+        <View style={styles.historyCard}>
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <View style={styles.settingTitleRow}>
@@ -223,6 +230,35 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               onPress={() => navigation.navigate('ConnectionHistory')}
             >
               <Text style={styles.historyButtonText}>View All</Text>
+              <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.secondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Section Separator */}
+        <View style={styles.sectionSeparator}>
+          <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>INFO</Text>
+          <View style={styles.separatorLine} />
+        </View>
+
+        {/* About Section */}
+        <View style={styles.historyCard}>
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingTitleRow}>
+                <Ionicons name="information-circle" size={20} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.settingTitle}>About</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                App information, links, and platform availability
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => navigation.navigate('About')}
+            >
+              <Text style={styles.historyButtonText}>View</Text>
               <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.secondary} />
             </TouchableOpacity>
           </View>
@@ -318,6 +354,34 @@ const styles = StyleSheet.create({
     padding: FreeShowTheme.spacing.lg,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  sectionSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: FreeShowTheme.spacing.xxl,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: FreeShowTheme.colors.primaryLighter,
+    opacity: 0.5,
+  },
+  separatorText: {
+    fontSize: FreeShowTheme.fontSize.xs,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.textSecondary,
+    letterSpacing: 1.5,
+    marginHorizontal: FreeShowTheme.spacing.lg,
+  },
+  historyCard: {
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    padding: FreeShowTheme.spacing.lg,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    borderStyle: 'dashed',
+    opacity: 0.95,
   },
   settingItem: {
     flexDirection: 'row',
@@ -446,6 +510,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: 4,
   },
+
+
 });
 
 export default SettingsScreen; 

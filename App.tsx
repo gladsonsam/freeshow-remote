@@ -15,6 +15,7 @@ import APIScreen from './src/screens/APIScreen';
 
 import SettingsScreen from './src/screens/SettingsScreen';
 import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
+import AboutScreen from './src/screens/AboutScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { AppContextProvider, useConnection, useSettings } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -180,6 +181,17 @@ function BottomTabsLayout() {
   );
 }
 
+// Define route types to prevent navigation issues
+// 
+// SIDEBAR_ROUTES: Routes that are handled within the sidebar navigation system
+// These routes replace the main content area when using sidebar layout
+const SIDEBAR_ROUTES = ['Interface', 'Connect', 'Settings'];
+
+// EXTERNAL_ROUTES: Routes that should use the main navigation stack
+// These are typically modal screens, overlays, or screens that exist outside the main app flow
+// When adding new screens, add them here if they should be accessible from sidebar layout
+const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'ConnectionHistory', 'About'];
+
 // Sidebar Layout with content area
 function SidebarLayout() {
   const { navigation: mainNavigation } = useConnection();
@@ -237,16 +249,22 @@ function SidebarLayout() {
   // Create a navigation object for sidebar screens
   const sidebarNavigation = React.useMemo(() => ({
     navigate: (routeName: string, params?: any) => {
-      if (routeName === 'WebView' || routeName === 'APIScreen') {
-        // Use the main navigation for modal screens
+      if (EXTERNAL_ROUTES.includes(routeName)) {
+        // Use the main navigation for modal screens and external screens
         if (mainNavigation && typeof mainNavigation.navigate === 'function') {
           mainNavigation.navigate(routeName, params);
         } else {
-          console.warn('[SidebarLayout] No valid main navigation available for modal screens');
+          console.warn(`[SidebarLayout] No valid main navigation available for external screen: ${routeName}`);
         }
-      } else {
+      } else if (SIDEBAR_ROUTES.includes(routeName)) {
         // Use sidebar navigation for main routes
         handleNavigate(routeName);
+      } else {
+        // Handle unknown routes gracefully
+        console.warn(`[SidebarLayout] Unknown route: ${routeName}. Attempting to use main navigation.`);
+        if (mainNavigation && typeof mainNavigation.navigate === 'function') {
+          mainNavigation.navigate(routeName, params);
+        }
       }
     },
     getParent: () => mainNavigation || null,
@@ -484,6 +502,19 @@ export default function App() {
                 {(props) => (
                   <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ConnectionHistoryScreen Error', 'App', error, { errorInfo })}>
                     <ConnectionHistoryScreen {...props} />
+                  </ErrorBoundary>
+                )}
+              </Stack.Screen>
+
+              <Stack.Screen 
+                name="About"
+                options={{
+                  headerShown: false,
+                }}
+              >
+                {(props) => (
+                  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('AboutScreen Error', 'App', error, { errorInfo })}>
+                    <AboutScreen {...props} />
                   </ErrorBoundary>
                 )}
               </Stack.Screen>

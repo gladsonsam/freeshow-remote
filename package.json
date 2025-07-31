@@ -1,6 +1,6 @@
 {
   "name": "freeshow-remote",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A mobile remote app for FreeShow presentation software",
   "main": "index.ts",
   "license": "MIT",
