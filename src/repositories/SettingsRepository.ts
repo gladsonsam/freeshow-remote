@@ -10,6 +10,7 @@ export interface AppSettings {
   autoReconnect: boolean;
   autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
   connectionTimeout: number; // in seconds
+  navigationLayout: 'bottomBar' | 'sidebar';
 }
 
 export interface ConnectionHistory {
@@ -50,6 +51,7 @@ export class SettingsRepository {
           autoReconnect: true,
           autoLaunchInterface: 'none',
           connectionTimeout: 10,
+          navigationLayout: 'bottomBar',
         };
         await this.setAppSettings(defaultSettings);
         return defaultSettings;

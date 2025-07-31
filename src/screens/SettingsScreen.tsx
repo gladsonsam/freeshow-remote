@@ -30,6 +30,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { settings, history, actions } = useSettings();
   const [autoReconnect, setAutoReconnect] = useState(settings?.autoReconnect || false);
   const [autoLaunchInterface, setAutoLaunchInterface] = useState(settings?.autoLaunchInterface || 'none');
+  const [navigationLayout, setNavigationLayout] = useState(settings?.navigationLayout || 'bottomBar');
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
 
 
@@ -82,6 +83,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     if (settings) {
       setAutoReconnect(settings.autoReconnect || false);
       setAutoLaunchInterface(settings.autoLaunchInterface || 'none');
+      setNavigationLayout(settings.navigationLayout || 'bottomBar');
     }
   }, [settings]);
 
@@ -95,6 +97,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     setAutoLaunchInterface(typedShowId);
     await actions.updateSettings({ autoLaunchInterface: typedShowId });
     setShowLaunchPicker(false);
+  };
+
+  const handleNavigationLayoutToggle = async (value: boolean) => {
+    const newLayout = value ? 'sidebar' : 'bottomBar';
+    setNavigationLayout(newLayout);
+    await actions.updateSettings({ navigationLayout: newLayout });
   };
 
   const getSelectedShow = () => {
@@ -171,6 +179,30 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 <Ionicons name="chevron-down" size={16} color={FreeShowTheme.colors.textSecondary} />
               </View>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.settingDivider} />
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingTitleRow}>
+                <Ionicons name="menu" size={20} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.settingTitle}>Navigation Layout</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                Choose between bottom bar navigation or a collapsible sidebar
+              </Text>
+            </View>
+            <Switch
+              value={navigationLayout === 'sidebar'}
+              onValueChange={handleNavigationLayoutToggle}
+              trackColor={{ 
+                false: FreeShowTheme.colors.primaryLighter, 
+                true: FreeShowTheme.colors.secondary + '40' 
+              }}
+              thumbColor={navigationLayout === 'sidebar' ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary}
+              ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
+            />
           </View>
         </View>
 

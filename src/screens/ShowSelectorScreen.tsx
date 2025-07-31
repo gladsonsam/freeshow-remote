@@ -7,6 +7,8 @@ import {
   ScrollView,
   Alert,
   Dimensions,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,16 +18,36 @@ import { ShowOption } from '../types';
 
 // Responsive sizing utility
 const getResponsiveDimensions = () => {
-  const { width, height } = Dimensions.get('window');
-  const isTablet = Math.min(width, height) > 600;
-  const isLandscape = width > height;
+  const windowDimensions = Dimensions.get('window');
+  const screenDimensions = Dimensions.get('screen');
+  
+  // Use screen dimensions as fallback if window dimensions are invalid (0x0)
+  const effectiveWidth = windowDimensions.width > 0 ? windowDimensions.width : screenDimensions.width;
+  const effectiveHeight = windowDimensions.height > 0 ? windowDimensions.height : screenDimensions.height;
+  
+  // Use both window and screen dimensions for more reliable tablet detection
+  const windowSize = Math.min(effectiveWidth, effectiveHeight);
+  const screenSize = Math.min(screenDimensions.width, screenDimensions.height);
+  
+  // A device is considered a tablet if the smallest dimension is > 600
+  // Use screen dimensions as fallback if window dimensions seem unreliable
+  const isTablet = windowSize > 600 || (windowSize < 300 && screenSize > 600);
+  const isLandscape = effectiveWidth > effectiveHeight;
+  
+  // Log for debugging tablet detection issues (less verbose now)
+  console.log('[ShowSelectorScreen] Dimensions:', {
+    effective: { width: effectiveWidth, height: effectiveHeight },
+    isTablet,
+    windowSize,
+    screenSize
+  });
   
   return {
     isTablet,
     isLandscape,
-    screenWidth: width,
-    screenHeight: height,
-    isSmallScreen: height < 700,
+    screenWidth: effectiveWidth,
+    screenHeight: effectiveHeight,
+    isSmallScreen: effectiveHeight < 700,
   };
 };
 
@@ -40,13 +62,50 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
 
-  // Update dimensions when orientation changes
+  // Force refresh dimensions when component mounts (helps with navigation from other screens)
+  useEffect(() => {
+    const refreshTimer = setTimeout(() => {
+      console.log('[ShowSelectorScreen] Component mounted, refreshing dimensions');
+      setDimensions(getResponsiveDimensions());
+    }, 50);
+
+    return () => clearTimeout(refreshTimer);
+  }, []);
+
+  // Update dimensions when orientation changes or app state changes
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', () => {
       setDimensions(getResponsiveDimensions());
     });
 
     return () => subscription?.remove();
+  }, []);
+
+  // Refresh dimensions when app comes to foreground (fixes tablet layout on soft launch)
+  useEffect(() => {
+    let previousAppState = AppState.currentState;
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      console.log(`[ShowSelectorScreen] App state changed from ${previousAppState} to ${nextAppState}`);
+      
+      // If app is coming to foreground, refresh dimensions
+      if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[ShowSelectorScreen] App came to foreground, refreshing dimensions');
+        
+        // Small delay to ensure screen is properly rendered
+        setTimeout(() => {
+          const newDimensions = getResponsiveDimensions();
+          setDimensions(newDimensions);
+        }, 100);
+      }
+      previousAppState = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   const getShowOptions = () => {
@@ -113,21 +172,49 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       return;
     }
 
-    if (show.id === 'api') {
-      // Navigate to APIScreen for API interface
-      navigation.getParent()?.navigate('APIScreen', {
-        title: show.title,
-        showId: show.id,
-      });
-    } else {
-      // Navigate to WebView for other interfaces
-      const url = `http://${connectionHost}:${show.port}`;
-      
-      navigation.getParent()?.navigate('WebView', {
-        url,
-        title: show.title,
-        showId: show.id,
-      });
+    try {
+      if (show.id === 'api') {
+        // Navigate to APIScreen for API interface
+        if (navigation && typeof navigation.getParent === 'function' && navigation.getParent()) {
+          navigation.getParent().navigate('APIScreen', {
+            title: show.title,
+            showId: show.id,
+          });
+        } else if (navigation && typeof navigation.navigate === 'function') {
+          // Fallback for custom navigation (sidebar)
+          navigation.navigate('APIScreen', {
+            title: show.title,
+            showId: show.id,
+          });
+        } else {
+          console.warn('[ShowSelectorScreen] No valid navigation available for API interface');
+          Alert.alert('Navigation Error', 'Unable to navigate to API interface');
+        }
+      } else {
+        // Navigate to WebView for other interfaces
+        const url = `http://${connectionHost}:${show.port}`;
+        
+        if (navigation && typeof navigation.getParent === 'function' && navigation.getParent()) {
+          navigation.getParent().navigate('WebView', {
+            url,
+            title: show.title,
+            showId: show.id,
+          });
+        } else if (navigation && typeof navigation.navigate === 'function') {
+          // Fallback for custom navigation (sidebar)
+          navigation.navigate('WebView', {
+            url,
+            title: show.title,
+            showId: show.id,
+          });
+        } else {
+          console.warn('[ShowSelectorScreen] No valid navigation available for WebView');
+          Alert.alert('Navigation Error', 'Unable to navigate to interface');
+        }
+      }
+    } catch (navigationError) {
+      console.error('[ShowSelectorScreen] Navigation error:', navigationError);
+      Alert.alert('Navigation Error', 'Unable to navigate to the selected interface');
     }
   };
 
@@ -142,7 +229,15 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           style: 'destructive',
           onPress: () => {
             disconnect();
-            navigation.navigate('Connect');
+            try {
+              if (navigation && typeof navigation.navigate === 'function') {
+                navigation.navigate('Connect');
+              } else {
+                console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
+              }
+            } catch (navigationError) {
+              console.error('[ShowSelectorScreen] Disconnect navigation error:', navigationError);
+            }
           }
         },
       ]
@@ -160,7 +255,17 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           </Text>
           <TouchableOpacity
             style={styles.connectButton}
-            onPress={() => navigation.navigate('Connect')}
+            onPress={() => {
+              try {
+                if (navigation && typeof navigation.navigate === 'function') {
+                  navigation.navigate('Connect');
+                } else {
+                  console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
+                }
+              } catch (navigationError) {
+                console.error('[ShowSelectorScreen] Connect navigation error:', navigationError);
+              }
+            }}
           >
             <Ionicons name="wifi" size={20} color="white" />
             <Text style={styles.buttonText}>Go to Connect</Text>

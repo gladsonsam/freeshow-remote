@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { View, Text } from 'react-native';
 import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -14,8 +15,9 @@ import APIScreen from './src/screens/APIScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
-import { AppContextProvider, useConnection } from './src/contexts';
+import { AppContextProvider, useConnection, useSettings } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { Sidebar } from './src/components/Sidebar';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
 import { settingsRepository } from './src/repositories';
@@ -57,25 +59,53 @@ const useAutoConnectExpected = () => {
   return autoConnectExpected;
 };
 
-// Create the main tab navigator
-function MainTabs() {
+// Screen components wrapped with error boundaries
+const InterfaceScreen = (props: any) => (
+  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ShowSelectorScreen Error', 'App', error, { errorInfo })}>
+    <ShowSelectorScreen {...props} />
+  </ErrorBoundary>
+);
+
+const ConnectScreenWrapped = (props: any) => (
+  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ConnectScreen Error', 'App', error, { errorInfo })}>
+    <ConnectScreen {...props} />
+  </ErrorBoundary>
+);
+
+const SettingsScreenWrapped = (props: any) => (
+  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('SettingsScreen Error', 'App', error, { errorInfo })}>
+    <SettingsScreen {...props} />
+  </ErrorBoundary>
+);
+
+// Bottom Tab Navigator
+function BottomTabsLayout() {
   const { state } = useConnection();
-  const { isConnected, connectionStatus, autoConnectAttempted } = state;
+  const { isConnected, connectionStatus } = state;
   const autoConnectExpected = useAutoConnectExpected();
+  
+  // Always call all hooks first
+  const initialRouteName = React.useMemo(() => {
+    return autoConnectExpected ? "Interface" : "Connect";
+  }, [autoConnectExpected]);
 
-  // Don't render the navigator until we know if auto-connect should be attempted
+  React.useEffect(() => {
+    if (autoConnectExpected !== null) {
+      ErrorLogger.info(`[Navigation] Initial route determined: ${initialRouteName}`, 'App', {
+        autoConnectExpected,
+        initialRouteName
+      });
+    }
+  }, [autoConnectExpected, initialRouteName]);
+
+  // Show loading if not ready
   if (autoConnectExpected === null) {
-    return null; // Or a loading spinner if you prefer
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: FreeShowTheme.colors.primary }}>
+        <Text style={{ color: FreeShowTheme.colors.text }}>Loading...</Text>
+      </View>
+    );
   }
-
-  // Determine initial route
-  const initialRouteName = autoConnectExpected ? "Interface" : "Connect";
-
-  // Log the initial route decision for debugging
-  ErrorLogger.info(`[Navigation] Initial route determined: ${initialRouteName}`, 'App', {
-    autoConnectExpected,
-    initialRouteName
-  });
 
   return (
     <Tab.Navigator
@@ -132,40 +162,122 @@ function MainTabs() {
     >
       <Tab.Screen 
         name="Interface"
+        component={InterfaceScreen}
         options={{ tabBarLabel: 'Interface' }}
-      >
-        {(props) => (
-          <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ShowSelectorScreen Error', 'App', error, { errorInfo })}>
-            <ShowSelectorScreen {...props} />
-          </ErrorBoundary>
-        )}
-      </Tab.Screen>
+      />
       <Tab.Screen 
         name="Connect"
-        options={{
-          tabBarLabel: 'Connect',
-        }}
-      >
-        {(props) => (
-          <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ConnectScreen Error', 'App', error, { errorInfo })}>
-            <ConnectScreen {...props} />
-          </ErrorBoundary>
-        )}
-      </Tab.Screen>
+        component={ConnectScreenWrapped}
+        options={{ tabBarLabel: 'Connect' }}
+      />
       <Tab.Screen 
         name="Settings"
-        options={{
-          tabBarLabel: 'Settings',
-        }}
-      >
-        {(props) => (
-          <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('SettingsScreen Error', 'App', error, { errorInfo })}>
-            <SettingsScreen {...props} />
-          </ErrorBoundary>
-        )}
-      </Tab.Screen>
+        component={SettingsScreenWrapped}
+        options={{ tabBarLabel: 'Settings' }}
+      />
     </Tab.Navigator>
   );
+}
+
+// Sidebar Layout with content area
+function SidebarLayout() {
+  const { navigation: mainNavigation } = useConnection();
+  const autoConnectExpected = useAutoConnectExpected();
+  
+  // Always call all hooks first
+  const initialRoute = React.useMemo(() => {
+    return autoConnectExpected ? "Interface" : "Connect";
+  }, [autoConnectExpected]);
+  
+  const [currentRoute, setCurrentRoute] = useState(initialRoute);
+
+  // Update current route when autoConnectExpected changes
+  React.useEffect(() => {
+    if (autoConnectExpected !== null) {
+      const newInitialRoute = autoConnectExpected ? "Interface" : "Connect";
+      setCurrentRoute(newInitialRoute);
+      ErrorLogger.info(`[SidebarLayout] Initial route determined: ${newInitialRoute}`, 'App', {
+        autoConnectExpected,
+        initialRoute: newInitialRoute
+      });
+    }
+  }, [autoConnectExpected]);
+
+  const handleNavigate = React.useCallback((route: string) => {
+    setCurrentRoute(route);
+  }, []);
+
+  // Create a navigation object for sidebar screens
+  const sidebarNavigation = React.useMemo(() => ({
+    navigate: (routeName: string, params?: any) => {
+      if (routeName === 'WebView' || routeName === 'APIScreen') {
+        // Use the main navigation for modal screens
+        if (mainNavigation && typeof mainNavigation.navigate === 'function') {
+          mainNavigation.navigate(routeName, params);
+        } else {
+          console.warn('[SidebarLayout] No valid main navigation available for modal screens');
+        }
+      } else {
+        // Use sidebar navigation for main routes
+        handleNavigate(routeName);
+      }
+    },
+    getParent: () => mainNavigation || null,
+  }), [handleNavigate, mainNavigation]);
+
+  const renderContent = React.useCallback(() => {
+    switch (currentRoute) {
+      case 'Interface':
+        return <InterfaceScreen navigation={sidebarNavigation} />;
+      case 'Connect':
+        return <ConnectScreenWrapped navigation={sidebarNavigation} />;
+      case 'Settings':
+        return <SettingsScreenWrapped navigation={sidebarNavigation} />;
+      default:
+        return <InterfaceScreen navigation={sidebarNavigation} />;
+    }
+  }, [currentRoute, sidebarNavigation]);
+
+  // Show loading if not ready
+  if (autoConnectExpected === null) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: FreeShowTheme.colors.primary }}>
+        <Text style={{ color: FreeShowTheme.colors.text }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: FreeShowTheme.colors.primary }}>
+      <Sidebar 
+        navigation={null}
+        currentRoute={currentRoute} 
+        onNavigate={handleNavigate} 
+      />
+      <View style={{ flex: 1 }}>
+        {renderContent()}
+      </View>
+    </View>
+  );
+}
+
+// Main layout component that chooses between sidebar and bottom tabs
+function MainLayout() {
+  const { settings } = useSettings();
+  const [previousLayout, setPreviousLayout] = useState<string | null>(null);
+  
+  // Default to bottom bar if settings not loaded yet
+  const navigationLayout = settings?.navigationLayout || 'bottomBar';
+  
+  // Track layout changes for smooth transitions
+  React.useEffect(() => {
+    if (previousLayout && previousLayout !== navigationLayout) {
+      ErrorLogger.info(`[MainLayout] Navigation layout changed from ${previousLayout} to ${navigationLayout}`, 'App');
+    }
+    setPreviousLayout(navigationLayout);
+  }, [navigationLayout, previousLayout]);
+  
+  return navigationLayout === 'sidebar' ? <SidebarLayout /> : <BottomTabsLayout />;
 }
 
 // FreeShow-themed navigation theme
@@ -215,7 +327,7 @@ export default function App() {
                 cardStyle: { backgroundColor: FreeShowTheme.colors.primary },
               }}
             >
-              <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen name="Main" component={MainLayout} />
               <Stack.Screen 
                 name="WebView"
                 options={{
