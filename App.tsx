@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -17,7 +18,7 @@ import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
 import { FreeShowTheme } from './src/theme/FreeShowTheme';
 import { AppContextProvider, useConnection, useSettings } from './src/contexts';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { Sidebar } from './src/components/Sidebar';
+import { Sidebar, SidebarTraditional } from './src/components/Sidebar';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
 import { settingsRepository } from './src/repositories';
@@ -190,6 +191,11 @@ function SidebarLayout() {
   }, [autoConnectExpected]);
   
   const [currentRoute, setCurrentRoute] = useState(initialRoute);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
+  
+  // Responsive breakpoint - use overlay on mobile, side-by-side on tablet
+  const isMobile = screenWidth < 768;
 
   // Update current route when autoConnectExpected changes
   React.useEffect(() => {
@@ -203,8 +209,29 @@ function SidebarLayout() {
     }
   }, [autoConnectExpected]);
 
+  // Listen for screen dimension changes
+  React.useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenWidth(window.width);
+      // Close sidebar when switching from mobile to tablet layout
+      if (window.width >= 768 && sidebarVisible) {
+        setSidebarVisible(false);
+      }
+    });
+
+    return () => subscription?.remove();
+  }, [sidebarVisible]);
+
   const handleNavigate = React.useCallback((route: string) => {
     setCurrentRoute(route);
+  }, []);
+
+  const toggleSidebar = React.useCallback(() => {
+    setSidebarVisible(!sidebarVisible);
+  }, [sidebarVisible]);
+
+  const closeSidebar = React.useCallback(() => {
+    setSidebarVisible(false);
   }, []);
 
   // Create a navigation object for sidebar screens
@@ -247,9 +274,70 @@ function SidebarLayout() {
     );
   }
 
+  // Mobile layout with overlay sidebar
+  if (isMobile) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: FreeShowTheme.colors.primaryDarker }} edges={['top', 'left', 'right']}>
+        {/* Header with hamburger menu */}
+        <View style={{
+          backgroundColor: FreeShowTheme.colors.primaryDarker,
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: FreeShowTheme.spacing.md,
+          paddingHorizontal: FreeShowTheme.spacing.md,
+          borderBottomWidth: 1,
+          borderBottomColor: FreeShowTheme.colors.primaryLighter,
+          minHeight: 64, // Ensure minimum height for proper touch targets
+        }}>
+          <TouchableOpacity 
+            onPress={toggleSidebar}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: FreeShowTheme.borderRadius.md,
+              backgroundColor: FreeShowTheme.colors.primaryDarkest,
+              borderWidth: 1,
+              borderColor: FreeShowTheme.colors.primaryLighter,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="menu" size={24} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+          
+          <View style={{ marginLeft: FreeShowTheme.spacing.md, flex: 1 }}>
+            <Text style={{
+              fontSize: FreeShowTheme.fontSize.lg,
+              fontWeight: '700',
+              color: FreeShowTheme.colors.text,
+            }}>
+              FreeShow Remote
+            </Text>
+          </View>
+        </View>
+
+        {/* Content area */}
+        <View style={{ flex: 1, backgroundColor: FreeShowTheme.colors.primary }}>
+          {renderContent()}
+        </View>
+
+        {/* Overlay Sidebar */}
+        <Sidebar 
+          navigation={null}
+          currentRoute={currentRoute} 
+          onNavigate={handleNavigate}
+          isVisible={sidebarVisible}
+          onClose={closeSidebar}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Tablet/Desktop layout with traditional side-by-side sidebar
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: FreeShowTheme.colors.primary }}>
-      <Sidebar 
+      <SidebarTraditional 
         navigation={null}
         currentRoute={currentRoute} 
         onNavigate={handleNavigate} 
@@ -333,6 +421,22 @@ export default function App() {
                 options={{
                   presentation: 'modal',
                   headerShown: false,
+                  gestureEnabled: true,
+                  cardOverlayEnabled: true,
+                  cardStyleInterpolator: ({ current, layouts }) => {
+                    return {
+                      cardStyle: {
+                        transform: [
+                          {
+                            translateY: current.progress.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [layouts.screen.height, 0],
+                            }),
+                          },
+                        ],
+                      },
+                    };
+                  },
                 }}
               >
                 {(props) => (
@@ -346,6 +450,22 @@ export default function App() {
                 options={{
                   presentation: 'modal',
                   headerShown: false,
+                  gestureEnabled: true,
+                  cardOverlayEnabled: true,
+                  cardStyleInterpolator: ({ current, layouts }) => {
+                    return {
+                      cardStyle: {
+                        transform: [
+                          {
+                            translateY: current.progress.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [layouts.screen.height, 0],
+                            }),
+                          },
+                        ],
+                      },
+                    };
+                  },
                 }}
               >
                 {(props) => (

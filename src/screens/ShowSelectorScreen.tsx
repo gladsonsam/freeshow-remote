@@ -278,7 +278,12 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <View style={styles.header}>
+        <View style={[
+          styles.header,
+          {
+            paddingTop: dimensions.isTablet ? FreeShowTheme.spacing.md : 0, // Remove top padding on mobile
+          }
+        ]}>
           <View style={styles.headerContent}>
             <View style={styles.headerTitle}>
               <Text style={[

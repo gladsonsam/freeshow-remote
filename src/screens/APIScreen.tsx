@@ -261,7 +261,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Interface' })} style={styles.closeButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
             <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{title}</Text>
@@ -283,7 +283,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Interface' })} style={styles.closeButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
         </TouchableOpacity>
         

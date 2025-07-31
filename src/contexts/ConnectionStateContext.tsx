@@ -227,16 +227,26 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         } else {
           ErrorLogger.info('[AutoConnect] Auto-connect failed', 'AutoConnect', { host: lastConnection.host });
           
-          // Navigate back to Connect tab if auto-connect failed
-          setTimeout(() => {
-            if (navigationRef.current && typeof navigationRef.current.navigate === 'function') {
-              try {
+          // Only navigate to Connect tab if auto-connect failed AND we're using bottom tab navigation
+          // For sidebar navigation, let the user stay where they are
+          setTimeout(async () => {
+            try {
+              const appSettings = await settingsRepository.getAppSettings();
+              
+              // Skip forced navigation for sidebar layout - user can manually navigate if needed
+              if (appSettings.navigationLayout === 'sidebar') {
+                ErrorLogger.info('[AutoConnect] Auto-connect failed but staying on current screen for sidebar navigation', 'AutoConnect');
+                return;
+              }
+              
+              // Only force navigation for bottom tab layout
+              if (navigationRef.current && typeof navigationRef.current.navigate === 'function') {
                 ErrorLogger.info('[AutoConnect] Auto-connect failed, navigating to Connect tab', 'AutoConnect');
                 navigationRef.current.navigate('Main', { screen: 'Connect' });
-              } catch (navigationError) {
-                ErrorLogger.error('[AutoConnect] Navigation error during auto-connect fallback', 'AutoConnect', 
-                  navigationError instanceof Error ? navigationError : new Error(String(navigationError)));
               }
+            } catch (navigationError) {
+              ErrorLogger.error('[AutoConnect] Navigation error during auto-connect fallback', 'AutoConnect', 
+                navigationError instanceof Error ? navigationError : new Error(String(navigationError)));
             }
           }, 100);
         }

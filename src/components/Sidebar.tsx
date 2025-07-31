@@ -6,6 +6,9 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Modal,
+  TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +19,8 @@ interface SidebarProps {
   navigation: any;
   currentRoute: string;
   onNavigate: (route: string) => void;
+  isVisible: boolean;
+  onClose: () => void;
 }
 
 interface NavigationItem {
@@ -27,12 +32,11 @@ interface NavigationItem {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const SIDEBAR_WIDTH_EXPANDED = Math.min(280, screenWidth * 0.7);
-const SIDEBAR_WIDTH_COLLAPSED = 70; // Increased for better icon fit
+const SIDEBAR_WIDTH = Math.min(280, screenWidth * 0.75);
 
-export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNavigate }) => {
-  const [isExpanded, setIsExpanded] = useState(false); // Start collapsed
-  const [animatedWidth] = useState(new Animated.Value(SIDEBAR_WIDTH_COLLAPSED));
+export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNavigate, isVisible, onClose }) => {
+  const [slideAnim] = useState(new Animated.Value(-SIDEBAR_WIDTH));
+  const [backdropOpacity] = useState(new Animated.Value(0));
   const { state } = useConnection();
   const { isConnected, connectionStatus } = state;
 
@@ -60,25 +64,47 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
     },
   ];
 
-  const toggleSidebar = () => {
-    const targetWidth = isExpanded ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
-    
-    Animated.timing(animatedWidth, {
-      toValue: targetWidth,
+  // Animation effect when visibility changes
+  useEffect(() => {
+    if (isVisible) {
+      // Slide in
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Slide out
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -SIDEBAR_WIDTH,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
       duration: 250,
-      useNativeDriver: false,
-    }).start();
-    
-    setIsExpanded(!isExpanded);
-  };
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isVisible, slideAnim, backdropOpacity]);
 
   const handleNavigate = (route: string) => {
     onNavigate(route);
-    
-    // Auto-collapse on mobile when navigating (if screen is small)
-    if (screenWidth < 600 && isExpanded) {
-      setTimeout(() => toggleSidebar(), 150);
-    }
+    // Close sidebar after navigation
+    setTimeout(() => onClose(), 150);
+  };
+
+  const handleBackdropPress = () => {
+    onClose();
   };
 
   const getConnectionColor = () => {
@@ -105,12 +131,349 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
   };
 
   return (
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+    >
+      {/* Backdrop */}
+      <TouchableWithoutFeedback onPress={handleBackdropPress}>
+        <Animated.View 
+          style={[
+            styles.backdrop, 
+            { opacity: backdropOpacity }
+          ]} 
+        />
+      </TouchableWithoutFeedback>
+
+      {/* Sidebar */}
+      <Animated.View 
+        style={[
+          styles.sidebarContainer,
+          {
+            transform: [{ translateX: slideAnim }],
+          },
+        ]}
+      >
     <SafeAreaView style={styles.safeArea} edges={['left', 'top', 'bottom']}>
-      <Animated.View style={[styles.sidebar, { width: animatedWidth }]}>
+          <View style={styles.sidebar}>
+            {/* Header with close button */}
+            <View style={styles.header}>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name="close" 
+                  size={24} 
+                  color={FreeShowTheme.colors.text} 
+                />
+              </TouchableOpacity>
+              
+              <View style={styles.headerText}>
+                <Text style={styles.appName}>FreeShow</Text>
+                <Text style={styles.appSubtitle}>Remote</Text>
+              </View>
+              
+              <View style={styles.logoContainer}>
+                <Image 
+                  source={require('../../assets/icon.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            {/* Navigation Items */}
+            <View style={styles.navigation}>
+              {navigationItems.map((item) => {
+                const isActive = currentRoute === item.route;
+                const itemColor = getItemColor(item);
+                const backgroundColor = getItemBackgroundColor(item);
+                
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[
+                      styles.navItem, 
+                      { backgroundColor }
+                    ]}
+                    onPress={() => handleNavigate(item.route)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.navItemIcon}>
+                      <Ionicons
+                        name={isActive ? item.iconFocused : item.icon}
+                        size={24}
+                        color={itemColor}
+                      />
+                    </View>
+                    
+                    <View style={styles.navItemText}>
+                      <Text style={[styles.navItemLabel, { color: itemColor }]}>
+                        {item.label}
+                      </Text>
+                    </View>
+                    
+                    {isActive && (
+                      <View style={styles.activeIndicator} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Connection Status */}
+            <View style={styles.statusSection}>
+              <View style={styles.connectionStatus}>
+                <View style={styles.statusIndicator}>
+                  <View 
+                    style={[
+                      styles.statusDot, 
+                      { backgroundColor: getConnectionColor() }
+                    ]} 
+                  />
+                  <Text style={styles.statusText}>
+                    {isConnected ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  sidebarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: SIDEBAR_WIDTH,
+    zIndex: 1000,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+  },
+  sidebar: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    paddingVertical: FreeShowTheme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 2,
+      height: 0,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    marginBottom: FreeShowTheme.spacing.xl,
+    justifyContent: 'flex-start',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerText: {
+    marginLeft: FreeShowTheme.spacing.md,
+    flex: 1,
+  },
+  logoContainer: {
+    marginLeft: FreeShowTheme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 28,
+    height: 28,
+  },
+  appName: {
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 2,
+  },
+  appSubtitle: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  navigation: {
+    flex: 1,
+    paddingHorizontal: FreeShowTheme.spacing.sm,
+  },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    marginBottom: FreeShowTheme.spacing.xs,
+    position: 'relative',
+  },
+  navItemIcon: {
+    width: 40,
+    alignItems: 'center',
+  },
+  navItemText: {
+    flex: 1,
+    marginLeft: FreeShowTheme.spacing.md,
+  },
+  navItemLabel: {
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: FreeShowTheme.colors.secondary,
+    borderRadius: 2,
+  },
+
+  statusSection: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: FreeShowTheme.colors.primaryLighter,
+  },
+  connectionStatus: {
+    padding: FreeShowTheme.spacing.md,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: FreeShowTheme.spacing.sm,
+  },
+  statusText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    fontWeight: '500',
+  },
+});
+
+// Traditional sidebar for tablets/desktop (non-overlay)
+interface SidebarTraditionalProps {
+  navigation: any;
+  currentRoute: string;
+  onNavigate: (route: string) => void;
+}
+
+export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigation, currentRoute, onNavigate }) => {
+  const [isExpanded, setIsExpanded] = useState(true); // Start expanded on larger screens
+  const [animatedWidth] = useState(new Animated.Value(SIDEBAR_WIDTH));
+  const { state } = useConnection();
+  const { isConnected, connectionStatus } = state;
+
+  const navigationItems: NavigationItem[] = [
+    {
+      key: 'Interface',
+      label: 'Interface',
+      icon: 'apps-outline',
+      iconFocused: 'apps',
+      route: 'Interface',
+    },
+    {
+      key: 'Connect',
+      label: 'Connect',
+      icon: 'wifi-outline',
+      iconFocused: 'wifi',
+      route: 'Connect',
+    },
+    {
+      key: 'Settings',
+      label: 'Settings',
+      icon: 'settings-outline',
+      iconFocused: 'settings',
+      route: 'Settings',
+    },
+  ];
+
+  const SIDEBAR_WIDTH_COLLAPSED = 70;
+
+  const toggleSidebar = () => {
+    const targetWidth = isExpanded ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
+    
+    Animated.timing(animatedWidth, {
+      toValue: targetWidth,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+    
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleNavigate = (route: string) => {
+    onNavigate(route);
+  };
+
+  const getConnectionColor = () => {
+    if (currentRoute === 'Connect') {
+      return FreeShowTheme.colors.secondary;
+    } else if (isConnected) {
+      return '#4CAF50';
+    } else if (connectionStatus === 'connecting') {
+      return '#FF9800';
+    } else {
+      return FreeShowTheme.colors.textSecondary;
+    }
+  };
+
+  const getItemColor = (item: NavigationItem) => {
+    if (item.key === 'Connect') {
+      return getConnectionColor();
+    }
+    return currentRoute === item.route ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary;
+  };
+
+  const getItemBackgroundColor = (item: NavigationItem) => {
+    return currentRoute === item.route ? FreeShowTheme.colors.secondary + '15' : 'transparent';
+  };
+
+  return (
+    <SafeAreaView style={traditionalStyles.safeArea} edges={['left', 'top', 'bottom']}>
+      <Animated.View style={[traditionalStyles.sidebar, { width: animatedWidth }]}>
         {/* Header with toggle button */}
-        <View style={[styles.header, !isExpanded && styles.headerCollapsed]}>
+        <View style={[traditionalStyles.header, !isExpanded && traditionalStyles.headerCollapsed]}>
           <TouchableOpacity 
-            style={[styles.toggleButton]}
+            style={traditionalStyles.toggleButton}
             onPress={toggleSidebar}
             activeOpacity={0.7}
           >
@@ -122,15 +485,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
           </TouchableOpacity>
           
           {isExpanded && (
-            <Animated.View style={styles.headerText}>
-              <Text style={styles.appName}>FreeShow</Text>
-              <Text style={styles.appSubtitle}>Remote</Text>
-            </Animated.View>
+            <>
+              <View style={traditionalStyles.headerText}>
+                <Text style={traditionalStyles.appName}>FreeShow</Text>
+                <Text style={traditionalStyles.appSubtitle}>Remote</Text>
+              </View>
+              
+              <View style={traditionalStyles.logoContainer}>
+                <Image 
+                  source={require('../../assets/icon.png')}
+                  style={traditionalStyles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </>
           )}
         </View>
 
         {/* Navigation Items */}
-        <View style={[styles.navigation, !isExpanded && styles.navigationCollapsed]}>
+        <View style={[traditionalStyles.navigation, !isExpanded && traditionalStyles.navigationCollapsed]}>
           {navigationItems.map((item) => {
             const isActive = currentRoute === item.route;
             const itemColor = getItemColor(item);
@@ -140,14 +513,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
               <TouchableOpacity
                 key={item.key}
                 style={[
-                  styles.navItem, 
+                  traditionalStyles.navItem, 
                   { backgroundColor },
-                  !isExpanded && styles.navItemCollapsed
+                  !isExpanded && traditionalStyles.navItemCollapsed
                 ]}
                 onPress={() => handleNavigate(item.route)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.navItemIcon, !isExpanded && styles.navItemIconCollapsed]}>
+                <View style={[traditionalStyles.navItemIcon, !isExpanded && traditionalStyles.navItemIconCollapsed]}>
                   <Ionicons
                     name={isActive ? item.iconFocused : item.icon}
                     size={24}
@@ -156,20 +529,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
                 </View>
                 
                 {isExpanded && (
-                  <Animated.View style={styles.navItemText}>
-                    <Text style={[styles.navItemLabel, { color: itemColor }]}>
+                  <View style={traditionalStyles.navItemText}>
+                    <Text style={[traditionalStyles.navItemLabel, { color: itemColor }]}>
                       {item.label}
                     </Text>
-                  </Animated.View>
+                  </View>
                 )}
                 
                 {isActive && isExpanded && (
-                  <View style={styles.activeIndicator} />
+                  <View style={traditionalStyles.activeIndicator} />
                 )}
                 
-                {/* Minimal active indicator for collapsed state */}
                 {isActive && !isExpanded && (
-                  <View style={styles.activeIndicatorCollapsed} />
+                  <View style={traditionalStyles.activeIndicatorCollapsed} />
                 )}
               </TouchableOpacity>
             );
@@ -178,16 +550,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
 
         {/* Connection Status (when expanded) */}
         {isExpanded && (
-          <View style={styles.statusSection}>
-            <View style={styles.connectionStatus}>
-              <View style={styles.statusIndicator}>
+          <View style={traditionalStyles.statusSection}>
+            <View style={traditionalStyles.connectionStatus}>
+              <View style={traditionalStyles.statusIndicator}>
                 <View 
                   style={[
-                    styles.statusDot, 
+                    traditionalStyles.statusDot, 
                     { backgroundColor: getConnectionColor() }
                   ]} 
                 />
-                <Text style={styles.statusText}>
+                <Text style={traditionalStyles.statusText}>
                   {isConnected ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
                 </Text>
               </View>
@@ -199,7 +571,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
   );
 };
 
-const styles = StyleSheet.create({
+const traditionalStyles = StyleSheet.create({
   safeArea: {
     backgroundColor: FreeShowTheme.colors.primaryDarkest,
   },
@@ -217,6 +589,10 @@ const styles = StyleSheet.create({
     marginBottom: FreeShowTheme.spacing.xl,
     justifyContent: 'flex-start',
   },
+  headerCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: FreeShowTheme.spacing.sm,
+  },
   toggleButton: {
     width: 40,
     height: 40,
@@ -227,13 +603,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerCollapsed: {
-    justifyContent: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.sm,
-  },
   headerText: {
     marginLeft: FreeShowTheme.spacing.md,
     flex: 1,
+  },
+  logoContainer: {
+    marginLeft: FreeShowTheme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 26,
+    height: 26,
   },
   appName: {
     fontSize: FreeShowTheme.fontSize.lg,
@@ -268,7 +649,7 @@ const styles = StyleSheet.create({
     marginHorizontal: FreeShowTheme.spacing.xs,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 54, // 70 - (4 * 4) for padding and margins
+    width: 54,
   },
   navItemIcon: {
     width: 40,
