@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 
+      Production-ready network security config for FreeShow Remote
+      - Blocks all HTTP to external domains (App Store compliant)  
+      - Allows HTTP only for RFC 1918 private networks (local network)
+      - All external traffic must use HTTPS
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

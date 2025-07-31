@@ -16,7 +16,16 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
-/android
+# Generated native projects (but allow custom config)
+/android/app/
+/android/build/
+/android/gradle/
+/android/.gradle/
+/android/local.properties
+/android/gradlew*
+/android/settings.gradle
+/android/build.gradle
+/android/proguard-rules.pro
 /ios
 
 # Metro

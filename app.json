@@ -9,8 +9,8 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#E91E63"
+      "resizeMode": "center",
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -48,12 +48,12 @@
           "android": {
             "usesCleartextTraffic": true,
             "requestLegacyExternalStorage": true,
-            "networkSecurityConfig": "./network_security_config.xml"
+            "networkSecurityConfig": "./android/network_security_config.xml"
           },
           "ios": {
             "infoPlist": {
               "NSAppTransportSecurity": {
-                "NSAllowsArbitraryLoads": true
+                "NSAllowsLocalNetworking": true
               }
             }
           }
