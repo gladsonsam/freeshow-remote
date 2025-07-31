@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: FreeShowTheme.spacing.md,
     paddingHorizontal: FreeShowTheme.spacing.md,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     marginBottom: FreeShowTheme.spacing.xs,
     position: 'relative',
   },
@@ -368,9 +368,17 @@ const styles = StyleSheet.create({
   connectionStatus: {
     padding: FreeShowTheme.spacing.md,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statusIndicator: {
     flexDirection: 'row',
@@ -577,8 +585,6 @@ const traditionalStyles = StyleSheet.create({
   },
   sidebar: {
     backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    borderRightWidth: 2,
-    borderRightColor: FreeShowTheme.colors.primaryLighter,
     height: '100%',
     paddingVertical: FreeShowTheme.spacing.lg,
   },
@@ -596,7 +602,7 @@ const traditionalStyles = StyleSheet.create({
   toggleButton: {
     width: 40,
     height: 40,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
@@ -640,7 +646,7 @@ const traditionalStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: FreeShowTheme.spacing.md,
     paddingHorizontal: FreeShowTheme.spacing.md,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     marginBottom: FreeShowTheme.spacing.xs,
     position: 'relative',
   },
@@ -695,9 +701,17 @@ const traditionalStyles = StyleSheet.create({
   connectionStatus: {
     padding: FreeShowTheme.spacing.md,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statusIndicator: {
     flexDirection: 'row',
@@ -710,7 +724,7 @@ const traditionalStyles = StyleSheet.create({
     marginRight: FreeShowTheme.spacing.sm,
   },
   statusText: {
-    fontSize: FreeShowTheme.fontSize.sm,
+    fontSize: FreeShowTheme.fontSize.lg,
     color: FreeShowTheme.colors.textSecondary,
     fontWeight: '500',
   },
