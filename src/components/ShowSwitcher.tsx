@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Modal,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
@@ -12,6 +13,20 @@ import { ShowOption } from '../types';
 import { useConnection } from '../contexts';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
+
+// Responsive sizing utility for ShowSwitcher
+const getResponsiveDimensions = () => {
+  const { width, height } = Dimensions.get('window');
+  const isTablet = Math.min(width, height) > 600;
+  const isLandscape = width > height;
+  
+  return {
+    isTablet,
+    isLandscape,
+    screenWidth: width,
+    screenHeight: height,
+  };
+};
 
 interface ShowSwitcherProps {
   currentTitle: string;
@@ -35,6 +50,16 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   onShowSelect,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [dimensions, setDimensions] = useState(getResponsiveDimensions());
+
+  // Update dimensions when orientation changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', () => {
+      setDimensions(getResponsiveDimensions());
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   // Memoize the default ports configuration
   const defaultPorts = useMemo(() => configService.getConfig().defaultShowPorts, []);
@@ -111,12 +136,27 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   return (
     <>
       <TouchableOpacity 
-        style={styles.titleContainer} 
+        style={[
+          styles.titleContainer,
+          {
+            marginHorizontal: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+            gap: dimensions.isTablet ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.xs,
+          }
+        ]} 
         onPress={handleOpenModal}
         activeOpacity={0.7}
       >
-        <Text style={styles.title}>{currentTitle}</Text>
-        <Ionicons name="chevron-down" size={16} color={FreeShowTheme.colors.text + '99'} />
+        <Text style={[
+          styles.title,
+          { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+        ]}>
+          {currentTitle}
+        </Text>
+        <Ionicons 
+          name="chevron-down" 
+          size={dimensions.isTablet ? 20 : 16} 
+          color={FreeShowTheme.colors.text + '99'} 
+        />
       </TouchableOpacity>
 
       <Modal
@@ -125,41 +165,123 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         visible={modalVisible}
         onRequestClose={handleCloseModal}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[
+          styles.modalOverlay,
+          { padding: dimensions.isTablet ? FreeShowTheme.spacing.xl : FreeShowTheme.spacing.lg }
+        ]}>
           <TouchableOpacity
             style={styles.backgroundTouchable}
             activeOpacity={1}
             onPress={handleCloseModal}
           />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Switch Interface</Text>
+          <View style={[
+            styles.modalContent,
+            {
+              maxWidth: dimensions.isTablet ? 500 : 400,
+              minHeight: dimensions.isTablet ? 480 : 400,
+              borderRadius: dimensions.isTablet ? FreeShowTheme.borderRadius.xl * 1.5 : FreeShowTheme.borderRadius.xl,
+            }
+          ]}>
+            <View style={[
+              styles.modalHeader,
+              { padding: dimensions.isTablet ? FreeShowTheme.spacing.xl : FreeShowTheme.spacing.lg }
+            ]}>
+              <Text style={[
+                styles.modalTitle,
+                { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.xl : FreeShowTheme.fontSize.lg }
+              ]}>
+                Switch Interface
+              </Text>
               <TouchableOpacity
                 onPress={handleCloseModal}
-                style={styles.closeButton}
+                style={[
+                  styles.closeButton,
+                  { padding: dimensions.isTablet ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.xs }
+                ]}
               >
-                <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+                <Ionicons 
+                  name="close" 
+                  size={dimensions.isTablet ? 28 : 24} 
+                  color={FreeShowTheme.colors.text} 
+                />
               </TouchableOpacity>
             </View>
 
             {currentShow && (
-              <View style={styles.currentShowSection}>
-                <Text style={styles.sectionTitle}>Current</Text>
-                <View style={[styles.showItem, styles.currentShowItem, { borderLeftColor: currentShow.color }]}>
-                  <View style={[styles.iconContainer, { backgroundColor: currentShow.color + '20' }]}>
-                    <Ionicons name={currentShow.icon as any} size={24} color={currentShow.color} />
+              <View style={[
+                styles.currentShowSection,
+                {
+                  padding: dimensions.isTablet ? FreeShowTheme.spacing.xl : FreeShowTheme.spacing.lg,
+                  paddingBottom: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+                }
+              ]}>
+                <Text style={[
+                  styles.sectionTitle,
+                  { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.sm }
+                ]}>
+                  Current
+                </Text>
+                <View style={[
+                  styles.showItem, 
+                  styles.currentShowItem, 
+                  { 
+                    borderLeftColor: currentShow.color,
+                    padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+                    marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                    gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                    minHeight: dimensions.isTablet ? 72 : 56,
+                  }
+                ]}>
+                  <View style={[
+                    styles.iconContainer, 
+                    { 
+                      backgroundColor: currentShow.color + '20',
+                      width: dimensions.isTablet ? 48 : 40,
+                      height: dimensions.isTablet ? 48 : 40,
+                    }
+                  ]}>
+                    <Ionicons 
+                      name={currentShow.icon as any} 
+                      size={dimensions.isTablet ? 28 : 24} 
+                      color={currentShow.color} 
+                    />
                   </View>
                   <View style={styles.showInfo}>
-                    <Text style={styles.showTitle}>{currentShow.title}</Text>
-                    <Text style={styles.showDescription}>{currentShow.description}</Text>
+                    <Text style={[
+                      styles.showTitle,
+                      { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+                    ]}>
+                      {currentShow.title}
+                    </Text>
+                    <Text style={[
+                      styles.showDescription,
+                      { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs }
+                    ]}>
+                      {currentShow.description}
+                    </Text>
                   </View>
-                  <Ionicons name="checkmark-circle" size={20} color={currentShow.color} />
+                  <Ionicons 
+                    name="checkmark-circle" 
+                    size={dimensions.isTablet ? 24 : 20} 
+                    color={currentShow.color} 
+                  />
                 </View>
               </View>
             )}
 
-            <View style={styles.otherShowsSection}>
-              <Text style={styles.sectionTitle}>Available Interfaces</Text>
+            <View style={[
+              styles.otherShowsSection,
+              {
+                padding: dimensions.isTablet ? FreeShowTheme.spacing.xl : FreeShowTheme.spacing.lg,
+                paddingTop: 0,
+              }
+            ]}>
+              <Text style={[
+                styles.sectionTitle,
+                { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.sm }
+              ]}>
+                Available Interfaces
+              </Text>
               <View style={styles.showsList}>
                 {showOptions.map((show) => {
                   // Skip current show
@@ -168,18 +290,52 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                   return (
                     <TouchableOpacity
                       key={show.id}
-                      style={[styles.showItem, { borderLeftColor: show.color }]}
+                      style={[
+                        styles.showItem, 
+                        { 
+                          borderLeftColor: show.color,
+                          padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+                          marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                          gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                          minHeight: dimensions.isTablet ? 72 : 56,
+                        }
+                      ]}
                       onPress={() => handleShowSelect(show)}
                       activeOpacity={0.7}
                     >
-                      <View style={[styles.iconContainer, { backgroundColor: show.color + '20' }]}>
-                        <Ionicons name={show.icon as any} size={24} color={show.color} />
+                      <View style={[
+                        styles.iconContainer, 
+                        { 
+                          backgroundColor: show.color + '20',
+                          width: dimensions.isTablet ? 48 : 40,
+                          height: dimensions.isTablet ? 48 : 40,
+                        }
+                      ]}>
+                        <Ionicons 
+                          name={show.icon as any} 
+                          size={dimensions.isTablet ? 28 : 24} 
+                          color={show.color} 
+                        />
                       </View>
                       <View style={styles.showInfo}>
-                        <Text style={styles.showTitle}>{show.title}</Text>
-                        <Text style={styles.showDescription}>{show.description}</Text>
+                        <Text style={[
+                          styles.showTitle,
+                          { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+                        ]}>
+                          {show.title}
+                        </Text>
+                        <Text style={[
+                          styles.showDescription,
+                          { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs }
+                        ]}>
+                          {show.description}
+                        </Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.text + '66'} />
+                      <Ionicons 
+                        name="chevron-forward" 
+                        size={dimensions.isTablet ? 20 : 16} 
+                        color={FreeShowTheme.colors.text + '66'} 
+                      />
                     </TouchableOpacity>
                   );
                 })}
@@ -197,21 +353,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginHorizontal: FreeShowTheme.spacing.md,
-    gap: FreeShowTheme.spacing.xs,
+    // marginHorizontal and gap now handled dynamically
   },
   title: {
-    fontSize: FreeShowTheme.fontSize.md,
     fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
+    // fontSize now handled dynamically
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: FreeShowTheme.spacing.lg,
+    // padding now handled dynamically
   },
   backgroundTouchable: {
     position: 'absolute',
@@ -222,46 +377,42 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: FreeShowTheme.borderRadius.xl,
     width: '100%',
-    maxWidth: 400,
-    minHeight: 400,
     maxHeight: '90%',
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
+    // maxWidth, minHeight, borderRadius now handled dynamically
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: FreeShowTheme.spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
+    // padding now handled dynamically
   },
   modalTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
     fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
+    // fontSize now handled dynamically
   },
   closeButton: {
-    padding: FreeShowTheme.spacing.xs,
+    // padding now handled dynamically
   },
   currentShowSection: {
-    padding: FreeShowTheme.spacing.lg,
-    paddingBottom: FreeShowTheme.spacing.md,
+    // padding now handled dynamically
   },
   otherShowsSection: {
-    padding: FreeShowTheme.spacing.lg,
-    paddingTop: 0,
+    // padding now handled dynamically
   },
   sectionTitle: {
-    fontSize: FreeShowTheme.fontSize.sm,
     fontWeight: '600',
     color: FreeShowTheme.colors.text + 'CC',
     fontFamily: FreeShowTheme.fonts.system,
     marginBottom: FreeShowTheme.spacing.sm,
     textTransform: 'uppercase',
+    // fontSize now handled dynamically
   },
   showsList: {
     // No max height needed since we removed scrolling
@@ -274,34 +425,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 3,
-    padding: FreeShowTheme.spacing.md,
-    marginBottom: FreeShowTheme.spacing.sm,
-    gap: FreeShowTheme.spacing.sm,
+    // padding, marginBottom, gap, minHeight now handled dynamically
   },
   currentShowItem: {
     backgroundColor: FreeShowTheme.colors.primaryLighter,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
     borderRadius: FreeShowTheme.borderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    // width, height now handled dynamically
   },
   showInfo: {
     flex: 1,
   },
   showTitle: {
-    fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
     marginBottom: 2,
+    // fontSize now handled dynamically
   },
   showDescription: {
-    fontSize: FreeShowTheme.fontSize.xs,
     color: FreeShowTheme.colors.text + '99',
     fontFamily: FreeShowTheme.fonts.system,
+    // fontSize now handled dynamically
   },
 });
 

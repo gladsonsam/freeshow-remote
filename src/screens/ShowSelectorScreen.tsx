@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,21 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
 import { ShowOption } from '../types';
 
+// Responsive sizing utility
+const getResponsiveDimensions = () => {
+  const { width, height } = Dimensions.get('window');
+  const isTablet = Math.min(width, height) > 600;
+  const isLandscape = width > height;
+  
+  return {
+    isTablet,
+    isLandscape,
+    screenWidth: width,
+    screenHeight: height,
+    isSmallScreen: height < 700,
+  };
+};
+
 interface ShowSelectorScreenProps {
   navigation: any;
 }
@@ -22,6 +37,17 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const { state, actions } = useConnection();
   const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
   const { disconnect } = actions;
+  
+  const [dimensions, setDimensions] = useState(getResponsiveDimensions());
+
+  // Update dimensions when orientation changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', () => {
+      setDimensions(getResponsiveDimensions());
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   const getShowOptions = () => {
     const defaultPorts = {
@@ -150,38 +176,112 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerTitle}>
-              <Text style={styles.title}>FreeShow Interfaces</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[
+                styles.title,
+                { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.xxxl : FreeShowTheme.fontSize.xxl }
+              ]}>
+                FreeShow Interfaces
+              </Text>
+              <Text style={[
+                styles.subtitle,
+                { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.sm }
+              ]}>
                 Connected to {connectionName || connectionHost}
               </Text>
             </View>
             <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
-              <Ionicons name="log-out-outline" size={22} color={FreeShowTheme.colors.text + 'CC'} />
+              <Ionicons 
+                name="log-out-outline" 
+                size={dimensions.isTablet ? 26 : 22} 
+                color={FreeShowTheme.colors.text + 'CC'} 
+              />
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.showList}>
-          <Text style={styles.sectionTitle}>Choose an interface:</Text>
+        <View style={[
+          styles.showList,
+          {
+            paddingHorizontal: dimensions.isTablet ? FreeShowTheme.spacing.xl : FreeShowTheme.spacing.lg,
+            paddingTop: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+          }
+        ]}>
+          <Text style={[
+            styles.sectionTitle,
+            { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+          ]}>
+            Choose an interface:
+          </Text>
           {showOptions.map((show) => (
             <TouchableOpacity
               key={show.id}
-              style={[styles.showCard, { borderLeftColor: show.color }]}
+              style={[
+                styles.showCard, 
+                { 
+                  borderLeftColor: show.color,
+                  padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : 
+                           (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
+                  marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.lg : 
+                               (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
+                  minHeight: dimensions.isTablet ? 88 : (dimensions.isSmallScreen ? 64 : 72),
+                }
+              ]}
               onPress={() => handleShowSelect(show)}
               activeOpacity={0.7}
             >
-              <View style={[styles.iconContainer, { backgroundColor: show.color + '20' }]}>
-                <Ionicons name={show.icon as any} size={28} color={show.color} />
+              <View style={[
+                styles.iconContainer, 
+                { 
+                  backgroundColor: show.color + '20',
+                  width: dimensions.isTablet ? 64 : 48,
+                  height: dimensions.isTablet ? 64 : 48,
+                }
+              ]}>
+                <Ionicons 
+                  name={show.icon as any} 
+                  size={dimensions.isTablet ? 36 : 28} 
+                  color={show.color} 
+                />
               </View>
               
               <View style={styles.showInfo}>
-                <Text style={styles.showTitle}>{show.title}</Text>
-                <Text style={styles.showDescription} numberOfLines={1}>{show.description}</Text>
-                <Text style={styles.showPort}>Port: {show.port}</Text>
+                <Text style={[
+                  styles.showTitle,
+                  {
+                    fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.xl : 
+                             (dimensions.isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg),
+                    marginBottom: dimensions.isTablet ? 10 : 8,
+                  }
+                ]}>
+                  {show.title}
+                </Text>
+                <Text style={[
+                  styles.showDescription,
+                  {
+                    fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : 
+                             (dimensions.isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm),
+                    lineHeight: dimensions.isTablet ? 20 : 16,
+                    marginBottom: dimensions.isTablet ? 4 : 2,
+                  }
+                ]} numberOfLines={1}>
+                  {show.description}
+                </Text>
+                <Text style={[
+                  styles.showPort,
+                  {
+                    fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs,
+                  }
+                ]}>
+                  Port: {show.port}
+                </Text>
               </View>
               
               <View style={styles.chevron}>
-                <Ionicons name="chevron-forward" size={20} color={FreeShowTheme.colors.text + '66'} />
+                <Ionicons 
+                  name="chevron-forward" 
+                  size={dimensions.isTablet ? 24 : 20} 
+                  color={FreeShowTheme.colors.text + '66'} 
+                />
               </View>
             </TouchableOpacity>
           ))}
@@ -190,9 +290,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     </SafeAreaView>
   );
 };
-
-const screenHeight = Dimensions.get('window').height;
-const isSmallScreen = screenHeight < 700; 
 
 const styles = StyleSheet.create({
   container: {
@@ -216,34 +313,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: FreeShowTheme.fontSize.xxl, // Reduce from xl to xxl for better balance
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
     marginBottom: FreeShowTheme.spacing.xs,
+    // fontSize now handled dynamically
   },
   subtitle: {
-    fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text + 'AA',
     fontFamily: FreeShowTheme.fonts.system,
     fontWeight: '500',
+    // fontSize now handled dynamically
   },
   disconnectButton: {
     padding: FreeShowTheme.spacing.sm,
     marginTop: -FreeShowTheme.spacing.xs, // Align with title
   },
   sectionTitle: {
-    fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
     color: FreeShowTheme.colors.text + 'CC',
     marginBottom: FreeShowTheme.spacing.md,
     paddingHorizontal: 2, // Align with card content
     fontFamily: FreeShowTheme.fonts.system,
+    // fontSize now handled dynamically
   },
   showList: {
     flex: 1,
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingTop: FreeShowTheme.spacing.sm, // Reduce top padding
+    // paddingHorizontal and paddingTop now handled dynamically
   },
   showCard: {
     flexDirection: 'row',
@@ -253,8 +349,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 4,
-    padding: isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md,
-    marginBottom: isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md,
     gap: FreeShowTheme.spacing.md,
     shadowColor: '#000',
     shadowOffset: {
@@ -266,8 +360,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
     borderRadius: FreeShowTheme.borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -276,25 +368,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   showTitle: {
-    fontSize: isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg,
-    fontWeight: '700', // Increase font weight
+    fontWeight: '700',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 8, 
+    // fontSize, marginBottom now handled dynamically
   },
   showDescription: {
-    fontSize: isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.text + 'BB', // Increase opacity slightly
+    color: FreeShowTheme.colors.text + 'BB',
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: 2, 
-    lineHeight: 16,
+    // fontSize, lineHeight, marginBottom now handled dynamically
   },
   showPort: {
-    fontSize: FreeShowTheme.fontSize.xs,
-    color: FreeShowTheme.colors.text + 'AA', // Increase opacity
+    color: FreeShowTheme.colors.text + 'AA',
     fontFamily: FreeShowTheme.fonts.system,
     fontWeight: '600',
     letterSpacing: 0.5,
+    // fontSize now handled dynamically
   },
   chevron: {
     opacity: 0.6,
