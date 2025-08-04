@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useConnection } from '../contexts';
+import { useConnection, useSettings } from '../contexts';
 import { ShowOption } from '../types';
 
 // Responsive sizing utility
@@ -57,6 +57,7 @@ interface ShowSelectorScreenProps {
 
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
   const { state, actions } = useConnection();
+  const { settings } = useSettings();
   const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
   const { disconnect } = actions;
   
@@ -281,7 +282,10 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         <View style={[
           styles.header,
           {
-            paddingTop: dimensions.isTablet ? FreeShowTheme.spacing.md : 0, // Remove top padding on mobile
+            // Add appropriate padding based on device type and navigation layout
+            paddingTop: dimensions.isTablet 
+              ? FreeShowTheme.spacing.md 
+              : (settings?.navigationLayout === 'sidebar' ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
           }
         ]}>
           <View style={styles.headerContent}>
