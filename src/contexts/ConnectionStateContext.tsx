@@ -286,11 +286,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         navigationLayout: appSettings.navigationLayout
       });
       
-      // Skip auto-launch for sidebar navigation as it uses custom navigation
-      if (appSettings.navigationLayout === 'sidebar') {
-        ErrorLogger.debug('[AutoLaunch] Skipping auto-launch for sidebar navigation', 'ConnectionStateContext');
-        return;
-      }
+      // Removed sidebar navigation check so auto-launch works for all layouts
       
       if (appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
         const showOptions = [
