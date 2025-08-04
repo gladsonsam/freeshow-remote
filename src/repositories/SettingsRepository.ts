@@ -11,6 +11,7 @@ export interface AppSettings {
   autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
   connectionTimeout: number; // in seconds
   navigationLayout: 'bottomBar' | 'sidebar';
+  keepAwake: boolean;
 }
 
 export interface ConnectionHistory {
@@ -52,6 +53,7 @@ export class SettingsRepository {
           autoLaunchInterface: 'none',
           connectionTimeout: 10,
           navigationLayout: 'bottomBar',
+          keepAwake: false,
         };
         await this.setAppSettings(defaultSettings);
         return defaultSettings;

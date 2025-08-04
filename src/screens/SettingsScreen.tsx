@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useSettings } from '../contexts';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -31,6 +32,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [autoReconnect, setAutoReconnect] = useState(settings?.autoReconnect || false);
   const [autoLaunchInterface, setAutoLaunchInterface] = useState(settings?.autoLaunchInterface || 'none');
   const [navigationLayout, setNavigationLayout] = useState(settings?.navigationLayout || 'bottomBar');
+  const [keepAwake, setKeepAwake] = useState(settings?.keepAwake || false);
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
 
 
@@ -84,8 +86,21 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       setAutoReconnect(settings.autoReconnect || false);
       setAutoLaunchInterface(settings.autoLaunchInterface || 'none');
       setNavigationLayout(settings.navigationLayout || 'bottomBar');
+      setKeepAwake(settings.keepAwake || false);
     }
   }, [settings]);
+
+  useEffect(() => {
+    if (keepAwake) {
+      activateKeepAwakeAsync();
+    } else {
+      deactivateKeepAwake();
+    }
+  }, [keepAwake]);
+  const handleKeepAwakeToggle = async (value: boolean) => {
+    setKeepAwake(value);
+    await actions.updateSettings({ keepAwake: value });
+  };
 
   const handleAutoReconnectToggle = async (value: boolean) => {
     setAutoReconnect(value);
@@ -135,6 +150,32 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
         {/* Settings Card */}
         <View style={styles.settingsCard}>
+          {/* Keep Awake Toggle */}
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingTitleRow}>
+                <Ionicons name="moon" size={20} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.settingTitle}>Keep Awake</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                Prevent your device screen from sleeping while the app is open
+              </Text>
+            </View>
+            <Switch
+              value={keepAwake}
+              onValueChange={handleKeepAwakeToggle}
+              trackColor={{ 
+                false: FreeShowTheme.colors.primaryLighter, 
+                true: FreeShowTheme.colors.secondary + '40' 
+              }}
+              thumbColor={keepAwake ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary}
+              ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
+            />
+          </View>
+
+          <View style={styles.settingDivider} />
+
+          {/* Auto-Reconnect Toggle */}
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <View style={styles.settingTitleRow}>
@@ -159,6 +200,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
           <View style={styles.settingDivider} />
 
+          {/* Auto-Launch Interface Picker */}
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <View style={styles.settingTitleRow}>
@@ -183,6 +225,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
           <View style={styles.settingDivider} />
 
+          {/* Navigation Layout Toggle */}
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <View style={styles.settingTitleRow}>
