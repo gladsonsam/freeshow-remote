@@ -1,64 +1,20 @@
-name: Bug Report
-description: File a bug report to help us improve
+name: Simple Bug Report
+description: Quickly report a bug
 labels: bug
 body:
-  - type: markdown
-    attributes:
-      value: |
-        ## Thank you for helping us improve FreeShow Remote!
   - type: input
     id: title
     attributes:
       label: Bug Title
-      description: Short summary of the bug
+      description: Brief summary of the bug
       placeholder: e.g. App crashes on launch
     validations:
       required: true
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: Please describe the bug in detail
-      placeholder: What happened?
+      label: What happened?
+      description: Describe the issue
+      placeholder: Steps to reproduce, expected behavior, etc.
     validations:
       required: true
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to Reproduce
-      description: How can we reproduce the bug?
-      placeholder: 1. Go to...
-    validations:
-      required: true
-  - type: input
-    id: environment
-    attributes:
-      label: Environment
-      description: OS, device, app version, etc.
-      placeholder: Android 12, v0.1
-    validations:
-      required: false
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected Behavior
-      description: What did you expect to happen?
-      placeholder: The app should...
-    validations:
-      required: false
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots
-      description: If applicable, add screenshots to help explain your problem.
-      placeholder: Drag and drop images here
-    validations:
-      required: false
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional Context
-      description: Add any other context about the problem here.
-      placeholder: Any other details?
-    validations:
-      required: false
