@@ -20,12 +20,27 @@ interface QRScannerModalProps {
   onScan: (ip: string) => void;
 }
 
+// Get screen dimensions and determine if device is a tablet
 const { width, height } = Dimensions.get('window');
+const isTablet = Math.min(width, height) > 600;
 
 const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onScan }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
+  const [dimensions, setDimensions] = useState({ width, height, isTablet });
+
+  // Update dimensions when orientation changes
+  useEffect(() => {
+    const updateDimensions = () => {
+      const { width: newWidth, height: newHeight } = Dimensions.get('window');
+      const newIsTablet = Math.min(newWidth, newHeight) > 600;
+      setDimensions({ width: newWidth, height: newHeight, isTablet: newIsTablet });
+    };
+
+    const subscription = Dimensions.addEventListener('change', updateDimensions);
+    return () => subscription?.remove();
+  }, []);
 
   useEffect(() => {
     if (visible && !permission?.granted) {
@@ -136,8 +151,25 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
           />
           
           <View style={styles.overlay}>
-            <View style={styles.scanFrame} />
-            <View style={styles.scanLine} />
+            <View style={[
+              styles.scanFrame, 
+              {
+                width: dimensions.isTablet 
+                  ? Math.min(300, Math.min(dimensions.width, dimensions.height) * 0.5) 
+                  : dimensions.width * 0.7,
+                height: dimensions.isTablet 
+                  ? Math.min(300, Math.min(dimensions.width, dimensions.height) * 0.5) 
+                  : dimensions.width * 0.7
+              }
+            ]} />
+            <View style={[
+              styles.scanLine,
+              {
+                width: dimensions.isTablet 
+                  ? Math.min(300, Math.min(dimensions.width, dimensions.height) * 0.5) - 4 
+                  : dimensions.width * 0.7 - 4
+              }
+            ]} />
           </View>
         </View>
 
@@ -207,8 +239,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scanFrame: {
-    width: width * 0.7,
-    height: width * 0.7,
     borderWidth: 2,
     borderColor: FreeShowTheme.colors.secondary,
     backgroundColor: 'transparent',
@@ -216,7 +246,6 @@ const styles = StyleSheet.create({
   },
   scanLine: {
     position: 'absolute',
-    width: width * 0.7 - 4,
     height: 2,
     backgroundColor: FreeShowTheme.colors.secondary,
     top: '50%',
