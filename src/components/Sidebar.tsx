@@ -71,12 +71,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 150,
           useNativeDriver: true,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
-          duration: 300,
+          duration: 150,
           useNativeDriver: true,
         }),
       ]).start();
@@ -85,12 +85,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: -SIDEBAR_WIDTH,
-          duration: 250,
+          duration: 120,
           useNativeDriver: true,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 0,
-      duration: 250,
+          duration: 120,
           useNativeDriver: true,
         }),
       ]).start();
@@ -441,7 +441,7 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
     
     Animated.timing(animatedWidth, {
       toValue: targetWidth,
-      duration: 250,
+      duration: 150,
       useNativeDriver: false,
     }).start();
     

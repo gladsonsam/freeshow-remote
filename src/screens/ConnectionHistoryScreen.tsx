@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useSettings } from '../contexts';
 import { ConnectionHistory, settingsRepository } from '../repositories';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface ConnectionHistoryScreenProps {
   navigation: any;
@@ -24,49 +24,49 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
   const [showEditNickname, setShowEditNickname] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionHistory | null>(null);
   const [editNicknameText, setEditNicknameText] = useState('');
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [connectionToRemove, setConnectionToRemove] = useState<string | null>(null);
 
-  const handleRemoveFromHistory = async (id: string) => {
-    Alert.alert(
-      'Remove Connection',
-      'Are you sure you want to remove this connection from history?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await actions.removeFromHistory(id);
-            } catch (error) {
-              console.error('Failed to remove connection from history:', error);
-              Alert.alert('Error', 'Failed to remove connection from history');
-            }
-          },
-        },
-      ]
-    );
+  const handleRemoveFromHistory = (id: string) => {
+    setConnectionToRemove(id);
+    setShowRemoveConfirm(true);
   };
 
-  const handleClearAllHistory = async () => {
-    Alert.alert(
-      'Clear All History',
-      'Are you sure you want to clear all connection history? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await actions.clearHistory();
-            } catch (error) {
-              console.error('Failed to clear connection history:', error);
-              Alert.alert('Error', 'Failed to clear connection history');
-            }
-          },
-        },
-      ]
-    );
+  const confirmRemoveFromHistory = async () => {
+    if (!connectionToRemove) return;
+    
+    try {
+      await actions.removeFromHistory(connectionToRemove);
+      setShowRemoveConfirm(false);
+      setConnectionToRemove(null);
+    } catch (error) {
+      console.error('Failed to remove connection from history:', error);
+      // You could add another modal for error display here if needed
+    }
+  };
+
+  const cancelRemoveFromHistory = () => {
+    setShowRemoveConfirm(false);
+    setConnectionToRemove(null);
+  };
+
+  const handleClearAllHistory = () => {
+    setShowClearAllConfirm(true);
+  };
+
+  const confirmClearAllHistory = async () => {
+    try {
+      await actions.clearHistory();
+      setShowClearAllConfirm(false);
+    } catch (error) {
+      console.error('Failed to clear connection history:', error);
+      // You could add another modal for error display here if needed
+    }
+  };
+
+  const cancelClearAllHistory = () => {
+    setShowClearAllConfirm(false);
   };
 
   const handleEditNickname = (item: ConnectionHistory) => {
@@ -86,7 +86,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
       setEditNicknameText('');
     } catch (error) {
       console.error('Failed to update nickname:', error);
-      Alert.alert('Error', 'Failed to update connection name');
+      // You could add an error modal here if needed, for now just log the error
     }
   };
 
@@ -247,6 +247,32 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           </View>
         </View>
       </Modal>
+
+      {/* Remove Connection Confirmation Modal */}
+      <ConfirmationModal
+        visible={showRemoveConfirm}
+        title="Remove Connection"
+        message="Are you sure you want to remove this connection from history?"
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmStyle="destructive"
+        icon="trash-outline"
+        onConfirm={confirmRemoveFromHistory}
+        onCancel={cancelRemoveFromHistory}
+      />
+
+      {/* Clear All History Confirmation Modal */}
+      <ConfirmationModal
+        visible={showClearAllConfirm}
+        title="Clear All History"
+        message="Are you sure you want to clear all connection history? This cannot be undone."
+        confirmText="Clear All"
+        cancelText="Cancel"
+        confirmStyle="destructive"
+        icon="warning-outline"
+        onConfirm={confirmClearAllHistory}
+        onCancel={cancelClearAllHistory}
+      />
     </SafeAreaView>
   );
 };

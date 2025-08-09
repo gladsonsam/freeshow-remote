@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +15,7 @@ import ShowSwitcher from '../components/ShowSwitcher';
 import { useConnection } from '../contexts';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { ShowOption } from '../types';
+import ErrorModal from '../components/ErrorModal';
 
 interface WebViewScreenProps {
   navigation: any;
@@ -31,6 +31,11 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentOrientation, setCurrentOrientation] = useState<ScreenOrientation.Orientation>(ScreenOrientation.Orientation.PORTRAIT_UP);
   const webViewRef = useRef<WebView>(null);
+  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
+    visible: false,
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     // Get current orientation on mount
@@ -86,7 +91,11 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
       }
     } catch (error) {
       ErrorLogger.error('Failed to rotate screen', 'WebViewScreen', error instanceof Error ? error : new Error(String(error)));
-      Alert.alert('Error', 'Failed to rotate screen');
+      setErrorModal({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to rotate screen'
+      });
     }
   };
 
@@ -102,7 +111,11 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     }
 
     if (!connectionHost) {
-      Alert.alert('Error', 'No connection host available');
+      setErrorModal({
+        visible: true,
+        title: 'Error',
+        message: 'No connection host available'
+      });
       return;
     }
 
@@ -227,6 +240,14 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           key={url} // Force re-render when URL changes
         />
       </View>
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={errorModal.visible}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal({visible: false, title: '', message: ''})}
+      />
     </SafeAreaView>
   );
 };

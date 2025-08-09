@@ -5,10 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import ErrorModal from './ErrorModal';
 
 interface Props {
   children: ReactNode;
@@ -23,6 +23,9 @@ interface State {
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
   errorId: string;
+  showErrorModal: boolean;
+  errorModalTitle: string;
+  errorModalMessage: string;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -35,6 +38,9 @@ export class ErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
       errorId: '',
+      showErrorModal: false,
+      errorModalTitle: '',
+      errorModalMessage: '',
     };
   }
 
@@ -101,6 +107,9 @@ export class ErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
       errorId: '',
+      showErrorModal: false,
+      errorModalTitle: '',
+      errorModalMessage: '',
     });
   };
 
@@ -109,9 +118,17 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   handleReportError = () => {
-    const { error, errorInfo } = this.state;
+    const { error } = this.state;
     if (!error) return;
 
+    this.setState({
+      showErrorModal: true,
+      errorModalTitle: 'Error Report',
+      errorModalMessage: `Error: ${error.message}\n\nError details have been logged to console for debugging.`,
+    });
+
+    // Log the error report
+    const { errorInfo } = this.state;
     const errorReport = {
       message: error.message,
       stack: error.stack,
@@ -119,22 +136,15 @@ export class ErrorBoundary extends Component<Props, State> {
       timestamp: new Date().toISOString(),
       userAgent: 'React Native App',
     };
+    console.log('Error Report:', JSON.stringify(errorReport, null, 2));
+  };
 
-    Alert.alert(
-      'Error Report',
-      `Error: ${error.message}\n\nWould you like to copy the error details?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Copy Details',
-          onPress: () => {
-            // In a real app, you might use Clipboard.setString()
-            console.log('Error Report:', JSON.stringify(errorReport, null, 2));
-            Alert.alert('Error Copied', 'Error details have been logged to console.');
-          },
-        },
-      ]
-    );
+  handleCloseErrorModal = () => {
+    this.setState({
+      showErrorModal: false,
+      errorModalTitle: '',
+      errorModalMessage: '',
+    });
   };
 
   render() {
@@ -202,6 +212,14 @@ export class ErrorBoundary extends Component<Props, State> {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Error Modal */}
+          <ErrorModal
+            visible={this.state.showErrorModal}
+            title={this.state.errorModalTitle}
+            message={this.state.errorModalMessage}
+            onClose={this.handleCloseErrorModal}
+          />
         </View>
       );
     }
@@ -315,21 +333,36 @@ export function withErrorBoundary<P extends object>(
 
 // Hook for error reporting from components
 export function useErrorHandler() {
+  const [errorModal, setErrorModal] = React.useState<{visible: boolean, title: string, message: string}>({
+    visible: false,
+    title: '',
+    message: ''
+  });
+
   const handleError = React.useCallback((error: Error, context?: string) => {
     console.error(`Error in ${context || 'component'}:`, error);
     
     // In development, you might want to show an alert
     if (__DEV__) {
-      Alert.alert(
-        'Development Error',
-        `${context ? `${context}: ` : ''}${error.message}`,
-        [{ text: 'OK' }]
-      );
+      setErrorModal({
+        visible: true,
+        title: 'Development Error',
+        message: `${context ? `${context}: ` : ''}${error.message}`
+      });
     }
     
     // Report to crash analytics in production
     // crashlytics().recordError(error);
   }, []);
 
-  return handleError;
+  const ErrorModalComponent = React.useMemo(() => (
+    <ErrorModal
+      visible={errorModal.visible}
+      title={errorModal.title}
+      message={errorModal.message}
+      onClose={() => setErrorModal({visible: false, title: '', message: ''})}
+    />
+  ), [errorModal]);
+
+  return { handleError, ErrorModalComponent };
 }

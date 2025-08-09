@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { Camera, CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ValidationService } from '../services/InputValidationService';
 import { ErrorLogger } from '../services/ErrorLogger';
+import ErrorModal from './ErrorModal';
 
 interface QRScannerModalProps {
   visible: boolean;
@@ -29,6 +29,11 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
   const [scanned, setScanned] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [dimensions, setDimensions] = useState({ width, height, isTablet });
+  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
+    visible: false,
+    title: '',
+    message: ''
+  });
 
   // Update dimensions when orientation changes
   useEffect(() => {
@@ -63,11 +68,11 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
       // Validate QR content first
       const qrValidation = ValidationService.validateQRContent(data);
       if (!qrValidation.isValid) {
-        Alert.alert(
-          'Invalid QR Code', 
-          qrValidation.error || 'The QR code contains invalid content.',
-          [{ text: 'Try Again', onPress: () => setScanned(false) }]
-        );
+        setErrorModal({
+          visible: true,
+          title: 'Invalid QR Code',
+          message: qrValidation.error || 'The QR code contains invalid content.'
+        });
         return;
       }
 
@@ -78,11 +83,11 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
       
     } catch (error) {
       ErrorLogger.error('QR code processing failed', 'QRScannerModal', error instanceof Error ? error : new Error(String(error)));
-      Alert.alert(
-        'QR Scan Error', 
-        'Failed to process the scanned QR code.',
-        [{ text: 'Try Again', onPress: () => setScanned(false) }]
-      );
+      setErrorModal({
+        visible: true,
+        title: 'QR Scan Error',
+        message: 'Failed to process the scanned QR code.'
+      });
     }
   };
 
@@ -187,6 +192,18 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
           )}
         </View>
       </View>
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={errorModal.visible}
+        title={errorModal.title}
+        message={errorModal.message}
+        buttonText="Try Again"
+        onClose={() => {
+          setErrorModal({visible: false, title: '', message: ''});
+          setScanned(false);
+        }}
+      />
     </Modal>
   );
 };

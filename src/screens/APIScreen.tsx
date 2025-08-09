@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   TextInput,
   Modal,
@@ -18,6 +17,7 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { ShowOption } from '../types';
+import ErrorModal from '../components/ErrorModal';
 
 interface APIScreenProps {
   route: {
@@ -48,6 +48,12 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const socketRef = useRef<Socket | null>(null);
   const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownErrorRef = useRef<boolean>(false);
+  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string, onRetry?: () => void}>({
+    visible: false,
+    title: '',
+    message: '',
+    onRetry: undefined
+  });
 
   useEffect(() => {
     if (isConnected && connectionHost) {
@@ -115,20 +121,16 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           connectionErrorTimeoutRef.current = setTimeout(() => {
             if (!socketConnected && !hasShownErrorRef.current) {
               hasShownErrorRef.current = true;
-              Alert.alert(
-                'Connection Failed',
-                `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port 5505 is accessible`,
-                [
-                  { 
-                    text: 'Retry', 
-                    onPress: () => {
-                      hasShownErrorRef.current = false;
-                      connectWebSocket();
-                    }
-                  },
-                  { text: 'OK' }
-                ]
-              );
+              setErrorModal({
+                visible: true,
+                title: 'Connection Failed',
+                message: `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port 5505 is accessible`,
+                onRetry: () => {
+                  hasShownErrorRef.current = false;
+                  setErrorModal({visible: false, title: '', message: ''});
+                  connectWebSocket();
+                }
+              });
             }
           }, 3000);
         }
@@ -142,11 +144,11 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       console.error('Failed to setup WebSocket connection:', error);
       if (!hasShownErrorRef.current) {
         hasShownErrorRef.current = true;
-        Alert.alert(
-          'Setup Failed',
-          `Failed to setup connection: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          [{ text: 'OK' }]
-        );
+        setErrorModal({
+          visible: true,
+          title: 'Setup Failed',
+          message: `Failed to setup connection: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
       }
     }
   };
@@ -214,7 +216,11 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const sendApiCommand = async (action: string, data: any = {}, showAlert: boolean = true): Promise<void> => {
     if (!connectionHost || !socketRef.current || !socketRef.current.connected) {
       if (showAlert) {
-        Alert.alert('Error', 'Not connected to FreeShow');
+        setErrorModal({
+          visible: true,
+          title: 'Error',
+          message: 'Not connected to FreeShow'
+        });
       }
       return;
     }
@@ -227,7 +233,11 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     } catch (error) {
       console.error('Command failed:', error);
       if (showAlert) {
-        Alert.alert('Command Failed', `Failed to execute "${action}"`);
+        setErrorModal({
+          visible: true,
+          title: 'Command Failed',
+          message: `Failed to execute "${action}"`
+        });
       }
     } finally {
       setIsConnecting(false);
@@ -508,6 +518,21 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={errorModal.visible}
+        title={errorModal.title}
+        message={errorModal.message}
+        buttonText={errorModal.onRetry ? 'Retry' : 'OK'}
+        onClose={() => {
+          if (errorModal.onRetry) {
+            errorModal.onRetry();
+          } else {
+            setErrorModal({visible: false, title: '', message: ''});
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };

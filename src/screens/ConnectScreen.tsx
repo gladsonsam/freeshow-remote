@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -30,6 +29,8 @@ import { ErrorLogger } from '../services/ErrorLogger';
 import ShareQRModal from '../components/ShareQRModal';
 import { ValidationService } from '../services/InputValidationService';
 import { configService } from '../config/AppConfig';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ErrorModal from '../components/ErrorModal';
 
 interface ConnectScreenProps {
   navigation: any;
@@ -52,6 +53,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [editNicknameText, setEditNicknameText] = useState('');
   const [connectionPulse] = useState(new Animated.Value(1));
   const [animatedScanProgress] = useState(new Animated.Value(0));
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
+    visible: false,
+    title: '',
+    message: ''
+  });
   
   // Use focused contexts
   const connection = useConnection();
@@ -173,7 +180,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // Validate host input
       const hostValidation = ValidationService.validateHost(host.trim());
       if (!hostValidation.isValid) {
-        Alert.alert('Invalid Host', hostValidation.error || 'Please enter a valid host address');
+        setErrorModal({
+          visible: true,
+          title: 'Invalid Host',
+          message: hostValidation.error || 'Please enter a valid host address'
+        });
         return;
       }
 
@@ -190,7 +201,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       for (const [portName, portValue] of Object.entries(portsToValidate)) {
         const portValidation = ValidationService.validatePort(portValue);
         if (!portValidation.isValid) {
-          Alert.alert('Invalid Port', `${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`);
+          setErrorModal({
+            visible: true,
+            title: 'Invalid Port',
+            message: `${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`
+          });
           return;
         }
         validatedPorts[portName] = portValidation.sanitizedValue;
@@ -199,7 +214,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // Additional validation for show ports as a group
       const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
       if (!showPortsValidation.isValid) {
-        Alert.alert('Port Configuration Error', showPortsValidation.error || 'Invalid port configuration');
+        setErrorModal({
+          visible: true,
+          title: 'Port Configuration Error',
+          message: showPortsValidation.error || 'Invalid port configuration'
+        });
         return;
       }
 
@@ -224,7 +243,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       }
     } catch (error) {
       ErrorLogger.error('Manual connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
-      Alert.alert('Connection Error', 'Failed to connect to FreeShow. Please check your connection and try again.');
+      setErrorModal({
+        visible: true,
+        title: 'Connection Error',
+        message: 'Failed to connect to FreeShow. Please check your connection and try again.'
+      });
     }
   };
 
@@ -233,7 +256,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // Validate host from history
       const hostValidation = ValidationService.validateHost(historyItem.host);
       if (!hostValidation.isValid) {
-        Alert.alert('Invalid Host', `History item has invalid host: ${hostValidation.error}`);
+        setErrorModal({
+          visible: true,
+          title: 'Invalid Host',
+          message: `History item has invalid host: ${hostValidation.error}`
+        });
         return;
       }
 
@@ -344,7 +371,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       setEditNicknameText('');
     } catch (error) {
       console.error('Failed to update nickname:', error);
-      Alert.alert('Error', 'Failed to update connection name');
+      setErrorModal({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to update connection name'
+      });
     }
   };
 
@@ -354,24 +385,17 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     setEditNicknameText('');
   };
 
-  const handleClearAllHistory = async () => {
-    Alert.alert(
-      'Clear All History',
-      'Are you sure you want to remove all connection history? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            await historyActions.clearHistory();
-          },
-        },
-      ]
-    );
+  const handleClearAllHistory = () => {
+    setShowClearAllConfirm(true);
+  };
+
+  const confirmClearAllHistory = async () => {
+    await historyActions.clearHistory();
+    setShowClearAllConfirm(false);
+  };
+
+  const cancelClearAllHistory = () => {
+    setShowClearAllConfirm(false);
   };
 
   // Update: Scan button clears results and rescans, or cancels if already scanning
@@ -403,7 +427,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // Validate QR content
       const qrValidation = ValidationService.validateQRContent(scannedContent);
       if (!qrValidation.isValid) {
-        Alert.alert('Invalid QR Code', qrValidation.error || 'The QR code contains invalid content');
+        setErrorModal({
+          visible: true,
+          title: 'Invalid QR Code',
+          message: qrValidation.error || 'The QR code contains invalid content'
+        });
         setShowQRScanner(false);
         return;
       }
@@ -422,7 +450,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // Final validation of the extracted host
       const hostValidation = ValidationService.validateHost(extractedHost);
       if (!hostValidation.isValid) {
-        Alert.alert('Invalid Host', `QR code contains invalid host: ${hostValidation.error}`);
+        setErrorModal({
+          visible: true,
+          title: 'Invalid Host',
+          message: `QR code contains invalid host: ${hostValidation.error}`
+        });
         setShowQRScanner(false);
         return;
       }
@@ -452,10 +484,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         for (const [portName, portValue] of Object.entries(portsToValidate)) {
           const portValidation = ValidationService.validatePort(portValue);
           if (!portValidation.isValid) {
-            Alert.alert(
-              'Connection Error', 
-              `Invalid ${portName} port configuration. Please check your port settings and try again.`
-            );
+            setErrorModal({
+              visible: true,
+              title: 'Connection Error',
+              message: `Invalid ${portName} port configuration. Please check your port settings and try again.`
+            });
             return;
           }
           validatedPorts[portName] = portValidation.sanitizedValue;
@@ -464,10 +497,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         // Additional validation for show ports as a group
         const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
         if (!showPortsValidation.isValid) {
-          Alert.alert(
-            'Port Configuration Error', 
-            showPortsValidation.error || 'Invalid port configuration. Please check your settings.'
-          );
+          setErrorModal({
+            visible: true,
+            title: 'Port Configuration Error',
+            message: showPortsValidation.error || 'Invalid port configuration. Please check your settings.'
+          });
           return;
         }
 
@@ -490,17 +524,22 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           navigation.navigate('Interface');
         }
       } catch (connectionError) {
-        ErrorLogger.error('Auto-connection from QR scan failed', 'ConnectScreen', 
+        ErrorLogger.error('Auto-connection from QR scan failed', 'ConnectScreen',
           connectionError instanceof Error ? connectionError : new Error(String(connectionError))
         );
-        Alert.alert(
-          'Connection Failed', 
-          'Could not connect to the scanned FreeShow instance. Please check that FreeShow is running and try again.'
-        );
+        setErrorModal({
+          visible: true,
+          title: 'Connection Failed',
+          message: 'Could not connect to the scanned FreeShow instance. Please check that FreeShow is running and try again.'
+        });
       }
     } catch (error) {
       ErrorLogger.error('QR scan processing failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
-      Alert.alert('QR Scan Error', 'Failed to process QR code content');
+      setErrorModal({
+        visible: true,
+        title: 'QR Scan Error',
+        message: 'Failed to process QR code content'
+      });
       setShowQRScanner(false);
     }
   };
@@ -996,6 +1035,27 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           onClose={() => setShowShareQR(false)}
           host={host}
           port="5505"
+        />
+
+        {/* Clear All History Confirmation Modal */}
+        <ConfirmationModal
+          visible={showClearAllConfirm}
+          title="Clear All History"
+          message="Are you sure you want to remove all connection history? This action cannot be undone."
+          confirmText="Clear All"
+          cancelText="Cancel"
+          confirmStyle="destructive"
+          icon="warning-outline"
+          onConfirm={confirmClearAllHistory}
+          onCancel={cancelClearAllHistory}
+        />
+
+        {/* Error Modal */}
+        <ErrorModal
+          visible={errorModal.visible}
+          title={errorModal.title}
+          message={errorModal.message}
+          onClose={() => setErrorModal({visible: false, title: '', message: ''})}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

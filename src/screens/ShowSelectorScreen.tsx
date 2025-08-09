@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Dimensions,
   AppState,
   AppStateStatus,
@@ -16,6 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection, useSettings } from '../contexts';
 import { ShowOption } from '../types';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ErrorModal from '../components/ErrorModal';
 
 // Responsive sizing utility
 const getResponsiveDimensions = () => {
@@ -63,6 +64,12 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const { disconnect } = actions;
   
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
+    visible: false,
+    title: '',
+    message: ''
+  });
 
   // Force refresh dimensions when component mounts (helps with navigation from other screens)
   useEffect(() => {
@@ -170,7 +177,11 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
 
   const handleShowSelect = (show: ShowOption) => {
     if (!isConnected || !connectionHost) {
-      Alert.alert('Error', 'Not connected to FreeShow');
+      setErrorModal({
+        visible: true,
+        title: 'Error',
+        message: 'Not connected to FreeShow'
+      });
       return;
     }
 
@@ -190,7 +201,11 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           });
         } else {
           console.warn('[ShowSelectorScreen] No valid navigation available for API interface');
-          Alert.alert('Navigation Error', 'Unable to navigate to API interface');
+          setErrorModal({
+            visible: true,
+            title: 'Navigation Error',
+            message: 'Unable to navigate to API interface'
+          });
         }
       } else {
         // Navigate to WebView for other interfaces
@@ -211,39 +226,43 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           });
         } else {
           console.warn('[ShowSelectorScreen] No valid navigation available for WebView');
-          Alert.alert('Navigation Error', 'Unable to navigate to interface');
+          setErrorModal({
+            visible: true,
+            title: 'Navigation Error',
+            message: 'Unable to navigate to interface'
+          });
         }
       }
     } catch (navigationError) {
       console.error('[ShowSelectorScreen] Navigation error:', navigationError);
-      Alert.alert('Navigation Error', 'Unable to navigate to the selected interface');
+      setErrorModal({
+        visible: true,
+        title: 'Navigation Error',
+        message: 'Unable to navigate to the selected interface'
+      });
     }
   };
 
   const handleDisconnect = () => {
-    Alert.alert(
-      'Disconnect',
-      'Are you sure you want to disconnect from FreeShow?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disconnect',
-          style: 'destructive',
-          onPress: () => {
-            disconnect();
-            try {
-              if (navigation && typeof navigation.navigate === 'function') {
-                navigation.navigate('Connect');
-              } else {
-                console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
-              }
-            } catch (navigationError) {
-              console.error('[ShowSelectorScreen] Disconnect navigation error:', navigationError);
-            }
-          }
-        },
-      ]
-    );
+    setShowDisconnectConfirm(true);
+  };
+
+  const confirmDisconnect = () => {
+    disconnect();
+    setShowDisconnectConfirm(false);
+    try {
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('Connect');
+      } else {
+        console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
+      }
+    } catch (navigationError) {
+      console.error('[ShowSelectorScreen] Disconnect navigation error:', navigationError);
+    }
+  };
+
+  const cancelDisconnect = () => {
+    setShowDisconnectConfirm(false);
   };
 
   if (!isConnected) {
@@ -415,6 +434,27 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           ))}
         </View>
       </ScrollView>
+
+      {/* Disconnect Confirmation Modal */}
+      <ConfirmationModal
+        visible={showDisconnectConfirm}
+        title="Disconnect"
+        message="Are you sure you want to disconnect from FreeShow?"
+        confirmText="Disconnect"
+        cancelText="Cancel"
+        confirmStyle="destructive"
+        icon="log-out-outline"
+        onConfirm={confirmDisconnect}
+        onCancel={cancelDisconnect}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={errorModal.visible}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal({visible: false, title: '', message: ''})}
+      />
     </SafeAreaView>
   );
 };
@@ -476,8 +516,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: FreeShowTheme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 4,
     gap: FreeShowTheme.spacing.md,
     overflow: 'hidden', // Ensure gradient fills the entire card
