@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection, useSettings } from '../contexts';
 import { ShowOption } from '../types';
@@ -133,7 +134,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'stage',
         title: 'StageShow',
-        description: 'Stage display for performers',
+        description: 'Display for people on stage',
         port: showPorts.stage,
         icon: 'desktop',
         color: '#2ECC40',
@@ -141,7 +142,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'control',
         title: 'ControlShow',
-        description: 'Full control interface for operators',
+        description: 'Control interface for operators',
         port: showPorts.control,
         icon: 'settings',
         color: '#0074D9',
@@ -149,7 +150,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'output',
         title: 'OutputShow',
-        description: 'Output display for screens and projectors',
+        description: 'Output display for screens',
         port: showPorts.output,
         icon: 'tv',
         color: '#FF851B',
@@ -157,7 +158,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       {
         id: 'api',
         title: 'API Controls',
-        description: 'Custom native API controls',
+        description: 'Native API controls',
         port: showPorts.api,
         icon: 'code-slash',
         color: '#B10DC9',
@@ -329,74 +330,87 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           {showOptions.map((show) => (
             <TouchableOpacity
               key={show.id}
-              style={[
-                styles.showCard, 
-                { 
-                  borderLeftColor: show.color,
-                  padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : 
-                           (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
-                  marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.lg : 
-                               (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
-                  minHeight: dimensions.isTablet ? 88 : (dimensions.isSmallScreen ? 64 : 72),
-                }
-              ]}
               onPress={() => handleShowSelect(show)}
               activeOpacity={0.7}
+              style={{
+                marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.lg :
+                             (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
+              }}
             >
-              <View style={[
-                styles.iconContainer, 
-                { 
-                  backgroundColor: show.color + '20',
-                  width: dimensions.isTablet ? 64 : 48,
-                  height: dimensions.isTablet ? 64 : 48,
-                }
-              ]}>
-                <Ionicons 
-                  name={show.icon as any} 
-                  size={dimensions.isTablet ? 36 : 28} 
-                  color={show.color} 
-                />
-              </View>
-              
-              <View style={styles.showInfo}>
-                <Text style={[
-                  styles.showTitle,
+              <LinearGradient
+                colors={[
+                  FreeShowTheme.colors.primaryDarker, // Start with the original background
+                  FreeShowTheme.colors.primaryDarker + 'F0', // Slightly transparent
+                  show.color + '15', // Subtle theme color blend
+                  FreeShowTheme.colors.primaryDarker + 'E0' // Back to original with slight transparency
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[
+                  styles.showCard,
                   {
-                    fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.xl : 
-                             (dimensions.isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg),
-                    marginBottom: dimensions.isTablet ? 10 : 8,
+                    borderLeftColor: show.color,
+                    padding: dimensions.isTablet ? FreeShowTheme.spacing.lg :
+                             (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
+                    minHeight: dimensions.isTablet ? 88 : (dimensions.isSmallScreen ? 64 : 72),
+                  }
+                ]}
+              >
+                <View style={[
+                  styles.iconContainer,
+                  {
+                    backgroundColor: show.color + '20',
+                    width: dimensions.isTablet ? 64 : 48,
+                    height: dimensions.isTablet ? 64 : 48,
                   }
                 ]}>
-                  {show.title}
-                </Text>
-                <Text style={[
-                  styles.showDescription,
-                  {
-                    fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : 
-                             (dimensions.isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm),
-                    lineHeight: dimensions.isTablet ? 20 : 16,
-                    marginBottom: dimensions.isTablet ? 4 : 2,
-                  }
-                ]} numberOfLines={1}>
-                  {show.description}
-                </Text>
-                <Text style={[
-                  styles.showPort,
-                  {
-                    fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs,
-                  }
-                ]}>
-                  Port: {show.port}
-                </Text>
-              </View>
-              
-              <View style={styles.chevron}>
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={dimensions.isTablet ? 24 : 20} 
-                  color={FreeShowTheme.colors.text + '66'} 
-                />
-              </View>
+                  <Ionicons
+                    name={show.icon as any}
+                    size={dimensions.isTablet ? 36 : 28}
+                    color={show.color}
+                  />
+                </View>
+                
+                <View style={styles.showInfo}>
+                  <Text style={[
+                    styles.showTitle,
+                    {
+                      fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.xl :
+                               (dimensions.isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg),
+                      marginBottom: dimensions.isTablet ? 10 : 8,
+                    }
+                  ]}>
+                    {show.title}
+                  </Text>
+                  <Text style={[
+                    styles.showDescription,
+                    {
+                      fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md :
+                               (dimensions.isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm),
+                      lineHeight: dimensions.isTablet ? 20 : 16,
+                      marginBottom: dimensions.isTablet ? 4 : 2,
+                    }
+                  ]} numberOfLines={1}>
+                    {show.description}
+                  </Text>
+                  <Text style={[
+                    styles.showPort,
+                    {
+                      fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs,
+                    }
+                  ]}>
+                    Port: {show.port}
+                  </Text>
+                </View>
+                
+                <View style={styles.chevron}>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={dimensions.isTablet ? 24 : 20}
+                    color={FreeShowTheme.colors.text + '66'}
+                  />
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           ))}
         </View>
@@ -455,23 +469,18 @@ const styles = StyleSheet.create({
     flex: 1,
     // paddingHorizontal and paddingTop now handled dynamically
   },
+  showCardContainer: {
+    borderRadius: FreeShowTheme.borderRadius.lg,
+  },
   showCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 4,
     gap: FreeShowTheme.spacing.md,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    overflow: 'hidden', // Ensure gradient fills the entire card
   },
   iconContainer: {
     borderRadius: FreeShowTheme.borderRadius.md,

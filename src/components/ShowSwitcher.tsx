@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
 import { useConnection } from '../contexts';
@@ -221,29 +222,38 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                 ]}>
                   Current
                 </Text>
-                <View style={[
-                  styles.showItem, 
-                  styles.currentShowItem, 
-                  { 
-                    borderLeftColor: currentShow.color,
-                    padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
-                    marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                    gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                    minHeight: dimensions.isTablet ? 72 : 56,
-                  }
-                ]}>
+                <LinearGradient
+                  colors={[
+                    FreeShowTheme.colors.primaryDarker, // Start with the same background as ShowSelectorScreen
+                    FreeShowTheme.colors.primaryDarker + 'F0', // Slightly transparent
+                    currentShow.color + '15', // Subtle theme color blend
+                    FreeShowTheme.colors.primaryDarker + 'E0' // Back to original with slight transparency
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.showItem,
+                    {
+                      borderLeftColor: currentShow.color,
+                      padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+                      marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                      gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                      minHeight: dimensions.isTablet ? 72 : 56,
+                    }
+                  ]}
+                >
                   <View style={[
-                    styles.iconContainer, 
-                    { 
+                    styles.iconContainer,
+                    {
                       backgroundColor: currentShow.color + '20',
                       width: dimensions.isTablet ? 48 : 40,
                       height: dimensions.isTablet ? 48 : 40,
                     }
                   ]}>
-                    <Ionicons 
-                      name={currentShow.icon as any} 
-                      size={dimensions.isTablet ? 28 : 24} 
-                      color={currentShow.color} 
+                    <Ionicons
+                      name={currentShow.icon as any}
+                      size={dimensions.isTablet ? 28 : 24}
+                      color={currentShow.color}
                     />
                   </View>
                   <View style={styles.showInfo}>
@@ -260,12 +270,12 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                       {currentShow.description}
                     </Text>
                   </View>
-                  <Ionicons 
-                    name="checkmark-circle" 
-                    size={dimensions.isTablet ? 24 : 20} 
-                    color={currentShow.color} 
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={dimensions.isTablet ? 24 : 20}
+                    color={currentShow.color}
                   />
-                </View>
+                </LinearGradient>
               </View>
             )}
 
@@ -290,52 +300,65 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                   return (
                     <TouchableOpacity
                       key={show.id}
-                      style={[
-                        styles.showItem, 
-                        { 
-                          borderLeftColor: show.color,
-                          padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
-                          marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                          gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                          minHeight: dimensions.isTablet ? 72 : 56,
-                        }
-                      ]}
                       onPress={() => handleShowSelect(show)}
                       activeOpacity={0.7}
+                      style={{
+                        marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                      }}
                     >
-                      <View style={[
-                        styles.iconContainer, 
-                        { 
-                          backgroundColor: show.color + '20',
-                          width: dimensions.isTablet ? 48 : 40,
-                          height: dimensions.isTablet ? 48 : 40,
-                        }
-                      ]}>
-                        <Ionicons 
-                          name={show.icon as any} 
-                          size={dimensions.isTablet ? 28 : 24} 
-                          color={show.color} 
+                      <LinearGradient
+                        colors={[
+                          FreeShowTheme.colors.primaryDarker, // Start with the same background as ShowSelectorScreen
+                          FreeShowTheme.colors.primaryDarker + 'F0', // Slightly transparent
+                          show.color + '15', // Subtle theme color blend
+                          FreeShowTheme.colors.primaryDarker + 'E0' // Back to original with slight transparency
+                        ]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.showItem,
+                          {
+                            borderLeftColor: show.color,
+                            padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
+                            gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                            minHeight: dimensions.isTablet ? 72 : 56,
+                          }
+                        ]}
+                      >
+                        <View style={[
+                          styles.iconContainer,
+                          {
+                            backgroundColor: show.color + '20',
+                            width: dimensions.isTablet ? 48 : 40,
+                            height: dimensions.isTablet ? 48 : 40,
+                          }
+                        ]}>
+                          <Ionicons
+                            name={show.icon as any}
+                            size={dimensions.isTablet ? 28 : 24}
+                            color={show.color}
+                          />
+                        </View>
+                        <View style={styles.showInfo}>
+                          <Text style={[
+                            styles.showTitle,
+                            { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+                          ]}>
+                            {show.title}
+                          </Text>
+                          <Text style={[
+                            styles.showDescription,
+                            { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs }
+                          ]}>
+                            {show.description}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={dimensions.isTablet ? 20 : 16}
+                          color={FreeShowTheme.colors.text + '66'}
                         />
-                      </View>
-                      <View style={styles.showInfo}>
-                        <Text style={[
-                          styles.showTitle,
-                          { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
-                        ]}>
-                          {show.title}
-                        </Text>
-                        <Text style={[
-                          styles.showDescription,
-                          { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs }
-                        ]}>
-                          {show.description}
-                        </Text>
-                      </View>
-                      <Ionicons 
-                        name="chevron-forward" 
-                        size={dimensions.isTablet ? 20 : 16} 
-                        color={FreeShowTheme.colors.text + '66'} 
-                      />
+                      </LinearGradient>
                     </TouchableOpacity>
                   );
                 })}
@@ -420,15 +443,10 @@ const styles = StyleSheet.create({
   showItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primary,
     borderRadius: FreeShowTheme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
     borderLeftWidth: 3,
+    overflow: 'hidden', // Ensure gradient fills the entire item
     // padding, marginBottom, gap, minHeight now handled dynamically
-  },
-  currentShowItem: {
-    backgroundColor: FreeShowTheme.colors.primaryLighter,
   },
   iconContainer: {
     borderRadius: FreeShowTheme.borderRadius.sm,
