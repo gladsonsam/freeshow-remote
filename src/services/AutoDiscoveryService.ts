@@ -41,22 +41,40 @@ function parseServiceCapability(serviceName: string, port: number): {
   portKey: string; 
   isApi: boolean;
 } {
-  const name = (serviceName || '').toLowerCase().trim();
+  const name = (serviceName || '').toUpperCase().trim(); // FreeShow uses uppercase service names
   
-  // Check for known service patterns
-  if (name.includes('api') || name.includes('server') || name === 'freeshow') {
+  // Check for exact FreeShow service names
+  if (name === 'API') {
     return { capability: 'api', portKey: 'api', isApi: true };
   }
-  if (name.includes('remote')) {
+  if (name === 'REMOTE') {
     return { capability: 'remoteshow', portKey: 'remote', isApi: false };
   }
-  if (name.includes('stage')) {
+  if (name === 'STAGE') {
     return { capability: 'stageshow', portKey: 'stage', isApi: false };
   }
-  if (name.includes('control')) {
+  if (name === 'CONTROLLER') {
     return { capability: 'controlshow', portKey: 'control', isApi: false };
   }
-  if (name.includes('output')) {
+  if (name === 'OUTPUT_STREAM' || name === 'OUTPUT') {
+    return { capability: 'outputshow', portKey: 'output', isApi: false };
+  }
+  
+  // Fallback for lowercase or partial matches  
+  const lowerName = serviceName.toLowerCase();
+  if (lowerName.includes('api') || lowerName.includes('server') || lowerName === 'freeshow') {
+    return { capability: 'api', portKey: 'api', isApi: true };
+  }
+  if (lowerName.includes('remote')) {
+    return { capability: 'remoteshow', portKey: 'remote', isApi: false };
+  }
+  if (lowerName.includes('stage')) {
+    return { capability: 'stageshow', portKey: 'stage', isApi: false };
+  }
+  if (lowerName.includes('control')) {
+    return { capability: 'controlshow', portKey: 'control', isApi: false };
+  }
+  if (lowerName.includes('output')) {
     return { capability: 'outputshow', portKey: 'output', isApi: false };
   }
   
@@ -160,12 +178,12 @@ class AutoDiscoveryService {
       }
     });
     
-    // If no API port found, use the first port we discovered
-    if (!hasApi && Object.keys(ports).length > 0) {
-      primaryPort = Object.values(ports)[0];
-    }
+    // API always uses default port 5505 (not broadcasted via Bonjour)
+    // Set primary port to default API port since that's what we'll connect to
+    primaryPort = 5505;
     
     // Create the aggregated instance
+    // API is available as long as any service is running (API endpoint runs on service ports)
     const aggregatedInstance: DiscoveredFreeShowInstance = {
       name: displayName,
       host: host || '',
@@ -173,7 +191,7 @@ class AutoDiscoveryService {
       ip: ip,
       ports: ports,
       capabilities: capabilities,
-      apiEnabled: hasApi,
+      apiEnabled: capabilities.length > 0, // API available if any service is running
     };
     
     // Store the aggregated instance

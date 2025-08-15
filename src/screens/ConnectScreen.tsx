@@ -321,12 +321,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const handleDiscoveredConnect = async (service: any) => {
-    // Check if API is available for this service
-    if (service.apiEnabled === false) {
+    // Check if any services are available for this instance
+    if (!service.capabilities || service.capabilities.length === 0) {
       setErrorModal({
         visible: true,
-        title: 'API Not Available',
-        message: `The FreeShow instance "${service.name}" does not have the API enabled. Please enable the API in FreeShow settings to use the remote control features.`,
+        title: 'No Services Available',
+        message: `The FreeShow instance "${service.name}" does not have any services enabled. Please enable at least one output in FreeShow settings.`,
       });
       return;
     }
@@ -335,9 +335,9 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const proceedWithConnection = async (service: any) => {
-    // Use the IP address and discovered API port if available
+    // Use the IP address and default API port (5505) since API port is not broadcasted
     const ip = service.ip || service.host;
-    const apiPort = service.ports?.api || 5505; // Use discovered API port or default
+    const apiPort = 5505; // FreeShow API always uses default port 5505
     setHost(ip);
     stopDiscovery();
     
@@ -724,47 +724,45 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       <View style={styles.discoveredDevices}>
                         {discoveredServices.map((service: DiscoveredFreeShowInstance, index: number) => {
                           const showHost = service.host && !isIpAddress(service.host);
+                          const hasServices = service.capabilities && service.capabilities.length > 0;
                           return (
                             <TouchableOpacity
                               key={service.ip}
                               style={[
                                 styles.discoveredDevice,
-                                service.apiEnabled === false && styles.discoveredDeviceDisabled
+                                !hasServices && styles.discoveredDeviceDisabled
                               ]}
                               onPress={() => handleDiscoveredConnect(service)}
-                              disabled={service.apiEnabled === false}
+                              disabled={!hasServices}
                             >
                               <View style={styles.discoveredDeviceIcon}>
                                 <Ionicons 
                                   name="desktop" 
                                   size={18} 
-                                  color={service.apiEnabled === false ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                                  color={!hasServices ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
                                 />
                               </View>
                               <View style={styles.discoveredDeviceInfo}>
                                 <Text style={[
                                   styles.discoveredDeviceIP,
-                                  service.apiEnabled === false && styles.discoveredDeviceTextDisabled
+                                  !hasServices && styles.discoveredDeviceTextDisabled
                                 ]}>
                                   {service.name || (showHost ? service.host : service.ip)}
                                 </Text>
                                 {showHost && (
                                   <Text style={[
                                     styles.discoveredDeviceStatus,
-                                    service.apiEnabled === false && styles.discoveredDeviceTextDisabled
+                                    !hasServices && styles.discoveredDeviceTextDisabled
                                   ]}>
                                     {service.ip}
                                   </Text>
                                 )}
                                 {/* Show capabilities */}
                                 <View style={styles.capabilitiesContainer}>
-                                  {service.apiEnabled === false ? (
-                                    <Text style={styles.capabilityBadgeDisabled}>API Disabled</Text>
+                                  {(!service.capabilities || service.capabilities.length === 0) ? (
+                                    <Text style={styles.capabilityBadgeDisabled}>No Services</Text>
                                   ) : (
                                     <>
-                                      {service.ports?.api && (
-                                        <Text style={styles.capabilityBadge}>API:{service.ports.api}</Text>
-                                      )}
                                       {service.ports?.remote && (
                                         <Text style={styles.capabilityBadge}>Remote:{service.ports.remote}</Text>
                                       )}
@@ -783,9 +781,9 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                               </View>
                               <View style={styles.discoveredDeviceAction}>
                                 <Ionicons 
-                                  name={service.apiEnabled === false ? "ban-outline" : "arrow-forward-circle"} 
+                                  name={!hasServices ? "ban-outline" : "arrow-forward-circle"} 
                                   size={24} 
-                                  color={service.apiEnabled === false ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                                  color={!hasServices ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
                                 />
                               </View>
                             </TouchableOpacity>
