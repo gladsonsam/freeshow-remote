@@ -23,6 +23,7 @@ export interface ConnectionState {
     output: number;
     api: number;
   } | null;
+  capabilities: string[] | null;
   autoConnectAttempted: boolean;
 }
 
@@ -39,6 +40,7 @@ export interface ConnectionActions {
     output: number;
     api: number;
   }) => void;
+  updateCapabilities: (capabilities: string[]) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
   triggerAutoLaunch?: (navigation: any) => Promise<void>;
@@ -74,6 +76,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     connectionStartTime: null,
     lastActivity: null,
     currentShowPorts: null,
+    capabilities: null,
     autoConnectAttempted: false,
   });
 
@@ -538,6 +541,13 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }));
   }, []);
 
+  const updateCapabilities = useCallback((capabilities: string[]): void => {
+    setState(prev => ({
+      ...prev,
+      capabilities,
+    }));
+  }, []);
+
   const cancelConnection = useCallback(() => {
     cancelConnectionRef.current = true;
     service.disconnect();
@@ -568,6 +578,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     checkConnection,
     clearError,
     updateShowPorts,
+    updateCapabilities,
     cancelConnection,
     setAutoConnectAttempted,
     triggerAutoLaunch,

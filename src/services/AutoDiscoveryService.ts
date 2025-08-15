@@ -3,18 +3,75 @@ import Zeroconf, { ZeroconfService, ZeroconfError } from 'react-native-zeroconf'
 export interface DiscoveredFreeShowInstance {
   name: string; // Display name (hostname or IP)
   host: string; // mDNS hostname, e.g. 'MyMacBook.local.'
-  port: number; // Always use default port 5505
+  port: number; // Primary port (usually API port if available)
   ip: string; // Primary IP for deduplication
+  ports?: {
+    api?: number;
+    remote?: number;
+    stage?: number;
+    control?: number;
+    output?: number;
+    [key: string]: number | undefined;
+  };
+  capabilities?: string[];
+  apiEnabled?: boolean;
 }
 
 export type DiscoveryEventCallback = (instances: DiscoveredFreeShowInstance[]) => void;
 export type ErrorEventCallback = (error: string) => void;
 
+// Temporary interface for pending service aggregation
+interface PendingService {
+  name: string;
+  host: string;
+  port: number;
+  ip: string;
+  capability: string;
+  portKey: string;
+  isApi: boolean;
+}
+
 import { ErrorLogger } from './ErrorLogger';
+
+/**
+ * Parse service name to determine capability and port mapping
+ */
+function parseServiceCapability(serviceName: string, port: number): { 
+  capability: string; 
+  portKey: string; 
+  isApi: boolean;
+} {
+  const name = (serviceName || '').toLowerCase().trim();
+  
+  // Check for known service patterns
+  if (name.includes('api') || name.includes('server') || name === 'freeshow') {
+    return { capability: 'api', portKey: 'api', isApi: true };
+  }
+  if (name.includes('remote')) {
+    return { capability: 'remoteshow', portKey: 'remote', isApi: false };
+  }
+  if (name.includes('stage')) {
+    return { capability: 'stageshow', portKey: 'stage', isApi: false };
+  }
+  if (name.includes('control')) {
+    return { capability: 'controlshow', portKey: 'control', isApi: false };
+  }
+  if (name.includes('output')) {
+    return { capability: 'outputshow', portKey: 'output', isApi: false };
+  }
+  
+  // For unknown services, use the name as-is
+  return { 
+    capability: `unknown:${name}`, 
+    portKey: name || 'unknown', 
+    isApi: false 
+  };
+}
 
 class AutoDiscoveryService {
   private zeroconf: Zeroconf | null = null;
   private discoveredServices: Map<string, DiscoveredFreeShowInstance> = new Map();
+  private pendingServices: Map<string, PendingService[]> = new Map(); // Group services by IP
   private isScanning: boolean = false;
   private scanTimeout: NodeJS.Timeout | null = null;
   private readonly SCAN_TIMEOUT_MS = 15000; // 15 seconds timeout
@@ -63,6 +120,72 @@ class AutoDiscoveryService {
     }
   }
 
+  /**
+   * Aggregate multiple services for the same IP into a single DiscoveredFreeShowInstance
+   */
+  private aggregateServicesForIP(ip: string): void {
+    const services = this.pendingServices.get(ip) || [];
+    if (services.length === 0) return;
+    
+    // Initialize the aggregated instance
+    const ports: Record<string, number> = {};
+    const capabilities: string[] = [];
+    let primaryPort = 5505; // Default fallback
+    let displayName = ip;
+    let host = '';
+    let hasApi = false;
+    
+    // Process each service for this IP
+    services.forEach((service: PendingService) => {
+      if (service.portKey && service.port) {
+        ports[service.portKey] = service.port;
+      }
+      
+      if (service.capability && !capabilities.includes(service.capability)) {
+        capabilities.push(service.capability);
+      }
+      
+      if (service.isApi) {
+        hasApi = true;
+        primaryPort = service.port; // Use API port as primary
+      }
+      
+      // Use the first non-IP name we find, or keep IP
+      if (service.name && service.name !== ip && displayName === ip) {
+        displayName = service.name;
+      }
+      
+      if (service.host) {
+        host = service.host;
+      }
+    });
+    
+    // If no API port found, use the first port we discovered
+    if (!hasApi && Object.keys(ports).length > 0) {
+      primaryPort = Object.values(ports)[0];
+    }
+    
+    // Create the aggregated instance
+    const aggregatedInstance: DiscoveredFreeShowInstance = {
+      name: displayName,
+      host: host || '',
+      port: primaryPort,
+      ip: ip,
+      ports: ports,
+      capabilities: capabilities,
+      apiEnabled: hasApi,
+    };
+    
+    // Store the aggregated instance
+    this.discoveredServices.set(ip, aggregatedInstance);
+    
+    ErrorLogger.debug(`🔗 AutoDiscovery: Aggregated ${services.length} services for ${ip}`, 'AutoDiscoveryService', {
+      ports,
+      capabilities,
+      apiEnabled: hasApi,
+    });
+  }
+
   private setupEventListeners(): void {
     if (!this.zeroconf) {
       ErrorLogger.warn('⚠️ AutoDiscovery: Zeroconf not initialized, skipping event listeners setup', 'AutoDiscoveryService');
@@ -92,26 +215,27 @@ class AutoDiscoveryService {
       // Get the primary IP address
       const primaryIP = service.addresses?.[0] || service.host;
       
-      // Skip if we already have this IP address (prevent duplicates)
-      const existingService = Array.from(this.discoveredServices.values())
-        .find(existing => existing.ip === primaryIP);
+      // Parse service capability from name and port
+      const { capability, portKey, isApi } = parseServiceCapability(service.name, service.port);
       
-      if (existingService) {
-        ErrorLogger.debug(`🔍 AutoDiscovery: Skipping duplicate IP ${primaryIP}`, 'AutoDiscoveryService');
-        return;
-      }
+      // Get or create pending services for this IP
+      const ipServices = this.pendingServices.get(primaryIP) || [];
       
-      // Prefer the service name (human-friendly) if available, else fallback to IP
-      const displayName = service.name && service.name.trim() !== '' ? service.name : primaryIP;
-      const instance: DiscoveredFreeShowInstance = {
-        name: displayName,
+      // Add this service to the pending list
+      ipServices.push({
+        name: service.name || primaryIP,
         host: service.host || '',
-        port: 5505, // Always use default FreeShow API port
+        port: service.port,
         ip: primaryIP,
-      };
-
-      // Use IP as the unique key for deduplication
-      this.discoveredServices.set(primaryIP, instance);
+        capability,
+        portKey,
+        isApi,
+      });
+      
+      this.pendingServices.set(primaryIP, ipServices);
+      
+      // Aggregate all services for this IP into a single instance
+      this.aggregateServicesForIP(primaryIP);
       
       this.notifyServicesUpdatedThrottled();
     });
@@ -120,7 +244,23 @@ class AutoDiscoveryService {
     this.zeroconf.on('remove', (service: ZeroconfService) => {
       ErrorLogger.info('🗑️ AutoDiscovery: FreeShow service removed', 'AutoDiscoveryService', { serviceName: service.name });
       const primaryIP = service.addresses?.[0] || service.host;
-      this.discoveredServices.delete(primaryIP);
+      
+      // Remove the specific service from pending services
+      const ipServices = this.pendingServices.get(primaryIP) || [];
+      const filteredServices = ipServices.filter(s => 
+        !(s.port === service.port && s.name === service.name)
+      );
+      
+      if (filteredServices.length === 0) {
+        // No more services for this IP, remove completely
+        this.pendingServices.delete(primaryIP);
+        this.discoveredServices.delete(primaryIP);
+      } else {
+        // Re-aggregate remaining services
+        this.pendingServices.set(primaryIP, filteredServices);
+        this.aggregateServicesForIP(primaryIP);
+      }
+      
       this.notifyServicesUpdatedThrottled();
     });
   }
@@ -145,6 +285,7 @@ class AutoDiscoveryService {
     try {
       ErrorLogger.info(`🔍 AutoDiscovery: Starting scan for FreeShow services (${this.SCAN_TIMEOUT_MS / 1000}s timeout)...`, 'AutoDiscoveryService');
       this.discoveredServices.clear();
+      this.pendingServices.clear();
       this.isScanning = true;
       
       // Set a timeout to automatically stop scanning
@@ -251,6 +392,7 @@ class AutoDiscoveryService {
     this.stopDiscovery();
     this.removeAllListeners();
     this.discoveredServices.clear();
+    this.pendingServices.clear();
     this.clearScanTimeout();
     this.clearUpdateThrottle();
   }

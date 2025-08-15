@@ -64,7 +64,12 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
           port: service.port,
           name: service.name,
           type: 'freeshow',
-          metadata: { ip: service.ip },
+          metadata: { 
+            ip: service.ip,
+            ports: service.ports,
+            capabilities: service.capabilities,
+            apiEnabled: service.apiEnabled,
+          },
         }).catch(error => {
           ErrorLogger.warn('Failed to cache discovery result', logContext, error instanceof Error ? error : new Error(String(error)));
         });
@@ -103,6 +108,9 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
             port: result.port,
             name: result.name,
             ip: result.metadata?.ip || result.host, // Use IP from metadata or fallback to host
+            ports: result.metadata?.ports,
+            capabilities: result.metadata?.capabilities,
+            apiEnabled: result.metadata?.apiEnabled,
           }));
 
           setState(prev => ({

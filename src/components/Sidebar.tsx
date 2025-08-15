@@ -15,6 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
 
+// Helper function to check if a capability is available
+const hasCapability = (capabilities: string[] | null, capability: string): boolean => {
+  if (!capabilities) return true; // Default to show all if no capabilities info
+  return capabilities.includes(capability) || capabilities.includes('api'); // API capability allows all features
+};
+
 interface SidebarProps {
   navigation: any;
   currentRoute: string;
@@ -29,6 +35,7 @@ interface NavigationItem {
   icon: keyof typeof Ionicons.glyphMap;
   iconFocused: keyof typeof Ionicons.glyphMap;
   route: string;
+  requiredCapability?: string; // Optional capability requirement
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -38,15 +45,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
   const [slideAnim] = useState(new Animated.Value(-SIDEBAR_WIDTH));
   const [backdropOpacity] = useState(new Animated.Value(0));
   const { state } = useConnection();
-  const { isConnected, connectionStatus } = state;
+  const { isConnected, connectionStatus, capabilities } = state;
 
-  const navigationItems: NavigationItem[] = [
+  const allNavigationItems: NavigationItem[] = [
     {
       key: 'Interface',
       label: 'Interface',
       icon: 'apps-outline',
       iconFocused: 'apps',
       route: 'Interface',
+      requiredCapability: 'api', // Interface requires API capability
     },
     {
       key: 'Connect',
@@ -54,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
       icon: 'wifi-outline',
       iconFocused: 'wifi',
       route: 'Connect',
+      // No capability required - always show Connect
     },
     {
       key: 'Settings',
@@ -61,8 +70,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ navigation, currentRoute, onNa
       icon: 'settings-outline',
       iconFocused: 'settings',
       route: 'Settings',
+      // No capability required - always show Settings
     },
   ];
+
+  // Filter navigation items based on capabilities
+  const navigationItems = allNavigationItems.filter(item => 
+    !item.requiredCapability || hasCapability(capabilities, item.requiredCapability)
+  );
 
   // Animation effect when visibility changes
   useEffect(() => {
@@ -408,15 +423,16 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
   const [isExpanded, setIsExpanded] = useState(true); // Start expanded on larger screens
   const [animatedWidth] = useState(new Animated.Value(SIDEBAR_WIDTH));
   const { state } = useConnection();
-  const { isConnected, connectionStatus } = state;
+  const { isConnected, connectionStatus, capabilities } = state;
 
-  const navigationItems: NavigationItem[] = [
+  const allNavigationItems: NavigationItem[] = [
     {
       key: 'Interface',
       label: 'Interface',
       icon: 'apps-outline',
       iconFocused: 'apps',
       route: 'Interface',
+      requiredCapability: 'api', // Interface requires API capability
     },
     {
       key: 'Connect',
@@ -424,6 +440,7 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
       icon: 'wifi-outline',
       iconFocused: 'wifi',
       route: 'Connect',
+      // No capability required - always show Connect
     },
     {
       key: 'Settings',
@@ -431,8 +448,14 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
       icon: 'settings-outline',
       iconFocused: 'settings',
       route: 'Settings',
+      // No capability required - always show Settings
     },
   ];
+
+  // Filter navigation items based on capabilities
+  const navigationItems = allNavigationItems.filter(item => 
+    !item.requiredCapability || hasCapability(capabilities, item.requiredCapability)
+  );
 
   const SIDEBAR_WIDTH_COLLAPSED = 70;
 

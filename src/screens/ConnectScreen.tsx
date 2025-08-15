@@ -74,6 +74,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     connect,
     disconnect,
     updateShowPorts,
+    updateCapabilities,
     cancelConnection
   } = actions;
   
@@ -320,33 +321,70 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const handleDiscoveredConnect = async (service: any) => {
-    // Use the IP address and ignore the discovered port
+    // Check if API is available for this service
+    if (service.apiEnabled === false) {
+      setErrorModal({
+        visible: true,
+        title: 'API Not Available',
+        message: `The FreeShow instance "${service.name}" does not have the API enabled. Please enable the API in FreeShow settings to use the remote control features.`,
+      });
+      return;
+    }
+
+    await proceedWithConnection(service);
+  };
+
+  const proceedWithConnection = async (service: any) => {
+    // Use the IP address and discovered API port if available
     const ip = service.ip || service.host;
+    const apiPort = service.ports?.api || 5505; // Use discovered API port or default
     setHost(ip);
     stopDiscovery();
     
     try {
-      // Get current interface port settings
+      // Use discovered ports if available, otherwise fall back to current form values
       const showPorts = {
-        remote: parseInt(remotePort),
-        stage: parseInt(stagePort),
-        control: parseInt(controlPort),
-        output: parseInt(outputPort),
-        api: parseInt(apiPort),
+        remote: service.ports?.remote || parseInt(remotePort),
+        stage: service.ports?.stage || parseInt(stagePort),
+        control: service.ports?.control || parseInt(controlPort),
+        output: service.ports?.output || parseInt(outputPort),
+        api: apiPort,
       };
       
       // Check for a stored nickname for the discovered service
       const historyMatch = history.find(h => h.host === ip);
       const nameToUse = historyMatch?.nickname || service.name;
       
-      const connected = await connect(ip, 5505, nameToUse); // Always use port 5505
+      const connected = await connect(ip, apiPort, nameToUse);
       if (connected) {
-        // Update show ports after successful connection
+        // Update show ports after successful connection and save to history with capabilities
         updateShowPorts(showPorts);
+        
+        // Update capabilities based on discovered services
+        if (service.capabilities && service.capabilities.length > 0) {
+          updateCapabilities(service.capabilities);
+        } else {
+          // Default capabilities if none discovered (manual connection)
+          updateCapabilities(['api']);
+        }
+        
+        // Save connection with discovered capabilities
+        await settingsRepository.addToConnectionHistory(
+          ip,
+          apiPort,
+          nameToUse,
+          showPorts
+        );
+        
         navigation.navigate('Interface');
       }
     } catch (error) {
       ErrorLogger.error('Discovered service connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+      setErrorModal({
+        visible: true,
+        title: 'Connection Error',
+        message: `Failed to connect to "${service.name}". Please ensure FreeShow is running and the API is enabled.`
+      });
     }
   };
 
@@ -689,22 +727,66 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                           return (
                             <TouchableOpacity
                               key={service.ip}
-                              style={styles.discoveredDevice}
+                              style={[
+                                styles.discoveredDevice,
+                                service.apiEnabled === false && styles.discoveredDeviceDisabled
+                              ]}
                               onPress={() => handleDiscoveredConnect(service)}
+                              disabled={service.apiEnabled === false}
                             >
                               <View style={styles.discoveredDeviceIcon}>
-                                <Ionicons name="desktop" size={18} color={FreeShowTheme.colors.secondary} />
+                                <Ionicons 
+                                  name="desktop" 
+                                  size={18} 
+                                  color={service.apiEnabled === false ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                                />
                               </View>
                               <View style={styles.discoveredDeviceInfo}>
-                                <Text style={styles.discoveredDeviceIP}>
-                                  {showHost ? service.host : service.ip}
+                                <Text style={[
+                                  styles.discoveredDeviceIP,
+                                  service.apiEnabled === false && styles.discoveredDeviceTextDisabled
+                                ]}>
+                                  {service.name || (showHost ? service.host : service.ip)}
                                 </Text>
                                 {showHost && (
-                                  <Text style={styles.discoveredDeviceStatus}>{service.ip}</Text>
+                                  <Text style={[
+                                    styles.discoveredDeviceStatus,
+                                    service.apiEnabled === false && styles.discoveredDeviceTextDisabled
+                                  ]}>
+                                    {service.ip}
+                                  </Text>
                                 )}
+                                {/* Show capabilities */}
+                                <View style={styles.capabilitiesContainer}>
+                                  {service.apiEnabled === false ? (
+                                    <Text style={styles.capabilityBadgeDisabled}>API Disabled</Text>
+                                  ) : (
+                                    <>
+                                      {service.ports?.api && (
+                                        <Text style={styles.capabilityBadge}>API:{service.ports.api}</Text>
+                                      )}
+                                      {service.ports?.remote && (
+                                        <Text style={styles.capabilityBadge}>Remote:{service.ports.remote}</Text>
+                                      )}
+                                      {service.ports?.stage && (
+                                        <Text style={styles.capabilityBadge}>Stage:{service.ports.stage}</Text>
+                                      )}
+                                      {service.ports?.control && (
+                                        <Text style={styles.capabilityBadge}>Control:{service.ports.control}</Text>
+                                      )}
+                                      {service.ports?.output && (
+                                        <Text style={styles.capabilityBadge}>Output:{service.ports.output}</Text>
+                                      )}
+                                    </>
+                                  )}
+                                </View>
                               </View>
                               <View style={styles.discoveredDeviceAction}>
-                                <Ionicons name="arrow-forward-circle" size={24} color={FreeShowTheme.colors.secondary} />
+                                <Ionicons 
+                                  name={service.apiEnabled === false ? "ban-outline" : "arrow-forward-circle"} 
+                                  size={24} 
+                                  color={service.apiEnabled === false ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                                />
                               </View>
                             </TouchableOpacity>
                           );
@@ -1269,6 +1351,36 @@ const styles = StyleSheet.create({
   },
   discoveredDeviceAction: {
     padding: FreeShowTheme.spacing.xs,
+  },
+  discoveredDeviceDisabled: {
+    opacity: 0.5,
+  },
+  discoveredDeviceTextDisabled: {
+    color: FreeShowTheme.colors.textSecondary,
+  },
+  capabilitiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 4,
+  },
+  capabilityBadge: {
+    fontSize: 10,
+    color: FreeShowTheme.colors.secondary,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  capabilityBadgeDisabled: {
+    fontSize: 10,
+    color: FreeShowTheme.colors.textSecondary,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 3,
+    overflow: 'hidden',
   },
   emptyDiscovery: {
     alignItems: 'center',
