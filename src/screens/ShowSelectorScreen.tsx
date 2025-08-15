@@ -8,6 +8,7 @@ import {
   Dimensions,
   AppState,
   AppStateStatus,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -174,6 +175,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   };
 
   const showOptions = getShowOptions();
+  const isGrid = dimensions.isTablet || (dimensions.isLandscape && dimensions.screenWidth >= 800);
 
   const handleShowSelect = (show: ShowOption) => {
     if (!isConnected || !connectionHost) {
@@ -316,12 +318,18 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
               ]}>
                 FreeShow Interfaces
               </Text>
-              <Text style={[
-                styles.subtitle,
-                { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.sm }
-              ]}>
-                Connected to {connectionName || connectionHost}
-              </Text>
+              <View style={styles.connectionPill}>
+                <View style={styles.statusDot} />
+                <Text
+                  style={[
+                    styles.connectionText,
+                    { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.sm }
+                  ]}
+                  numberOfLines={1}
+                >
+                  {connectionName || connectionHost}
+                </Text>
+              </View>
             </View>
             <TouchableOpacity style={styles.disconnectButton} onPress={handleDisconnect}>
               <Ionicons 
@@ -346,92 +354,102 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           ]}>
             Choose an interface:
           </Text>
-          {showOptions.map((show) => (
-            <TouchableOpacity
-              key={show.id}
-              onPress={() => handleShowSelect(show)}
-              activeOpacity={0.7}
-              style={{
-                marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.lg :
-                             (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
-              }}
-            >
-              <LinearGradient
-                colors={[
-                  FreeShowTheme.colors.primaryDarker, // Start with the original background
-                  FreeShowTheme.colors.primaryDarker + 'F0', // Slightly transparent
-                  show.color + '15', // Subtle theme color blend
-                  FreeShowTheme.colors.primaryDarker + 'E0' // Back to original with slight transparency
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+          <View style={[isGrid ? styles.cardsGrid : styles.cardsColumn]}>
+            {showOptions.map((show, index) => (
+              <View
+                key={show.id}
                 style={[
-                  styles.showCard,
+                  styles.cardWrapper,
+                  isGrid && {
+                    width: '48%',
+                    marginRight: index % 2 === 0 ? FreeShowTheme.spacing.md : 0,
+                  },
                   {
-                    borderLeftColor: show.color,
-                    padding: dimensions.isTablet ? FreeShowTheme.spacing.lg :
-                             (dimensions.isSmallScreen ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.md),
-                    minHeight: dimensions.isTablet ? 88 : (dimensions.isSmallScreen ? 64 : 72),
-                  }
+                    marginBottom: dimensions.isTablet
+                      ? FreeShowTheme.spacing.lg
+                      : dimensions.isSmallScreen
+                      ? FreeShowTheme.spacing.sm
+                      : FreeShowTheme.spacing.md,
+                  },
                 ]}
               >
-                <View style={[
-                  styles.iconContainer,
-                  {
-                    backgroundColor: show.color + '20',
-                    width: dimensions.isTablet ? 64 : 48,
-                    height: dimensions.isTablet ? 64 : 48,
-                  }
-                ]}>
-                  <Ionicons
-                    name={show.icon as any}
-                    size={dimensions.isTablet ? 36 : 28}
-                    color={show.color}
-                  />
+                <Pressable
+                  onPress={() => handleShowSelect(show)}
+                  android_ripple={{ color: show.color + '22' }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${show.title}. ${show.description}`}
+                  style={({ pressed }) => ([
+                    styles.pressableCard,
+                    pressed && { transform: [{ scale: 0.98 }], opacity: 0.98 },
+                  ])}
+                >
+                      <LinearGradient
+                    colors={[
+                      FreeShowTheme.colors.primaryDarker,
+                      FreeShowTheme.colors.primaryDarker + 'F2',
+                      show.color + '18',
+                    ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.showCard,
+                      styles.cardShadow,
+                      {
+                        borderLeftColor: show.color,
+                        padding: dimensions.isTablet
+                          ? FreeShowTheme.spacing.xxl
+                          : dimensions.isSmallScreen
+                          ? FreeShowTheme.spacing.md
+                          : FreeShowTheme.spacing.lg,
+                        minHeight: dimensions.isTablet ? 120 : dimensions.isSmallScreen ? 84 : 100,
+                      },
+                    ]}
+                  >
+                    <View style={[
+                      styles.iconContainer,
+                      {
+                        backgroundColor: show.color + '20',
+                        width: dimensions.isTablet ? 72 : 56,
+                        height: dimensions.isTablet ? 72 : 56,
+                      }
+                    ]}>
+                      <Ionicons
+                        name={show.icon as any}
+                        size={dimensions.isTablet ? 40 : 32}
+                        color={show.color}
+                      />
+                    </View>
+
+                    <View style={styles.showInfo}>
+                      <Text style={[
+                        styles.showTitle,
+                        {
+                          fontSize: dimensions.isTablet
+                            ? FreeShowTheme.fontSize.xl
+                            : (dimensions.isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg),
+                          marginBottom: dimensions.isTablet ? 8 : 6,
+                        }
+                      ]} numberOfLines={1}>
+                        {show.title}
+                      </Text>
+                      <Text style={[
+                        styles.showDescription,
+                        {
+                          fontSize: dimensions.isTablet
+                            ? FreeShowTheme.fontSize.md
+                            : (dimensions.isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm),
+                          lineHeight: dimensions.isTablet ? 20 : 16,
+                          marginBottom: dimensions.isTablet ? 6 : 4,
+                        }
+                      ]} numberOfLines={1}>
+                        {show.description}
+                      </Text>
+                    </View>
+                    </LinearGradient>
+                  </Pressable>
                 </View>
-                
-                <View style={styles.showInfo}>
-                  <Text style={[
-                    styles.showTitle,
-                    {
-                      fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.xl :
-                               (dimensions.isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg),
-                      marginBottom: dimensions.isTablet ? 10 : 8,
-                    }
-                  ]}>
-                    {show.title}
-                  </Text>
-                  <Text style={[
-                    styles.showDescription,
-                    {
-                      fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.md :
-                               (dimensions.isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm),
-                      lineHeight: dimensions.isTablet ? 20 : 16,
-                      marginBottom: dimensions.isTablet ? 4 : 2,
-                    }
-                  ]} numberOfLines={1}>
-                    {show.description}
-                  </Text>
-                  <Text style={[
-                    styles.showPort,
-                    {
-                      fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs,
-                    }
-                  ]}>
-                    Port: {show.port}
-                  </Text>
-                </View>
-                
-                <View style={styles.chevron}>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={dimensions.isTablet ? 24 : 20}
-                    color={FreeShowTheme.colors.text + '66'}
-                  />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -487,11 +505,29 @@ const styles = StyleSheet.create({
     marginBottom: FreeShowTheme.spacing.xs,
     // fontSize now handled dynamically
   },
-  subtitle: {
-    color: FreeShowTheme.colors.text + 'AA',
+  connectionPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF14',
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#FFFFFF22',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2ECC40',
+  },
+  connectionText: {
+    color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    fontWeight: '500',
-    // fontSize now handled dynamically
+    fontWeight: '600',
+    maxWidth: '90%',
   },
   disconnectButton: {
     padding: FreeShowTheme.spacing.sm,
@@ -509,6 +545,17 @@ const styles = StyleSheet.create({
     flex: 1,
     // paddingHorizontal and paddingTop now handled dynamically
   },
+  cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  cardsColumn: {
+    flexDirection: 'column',
+  },
+  cardWrapper: {
+    width: '100%',
+  },
   showCardContainer: {
     borderRadius: FreeShowTheme.borderRadius.lg,
   },
@@ -519,6 +566,17 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     gap: FreeShowTheme.spacing.md,
     overflow: 'hidden', // Ensure gradient fills the entire card
+  },
+  pressableCard: {
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  cardShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   iconContainer: {
     borderRadius: FreeShowTheme.borderRadius.md,
@@ -546,6 +604,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     // fontSize now handled dynamically
   },
+  // port-related styles removed (no visible port numbers)
   chevron: {
     opacity: 0.6,
   },
