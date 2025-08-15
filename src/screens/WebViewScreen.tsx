@@ -218,12 +218,6 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           </View>
         )}
 
-        {isFullScreen && (
-          <TouchableOpacity style={styles.exitFullScreenButton} onPress={handleToggleFullScreen}>
-            <Ionicons name="contract" size={24} color="white" />
-          </TouchableOpacity>
-        )}
-        
         <WebView
           ref={webViewRef}
           source={{ uri: url }}
@@ -295,15 +289,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  exitFullScreenButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 25,
-    padding: FreeShowTheme.spacing.md,
-    zIndex: 1000,
-  },
+  
   webView: {
     flex: 1,
     backgroundColor: FreeShowTheme.colors.primary,
