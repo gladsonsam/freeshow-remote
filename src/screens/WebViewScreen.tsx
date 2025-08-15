@@ -5,7 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -96,6 +98,39 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
         title: 'Error',
         message: 'Failed to rotate screen'
       });
+    }
+  };
+
+  const handleOpenInBrowser = async () => {
+    if (!url) {
+      setErrorModal({ visible: true, title: 'Error', message: 'No URL available to open' });
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        throw new Error('URL not supported');
+      }
+      await Linking.openURL(url);
+    } catch (err) {
+      ErrorLogger.error('Failed to open URL in browser', 'WebViewScreen', err instanceof Error ? err : new Error(String(err)));
+      setErrorModal({ visible: true, title: 'Error', message: 'Failed to open in browser' });
+    }
+  };
+
+  const handleCopyUrl = async () => {
+    if (!url) {
+      setErrorModal({ visible: true, title: 'Error', message: 'No URL available to copy' });
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(url);
+      setErrorModal({ visible: true, title: 'Copied', message: 'URL copied to clipboard' });
+    } catch (err) {
+      ErrorLogger.error('Failed to copy URL', 'WebViewScreen', err instanceof Error ? err : new Error(String(err)));
+      setErrorModal({ visible: true, title: 'Error', message: 'Failed to copy URL to clipboard' });
     }
   };
 
@@ -194,6 +229,15 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
             <Ionicons name="refresh" size={20} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.openBrowserButton}
+            onPress={handleOpenInBrowser}
+            onLongPress={handleCopyUrl}
+            delayLongPress={300}
+          >
+            <Ionicons name="open-outline" size={20} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+
           {showId === 'output' && (
             <TouchableOpacity style={styles.rotationButton} onPress={handleRotateScreen}>
               <Ionicons name={getRotationIcon()} size={20} color={FreeShowTheme.colors.text} />
@@ -274,6 +318,9 @@ const styles = StyleSheet.create({
     fontFamily: FreeShowTheme.fonts.system,
   },
   refreshButton: {
+    padding: FreeShowTheme.spacing.sm,
+  },
+  openBrowserButton: {
     padding: FreeShowTheme.spacing.sm,
   },
   rotationButton: {
