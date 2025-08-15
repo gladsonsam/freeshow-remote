@@ -9,6 +9,8 @@ import {
   AppState,
   AppStateStatus,
   Pressable,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +20,7 @@ import { useConnection, useSettings } from '../contexts';
 import { ShowOption } from '../types';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
+import { WebView } from 'react-native-webview';
 
 // Responsive sizing utility
 const getResponsiveDimensions = () => {
@@ -71,6 +74,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     title: '',
     message: ''
   });
+  const [previewModal, setPreviewModal] = useState<{ visible: boolean; url: string; title: string; description?: string; showId?: string; port?: number }>({ visible: false, url: '', title: '', description: '', showId: undefined, port: undefined });
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Force refresh dimensions when component mounts (helps with navigation from other screens)
   useEffect(() => {
@@ -267,6 +272,47 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     setShowDisconnectConfirm(false);
   };
 
+  const openPreview = (show: ShowOption) => {
+    if (!connectionHost) {
+      setErrorModal({ visible: true, title: 'Error', message: 'No connection host available for preview' });
+      return;
+    }
+
+    const url = `http://${connectionHost}:${show.port}`;
+    setPreviewModal({ visible: true, url, title: show.title, description: show.description, showId: show.id, port: show.port });
+    setPreviewLoading(true);
+  };
+
+  const openFullView = () => {
+    const { url, title, showId } = previewModal;
+    // Close preview first
+    closePreview();
+
+    try {
+      if (showId === 'api') {
+        if (navigation && typeof navigation.getParent === 'function' && navigation.getParent()) {
+          navigation.getParent().navigate('APIScreen', { title, showId });
+        } else if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('APIScreen', { title, showId });
+        }
+      } else {
+        if (navigation && typeof navigation.getParent === 'function' && navigation.getParent()) {
+          navigation.getParent().navigate('WebView', { url, title, showId });
+        } else if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('WebView', { url, title, showId });
+        }
+      }
+    } catch (err) {
+      console.error('[ShowSelectorScreen] openFullView navigation error:', err);
+      setErrorModal({ visible: true, title: 'Navigation Error', message: 'Unable to open full view' });
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewModal({ visible: false, url: '', title: '' });
+    setPreviewLoading(false);
+  };
+
   if (!isConnected) {
     return (
       <SafeAreaView style={styles.container}>
@@ -375,6 +421,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
               >
                 <Pressable
                   onPress={() => handleShowSelect(show)}
+                  onLongPress={() => openPreview(show)}
+                  delayLongPress={300}
                   android_ripple={{ color: show.color + '22' }}
                   accessibilityRole="button"
                   accessibilityLabel={`${show.title}. ${show.description}`}
@@ -454,6 +502,45 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       </ScrollView>
 
       {/* Disconnect Confirmation Modal */}
+      {/* Preview Modal (long-press) */}
+      <Modal
+        visible={previewModal.visible}
+        animationType="slide"
+        onRequestClose={closePreview}
+        transparent={true}
+      >
+        <View style={styles.previewBackdrop}>
+          <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={closePreview} />
+          <View style={styles.previewCard}>
+            <View style={styles.previewHandle} />
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>{previewModal.title}</Text>
+              <TouchableOpacity onPress={closePreview} style={styles.previewClose} accessibilityRole="button">
+                <Ionicons name="close" size={22} color={FreeShowTheme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.previewTopRow}>
+              <Text style={styles.previewUrl} numberOfLines={1}>{previewModal.url}</Text>
+              <TouchableOpacity style={styles.openFullButton} onPress={openFullView} accessibilityRole="button">
+                <Text style={styles.openFullButtonText}>Open Full View</Text>
+              </TouchableOpacity>
+            </View>
+            {previewModal.description ? (
+              <Text style={styles.previewDescription} numberOfLines={2}>{previewModal.description}</Text>
+            ) : null}
+            <View style={styles.previewWebview}>
+              {previewLoading && (
+                <ActivityIndicator size="large" color={FreeShowTheme.colors.secondary} style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -18, marginTop: -18 }} />
+              )}
+              <WebView
+                source={{ uri: previewModal.url }}
+                onLoadEnd={() => setPreviewLoading(false)}
+                startInLoadingState
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
       <ConfirmationModal
         visible={showDisconnectConfirm}
         title="Disconnect"
@@ -655,6 +742,92 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '700', // Increase font weight
     fontFamily: FreeShowTheme.fonts.system,
+  },
+  // Preview modal styles
+  previewContainer: {
+    flex: 1,
+    backgroundColor: FreeShowTheme.colors.primary,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.md,
+    paddingBottom: FreeShowTheme.spacing.sm,
+  },
+  previewTitle: {
+    color: FreeShowTheme.colors.text,
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
+    fontFamily: FreeShowTheme.fonts.system,
+  },
+  previewClose: {
+    padding: FreeShowTheme.spacing.sm,
+  },
+  previewUrl: {
+    color: FreeShowTheme.colors.text + 'AA',
+    flex: 1,
+    marginRight: FreeShowTheme.spacing.md,
+    paddingBottom: FreeShowTheme.spacing.xs,
+    fontFamily: FreeShowTheme.fonts.system,
+  },
+  previewDescription: {
+    color: FreeShowTheme.colors.text + 'BB',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingBottom: FreeShowTheme.spacing.sm,
+    fontFamily: FreeShowTheme.fonts.system,
+  },
+  previewTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+  },
+  openFullButton: {
+    backgroundColor: FreeShowTheme.colors.secondary,
+    paddingVertical: FreeShowTheme.spacing.xs,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.md,
+  },
+  openFullButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontFamily: FreeShowTheme.fonts.system,
+  },
+  previewWebview: {
+    flex: 1,
+    margin: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: '#00000066',
+    justifyContent: 'flex-end',
+  },
+  backdropTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: '50%',
+  },
+  previewCard: {
+    height: '50%',
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderTopLeftRadius: FreeShowTheme.borderRadius.xl || 24,
+    borderTopRightRadius: FreeShowTheme.borderRadius.xl || 24,
+    overflow: 'hidden',
+  },
+  previewHandle: {
+    width: 48,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF33',
+    alignSelf: 'center',
+    marginVertical: FreeShowTheme.spacing.sm,
   },
 });
 
