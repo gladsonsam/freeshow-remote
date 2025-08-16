@@ -5,7 +5,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
-import { settingsRepository, AppSettings, ConnectionHistory } from '../repositories';
+import { settingsRepository, AppSettings } from '../repositories';
 
 export interface ConnectionState {
   isConnected: boolean;
@@ -264,7 +264,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     };
     autoReconnect();
     // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-launch functionality

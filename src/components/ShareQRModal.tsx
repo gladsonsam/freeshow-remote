@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';

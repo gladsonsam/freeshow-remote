@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Dimensions,
   Image,
   Modal,
 } from 'react-native';
@@ -68,7 +67,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     connectionStatus,
     connectionHost,
     connectionName,
-    currentShowPorts
   } = state;
   const {
     connect,
@@ -722,7 +720,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                     </View>
                     {discoveredServices.length > 0 ? (
                       <View style={styles.discoveredDevices}>
-                        {discoveredServices.map((service: DiscoveredFreeShowInstance, index: number) => {
+                        {discoveredServices.map((service: DiscoveredFreeShowInstance, _index: number) => {
                           const showHost = service.host && !isIpAddress(service.host);
                           const hasServices = service.capabilities && service.capabilities.length > 0;
                           return (
@@ -825,7 +823,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       </TouchableOpacity>
                     </View>
                     <View style={styles.recentDevices}>
-                      {history.slice(0, 3).map((item: ConnectionHistory, index: number) => (
+                      {history.slice(0, 3).map((item: ConnectionHistory, _index: number) => (
                         <TouchableOpacity
                           key={item.id}
                           style={styles.recentDevice}

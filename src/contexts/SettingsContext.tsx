@@ -50,14 +50,12 @@ interface SettingsProviderProps {
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ 
   children, 
-  autoLoad = true 
+  autoLoad: _autoLoad = true 
 }) => {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [history, setHistory] = useState<ConnectionHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const logContext = 'SettingsProvider';
 
   const loadAllData = useCallback(async () => {
     try {

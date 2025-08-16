@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { IStorageRepository, StorageKey } from './IStorageRepository';
+import { IStorageRepository } from './IStorageRepository';
 import { ErrorLogger } from '../services/ErrorLogger';
 
 /**

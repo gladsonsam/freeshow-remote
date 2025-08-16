@@ -46,6 +46,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Local documentation (not for GitHub)
+docs-local/
 
 # Build output
 .build/

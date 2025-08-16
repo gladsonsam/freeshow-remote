@@ -11,7 +11,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
-import { useConnection } from '../contexts';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
 
@@ -46,7 +45,6 @@ interface ShowSwitcherProps {
 const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   currentTitle,
   currentShowId,
-  connectionHost,
   showPorts,
   onShowSelect,
 }) => {

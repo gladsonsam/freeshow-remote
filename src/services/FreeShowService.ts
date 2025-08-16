@@ -1,16 +1,12 @@
 // Refactored FreeShowService with dependency injection
 
 import { Socket } from 'socket.io-client';
-import { Platform } from 'react-native';
 import { 
   IFreeShowService, 
   IFreeShowServiceDependencies, 
   IFreeShowServiceConfig 
 } from './interfaces/IFreeShowService';
 import { 
-  SocketFactory, 
-  ConnectionStateManager, 
-  EventManager, 
   RequestQueueManager,
   defaultFreeShowServiceConfig 
 } from './implementations/FreeShowServiceImplementations';

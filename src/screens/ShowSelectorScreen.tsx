@@ -293,7 +293,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       const url = `http://${connectionHost}:${show.port}`;
       await Clipboard.setStringAsync(url);
       setErrorModal({ visible: true, title: 'Copied', message: 'URL copied to clipboard' });
-    } catch (error) {
+    } catch {
       setErrorModal({ visible: true, title: 'Error', message: 'Failed to copy URL to clipboard' });
     }
   };
@@ -313,12 +313,12 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
       } else {
         setErrorModal({ visible: true, title: 'Error', message: 'Cannot open URL in browser' });
       }
-    } catch (error) {
+    } catch {
       setErrorModal({ visible: true, title: 'Error', message: 'Failed to open URL in browser' });
     }
   };
 
-  const openPreview = (show: ShowOption) => {
+  const _openPreview = (show: ShowOption) => {
     if (!connectionHost) {
       setErrorModal({ visible: true, title: 'Error', message: 'No connection host available for preview' });
       return;
@@ -587,6 +587,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                 onPress={() => compactPopup.show && copyToClipboard(compactPopup.show)}
                 accessibilityRole="button"
                 accessibilityLabel="Copy URL to clipboard"
+                activeOpacity={0.6}
               >
                 <Ionicons name="copy-outline" size={18} color={FreeShowTheme.colors.text + 'BB'} />
               </TouchableOpacity>
@@ -603,6 +604,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                   }
                 }}
                 accessibilityRole="button"
+                activeOpacity={0.8}
               >
                 <Ionicons name="play-circle" size={20} color="white" style={styles.compactButtonIcon} />
                 <Text style={styles.compactActionButtonText}>Open</Text>
@@ -612,6 +614,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                   style={[styles.compactActionButton, styles.compactBrowserButton]}
                   onPress={() => compactPopup.show && openInBrowser(compactPopup.show)}
                   accessibilityRole="button"
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="globe-outline" size={20} color={FreeShowTheme.colors.text + 'CC'} style={styles.compactButtonIcon} />
                   <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Open in Browser</Text>
@@ -1083,6 +1086,8 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.text + '08',
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.text + '20',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   compactActionButtonText: {
     fontSize: FreeShowTheme.fontSize.md,

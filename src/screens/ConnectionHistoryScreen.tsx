@@ -129,7 +129,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {history.map((item: ConnectionHistory, index: number) => (
+          {history.map((item: ConnectionHistory, _index: number) => (
             <View key={item.id} style={styles.historyItem}>
               <View style={styles.historyItemHeader}>
                 <View style={styles.historyItemIcon}>

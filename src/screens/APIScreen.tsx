@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +42,6 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const [customCommand, setCustomCommand] = useState('');
   const [apiResponse, setApiResponse] = useState<string>('');
   const [shows, setShows] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   
   const socketRef = useRef<Socket | null>(null);
   const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -207,9 +205,9 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     if (!firstKey) return false;
     const firstItem = data[firstKey];
     return firstItem && (
-      firstItem.hasOwnProperty('name') || 
-      firstItem.hasOwnProperty('slides') ||
-      firstItem.hasOwnProperty('category')
+      Object.prototype.hasOwnProperty.call(firstItem, 'name') || 
+      Object.prototype.hasOwnProperty.call(firstItem, 'slides') ||
+      Object.prototype.hasOwnProperty.call(firstItem, 'category')
     );
   };
 
@@ -262,7 +260,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       } else {
         sendApiCommand(customCommand.trim(), {}, false);
       }
-    } catch (error) {
+    } catch {
       sendApiCommand(customCommand.trim(), {}, false);
     }
   };

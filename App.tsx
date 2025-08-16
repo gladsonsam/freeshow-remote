@@ -27,12 +27,6 @@ import { settingsRepository } from './src/repositories';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Helper function to check if a capability is available
-const hasCapability = (capabilities: string[] | null, capability: string): boolean => {
-  if (!capabilities) return true; // Default to show all if no capabilities info
-  return capabilities.includes(capability) || capabilities.includes('api'); // API capability allows all features
-};
-
 // Hook to check if auto-connect should be attempted
 const useAutoConnectExpected = () => {
   const [autoConnectExpected, setAutoConnectExpected] = useState<boolean | null>(null);
@@ -115,9 +109,6 @@ function BottomTabsLayout() {
     );
   }
 
-  // Determine which tabs should be available based on capabilities
-  const shouldShowInterface = hasCapability(capabilities, 'api') || hasCapability(capabilities, 'remoteshow');
-
   return (
     <Tab.Navigator
       initialRouteName={initialRouteName}
@@ -171,13 +162,11 @@ function BottomTabsLayout() {
         },
       })}
     >
-      {shouldShowInterface && (
-        <Tab.Screen 
-          name="Interface"
-          component={InterfaceScreen}
-          options={{ tabBarLabel: 'Interface' }}
-        />
-      )}
+      <Tab.Screen 
+        name="Interface"
+        component={InterfaceScreen}
+        options={{ tabBarLabel: 'Interface' }}
+      />
       <Tab.Screen 
         name="Connect"
         component={ConnectScreenWrapped}

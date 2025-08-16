@@ -36,7 +36,7 @@ import { ErrorLogger } from './ErrorLogger';
 /**
  * Parse service name to determine capability and port mapping
  */
-function parseServiceCapability(serviceName: string, port: number): { 
+function parseServiceCapability(serviceName: string, _port: number): { 
   capability: string; 
   portKey: string; 
   isApi: boolean;

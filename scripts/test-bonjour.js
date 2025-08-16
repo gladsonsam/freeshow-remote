@@ -20,7 +20,6 @@ console.log('Make sure FreeShow is running with outputs enabled.\n');
 
 // Track discovered services by IP to aggregate them
 const discoveredServices = new Map();
-let scanTimeout;
 
 // Create bonjour instance
 const bonjour = new Bonjour();
@@ -118,7 +117,7 @@ function parseServiceCapability(serviceName) {
 console.log('Starting mDNS browser...\n');
 
 // Set a timeout to stop discovery and show results
-scanTimeout = setTimeout(() => {
+const scanTimeout = setTimeout(() => {
   console.log('⏰ Scan timeout reached. Stopping discovery...\n');
   
   // Show aggregated results

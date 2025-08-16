@@ -2,24 +2,50 @@
   "expo": {
     "name": "FreeShow Remote",
     "slug": "freeshow-remote",
-    "version": "0.1",
+    "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "scheme": "freeshow-remote",
+    "platforms": ["ios", "android"],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "cover",
       "backgroundColor": "#FFFFFF"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": false,
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "CFBundleDisplayName": "FreeShow Remote",
+        "CFBundleShortVersionString": "1.0.0",
+        "CFBundleVersion": "1",
+        "UIStatusBarHidden": false,
+        "UIViewControllerBasedStatusBarAppearance": true,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
       },
-      "bundleIdentifier": "com.gladsonsam.freeshowremote"
+      "bundleIdentifier": "com.gladsonsam.freeshowremote",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,11 +57,15 @@
         "android.permission.CAMERA",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE"
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.WAKE_LOCK"
       ],
-      "package": "com.gladsonsam.freeshowremote"
+      "package": "com.gladsonsam.freeshowremote",
+      "allowBackup": false,
+      "softwareKeyboardLayoutMode": "pan"
     },
     "plugins": [
+      "expo-system-ui",
       [
         "expo-camera",
         {
@@ -48,7 +78,23 @@
           "android": {
             "usesCleartextTraffic": true,
             "requestLegacyExternalStorage": true,
-            "networkSecurityConfig": "./android/network_security_config.xml"
+            "networkSecurityConfig": "./android/network_security_config.xml",
+            "manifestQueries": {
+              "intent": [
+                {
+                  "action": "android.intent.action.VIEW",
+                  "data": {
+                    "scheme": "http"
+                  }
+                },
+                {
+                  "action": "android.intent.action.VIEW",
+                  "data": {
+                    "scheme": "https"
+                  }
+                }
+              ]
+            }
           },
           "ios": {
             "infoPlist": {
