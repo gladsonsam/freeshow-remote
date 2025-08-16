@@ -38,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
   const [slideAnim] = useState(new Animated.Value(-SIDEBAR_WIDTH));
   const [backdropOpacity] = useState(new Animated.Value(0));
   const { state } = useConnection();
-  const { isConnected, connectionStatus, capabilities } = state;
+  const { isConnected, connectionStatus } = state;
 
   const navigationItems: NavigationItem[] = [
     {
@@ -408,7 +408,7 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
   const [isExpanded, setIsExpanded] = useState(true); // Start expanded on larger screens
   const [animatedWidth] = useState(new Animated.Value(SIDEBAR_WIDTH));
   const { state } = useConnection();
-  const { isConnected, connectionStatus, capabilities } = state;
+  const { isConnected, connectionStatus } = state;
 
   const navigationItems: NavigationItem[] = [
     {

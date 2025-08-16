@@ -9,6 +9,7 @@ export interface AppSettings {
   notifications: boolean;
   autoReconnect: boolean;
   autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
+  autoLaunchFullscreen: boolean;
   connectionTimeout: number; // in seconds
   navigationLayout: 'bottomBar' | 'sidebar';
   keepAwake: boolean;
@@ -51,6 +52,7 @@ export class SettingsRepository {
           notifications: true,
           autoReconnect: true,
           autoLaunchInterface: 'none',
+          autoLaunchFullscreen: false,
           connectionTimeout: 10,
           navigationLayout: 'bottomBar',
           keepAwake: false,

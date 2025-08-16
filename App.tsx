@@ -83,7 +83,7 @@ const SettingsScreenWrapped = (props: any) => (
 // Bottom Tab Navigator
 function BottomTabsLayout() {
   const { state } = useConnection();
-  const { isConnected, connectionStatus, capabilities } = state;
+  const { isConnected, connectionStatus } = state;
   const autoConnectExpected = useAutoConnectExpected();
   
   // Always call all hooks first

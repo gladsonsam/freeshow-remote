@@ -290,7 +290,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       
       // Removed sidebar navigation check so auto-launch works for all layouts
       
-      if (appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
+      // Auto-launch interface only if auto-reconnect is enabled
+      if (appSettings.autoReconnect && appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
         const showOptions = [
           { id: 'remote', port: 5510 },
           { id: 'stage', port: 5511 },
@@ -326,6 +327,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
                 url,
                 title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show',
                 showId: appSettings.autoLaunchInterface,
+                initialFullscreen: appSettings.autoLaunchFullscreen || false,
               });
             }
           } catch (navigationError) {
@@ -339,6 +341,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         }
       } else {
         ErrorLogger.debug('[AutoLaunch] Auto-launch conditions not met', 'ConnectionStateContext', {
+          autoReconnect: appSettings.autoReconnect,
           autoLaunchInterface: appSettings.autoLaunchInterface,
           isConnected: state.isConnected,
           hasConnectionHost: !!state.connectionHost

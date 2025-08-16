@@ -31,6 +31,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { settings, history, actions } = useSettings();
   const [autoReconnect, setAutoReconnect] = useState(settings?.autoReconnect || false);
   const [autoLaunchInterface, setAutoLaunchInterface] = useState(settings?.autoLaunchInterface || 'none');
+  const [autoLaunchFullscreen, setAutoLaunchFullscreen] = useState(settings?.autoLaunchFullscreen || false);
   const [navigationLayout, setNavigationLayout] = useState(settings?.navigationLayout || 'bottomBar');
   const [keepAwake, setKeepAwake] = useState(settings?.keepAwake || false);
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
@@ -85,6 +86,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     if (settings) {
       setAutoReconnect(settings.autoReconnect || false);
       setAutoLaunchInterface(settings.autoLaunchInterface || 'none');
+      setAutoLaunchFullscreen(settings.autoLaunchFullscreen || false);
       setNavigationLayout(settings.navigationLayout || 'bottomBar');
       setKeepAwake(settings.keepAwake || false);
     }
@@ -104,14 +106,42 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
   const handleAutoReconnectToggle = async (value: boolean) => {
     setAutoReconnect(value);
-    await actions.updateSettings({ autoReconnect: value });
+    
+    // If turning off auto-reconnect, also disable auto-launch features
+    if (!value) {
+      setAutoLaunchInterface('none');
+      setAutoLaunchFullscreen(false);
+      await actions.updateSettings({ 
+        autoReconnect: value,
+        autoLaunchInterface: 'none',
+        autoLaunchFullscreen: false
+      });
+    } else {
+      await actions.updateSettings({ autoReconnect: value });
+    }
   };
 
   const handleAutoLaunchSelect = async (showId: string) => {
     const typedShowId = showId as 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
     setAutoLaunchInterface(typedShowId);
-    await actions.updateSettings({ autoLaunchInterface: typedShowId });
+    
+    // If setting to 'none' or 'api', disable fullscreen
+    if (typedShowId === 'none' || typedShowId === 'api') {
+      setAutoLaunchFullscreen(false);
+      await actions.updateSettings({ 
+        autoLaunchInterface: typedShowId,
+        autoLaunchFullscreen: false
+      });
+    } else {
+      await actions.updateSettings({ autoLaunchInterface: typedShowId });
+    }
+    
     setShowLaunchPicker(false);
+  };
+
+  const handleAutoLaunchFullscreenToggle = async (value: boolean) => {
+    setAutoLaunchFullscreen(value);
+    await actions.updateSettings({ autoLaunchFullscreen: value });
   };
 
   const handleNavigationLayoutToggle = async (value: boolean) => {
@@ -175,6 +205,38 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
           <View style={styles.settingDivider} />
 
+          {/* Navigation Layout Toggle */}
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingTitleRow}>
+                <Ionicons name="menu" size={20} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.settingTitle}>Navigation Layout</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                Choose between bottom bar navigation or a collapsible sidebar
+              </Text>
+            </View>
+            <Switch
+              value={navigationLayout === 'sidebar'}
+              onValueChange={handleNavigationLayoutToggle}
+              trackColor={{ 
+                false: FreeShowTheme.colors.primaryLighter, 
+                true: FreeShowTheme.colors.secondary + '40' 
+              }}
+              thumbColor={navigationLayout === 'sidebar' ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary}
+              ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
+            />
+          </View>
+        </View>
+
+        {/* Auto Connection Section */}
+        <View style={styles.sectionSeparator}>
+          <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>AUTO CONNECTION</Text>
+          <View style={styles.separatorLine} />
+        </View>
+
+        <View style={styles.settingsCard}>
           {/* Auto-Reconnect Toggle */}
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
@@ -198,55 +260,63 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
             />
           </View>
 
-          <View style={styles.settingDivider} />
+          {/* Auto-Launch Interface - only show if auto-reconnect is enabled */}
+          {autoReconnect && (
+            <>
+              <View style={styles.settingDivider} />
 
-          {/* Auto-Launch Interface Picker */}
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <View style={styles.settingTitleRow}>
-                <Ionicons name="play-circle" size={20} color={FreeShowTheme.colors.secondary} />
-                <Text style={styles.settingTitle}>Auto-Launch Interface</Text>
+              <View style={styles.settingItem}>
+                <View style={styles.settingInfo}>
+                  <View style={styles.settingTitleRow}>
+                    <Ionicons name="play-circle" size={20} color={FreeShowTheme.colors.secondary} />
+                    <Text style={styles.settingTitle}>Auto-Launch Interface</Text>
+                  </View>
+                  <Text style={styles.settingDescription}>
+                    Automatically open a specific interface when connected
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowLaunchPicker(true)}
+                >
+                  <View style={styles.pickerButtonContent}>
+                    <Ionicons name={selectedShow.icon as any} size={16} color={selectedShow.color} />
+                    <Text style={styles.pickerButtonText}>{selectedShow.title}</Text>
+                    <Ionicons name="chevron-down" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.settingDescription}>
-                Automatically open a specific interface when the app starts
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowLaunchPicker(true)}
-            >
-              <View style={styles.pickerButtonContent}>
-                <Ionicons name={selectedShow.icon as any} size={16} color={selectedShow.color} />
-                <Text style={styles.pickerButtonText}>{selectedShow.title}</Text>
-                <Ionicons name="chevron-down" size={16} color={FreeShowTheme.colors.textSecondary} />
-              </View>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.settingDivider} />
+              {/* Auto-Launch Fullscreen - only show if auto-launch is enabled and not 'none' or 'api' */}
+              {autoLaunchInterface !== 'none' && autoLaunchInterface !== 'api' && (
+                <>
+                  <View style={styles.settingDivider} />
 
-          {/* Navigation Layout Toggle */}
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <View style={styles.settingTitleRow}>
-                <Ionicons name="menu" size={20} color={FreeShowTheme.colors.secondary} />
-                <Text style={styles.settingTitle}>Navigation Layout</Text>
-              </View>
-              <Text style={styles.settingDescription}>
-                Choose between bottom bar navigation or a collapsible sidebar
-              </Text>
-            </View>
-            <Switch
-              value={navigationLayout === 'sidebar'}
-              onValueChange={handleNavigationLayoutToggle}
-              trackColor={{ 
-                false: FreeShowTheme.colors.primaryLighter, 
-                true: FreeShowTheme.colors.secondary + '40' 
-              }}
-              thumbColor={navigationLayout === 'sidebar' ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary}
-              ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
-            />
-          </View>
+                  <View style={styles.settingItem}>
+                    <View style={styles.settingInfo}>
+                      <View style={styles.settingTitleRow}>
+                        <Ionicons name="expand" size={20} color={FreeShowTheme.colors.secondary} />
+                        <Text style={styles.settingTitle}>Auto-Launch Fullscreen</Text>
+                      </View>
+                      <Text style={styles.settingDescription}>
+                        Automatically open the interface in fullscreen mode
+                      </Text>
+                    </View>
+                    <Switch
+                      value={autoLaunchFullscreen}
+                      onValueChange={handleAutoLaunchFullscreenToggle}
+                      trackColor={{ 
+                        false: FreeShowTheme.colors.primaryLighter, 
+                        true: FreeShowTheme.colors.secondary + '60' 
+                      }}
+                      thumbColor={autoLaunchFullscreen ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.text}
+                      ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
+                    />
+                  </View>
+                </>
+              )}
+            </>
+          )}
         </View>
 
         {/* Section Separator */}

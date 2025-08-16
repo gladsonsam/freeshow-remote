@@ -25,12 +25,12 @@ interface WebViewScreenProps {
 }
 
 const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
-  const { url, title, showId } = route.params || {};
+  const { url, title, showId, initialFullscreen = false } = route.params || {};
   const { state } = useConnection();
   const { connectionHost, currentShowPorts } = state;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(initialFullscreen);
   const [currentOrientation, setCurrentOrientation] = useState<ScreenOrientation.Orientation>(ScreenOrientation.Orientation.PORTRAIT_UP);
   const webViewRef = useRef<WebView>(null);
   const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
