@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Linking,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,6 +41,16 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     message: ''
   });
 
+  // Double-tap to exit fullscreen for tablets
+  const [lastTap, setLastTap] = useState<number | null>(null);
+  const [showCornerFeedback, setShowCornerFeedback] = useState(false);
+  const [showFullscreenHint, setShowFullscreenHint] = useState(false);
+  const DOUBLE_TAP_DELAY = 300; // milliseconds
+  
+  // Check if device is a tablet (screen width > 768px is typically considered tablet)
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+  const isTablet = Math.min(screenWidth, screenHeight) > 600; // More conservative tablet detection
+
   useEffect(() => {
     // Get current orientation on mount
     ScreenOrientation.getOrientationAsync().then(setCurrentOrientation);
@@ -54,6 +66,18 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
       subscription?.remove();
     };
   }, []);
+
+  // Show fullscreen hint for tablets when entering fullscreen
+  useEffect(() => {
+    if (isTablet && isFullScreen) {
+      setShowFullscreenHint(true);
+      const timer = setTimeout(() => {
+        setShowFullscreenHint(false);
+      }, 3000); // Show hint for 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isTablet, isFullScreen]);
 
   const handleRefresh = () => {
     if (webViewRef.current) {
@@ -98,6 +122,25 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
         title: 'Error',
         message: 'Failed to rotate screen'
       });
+    }
+  };
+
+  // Handle double-tap on corner to exit fullscreen (tablets only)
+  const handleCornerDoubleTap = () => {
+    if (!isTablet || !isFullScreen) return;
+
+    const now = Date.now();
+    
+    // Show visual feedback on any tap
+    setShowCornerFeedback(true);
+    setTimeout(() => setShowCornerFeedback(false), 200);
+
+    if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
+      // Double tap detected - exit fullscreen
+      setIsFullScreen(false);
+      setLastTap(null);
+    } else {
+      setLastTap(now);
     }
   };
 
@@ -286,6 +329,41 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
         message={errorModal.message}
         onClose={() => setErrorModal({visible: false, title: '', message: ''})}
       />
+
+      {/* Fullscreen hint for tablets */}
+      {isTablet && isFullScreen && showFullscreenHint && (
+        <View style={styles.fullscreenHint}>
+          <View style={styles.hintContainer}>
+            <Ionicons name="information-circle" size={20} color={FreeShowTheme.colors.text} />
+            <Text style={styles.hintText}>Double-tap any corner to exit fullscreen</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Double-tap corners to exit fullscreen (tablets only) */}
+      {isTablet && isFullScreen && (
+        <>
+          {/* Top-left corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.cornerTapArea, showCornerFeedback && styles.cornerTapAreaActive]} />
+          </TouchableWithoutFeedback>
+          
+          {/* Top-right corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.cornerTapArea, styles.cornerTapAreaTopRight, showCornerFeedback && styles.cornerTapAreaActive]} />
+          </TouchableWithoutFeedback>
+          
+          {/* Bottom-left corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.cornerTapArea, styles.cornerTapAreaBottomLeft, showCornerFeedback && styles.cornerTapAreaActive]} />
+          </TouchableWithoutFeedback>
+          
+          {/* Bottom-right corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.cornerTapArea, styles.cornerTapAreaBottomRight, showCornerFeedback && styles.cornerTapAreaActive]} />
+          </TouchableWithoutFeedback>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -393,6 +471,67 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
     fontFamily: FreeShowTheme.fonts.system,
+  },
+  cornerTapArea: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    top: 0,
+    left: 0,
+    backgroundColor: 'transparent',
+    zIndex: 9999,
+  },
+  cornerTapAreaTopRight: {
+    top: 0,
+    right: 0,
+    left: 'auto',
+  },
+  cornerTapAreaBottomLeft: {
+    bottom: 0,
+    top: 'auto',
+    left: 0,
+  },
+  cornerTapAreaBottomRight: {
+    bottom: 0,
+    right: 0,
+    top: 'auto',
+    left: 'auto',
+  },
+  cornerTapAreaActive: {
+    backgroundColor: FreeShowTheme.colors.secondary + '30',
+    borderRadius: 8,
+  },
+  fullscreenHint: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    right: 20,
+    zIndex: 10000,
+    alignItems: 'center',
+  },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    paddingVertical: FreeShowTheme.spacing.sm,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  hintText: {
+    color: FreeShowTheme.colors.text,
+    fontSize: FreeShowTheme.fontSize.sm,
+    fontFamily: FreeShowTheme.fonts.system,
+    marginLeft: FreeShowTheme.spacing.sm,
   },
 });
 
