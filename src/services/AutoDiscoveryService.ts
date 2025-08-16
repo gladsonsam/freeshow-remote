@@ -168,13 +168,14 @@ class AutoDiscoveryService {
         primaryPort = service.port; // Use API port as primary
       }
       
-      // Use the first non-IP name we find, or keep IP
-      if (service.name && service.name !== ip && displayName === ip) {
-        displayName = service.name;
-      }
-      
+      // Prioritize hostname over service name for display
       if (service.host) {
         host = service.host;
+        // Use hostname without .local suffix as display name
+        const hostname = service.host.replace(/\.local\.?$/, '');
+        if (hostname && hostname !== ip) {
+          displayName = hostname;
+        }
       }
     });
     
@@ -241,7 +242,7 @@ class AutoDiscoveryService {
       
       // Add this service to the pending list
       ipServices.push({
-        name: service.name || primaryIP,
+        name: service.name || primaryIP, // Keep service name for debugging
         host: service.host || '',
         port: service.port,
         ip: primaryIP,

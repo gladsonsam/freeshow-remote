@@ -11,10 +11,12 @@ import {
   Pressable,
   Modal,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Clipboard from 'expo-clipboard';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection, useSettings } from '../contexts';
 import { ShowOption } from '../types';
@@ -74,6 +76,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     title: '',
     message: ''
   });
+  const [compactPopup, setCompactPopup] = useState<{ visible: boolean; show: ShowOption | null }>({ visible: false, show: null });
   const [previewModal, setPreviewModal] = useState<{ visible: boolean; url: string; title: string; description?: string; showId?: string; port?: number }>({ visible: false, url: '', title: '', description: '', showId: undefined, port: undefined });
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -272,6 +275,49 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     setShowDisconnectConfirm(false);
   };
 
+  const openCompactPopup = (show: ShowOption) => {
+    setCompactPopup({ visible: true, show });
+  };
+
+  const closeCompactPopup = () => {
+    setCompactPopup({ visible: false, show: null });
+  };
+
+  const copyToClipboard = async (show: ShowOption) => {
+    if (!connectionHost) {
+      setErrorModal({ visible: true, title: 'Error', message: 'No connection host available' });
+      return;
+    }
+
+    try {
+      const url = `http://${connectionHost}:${show.port}`;
+      await Clipboard.setStringAsync(url);
+      setErrorModal({ visible: true, title: 'Copied', message: 'URL copied to clipboard' });
+    } catch (error) {
+      setErrorModal({ visible: true, title: 'Error', message: 'Failed to copy URL to clipboard' });
+    }
+  };
+
+  const openInBrowser = async (show: ShowOption) => {
+    if (!connectionHost) {
+      setErrorModal({ visible: true, title: 'Error', message: 'No connection host available' });
+      return;
+    }
+
+    try {
+      const url = `http://${connectionHost}:${show.port}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+        closeCompactPopup();
+      } else {
+        setErrorModal({ visible: true, title: 'Error', message: 'Cannot open URL in browser' });
+      }
+    } catch (error) {
+      setErrorModal({ visible: true, title: 'Error', message: 'Failed to open URL in browser' });
+    }
+  };
+
   const openPreview = (show: ShowOption) => {
     if (!connectionHost) {
       setErrorModal({ visible: true, title: 'Error', message: 'No connection host available for preview' });
@@ -421,7 +467,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
               >
                 <Pressable
                   onPress={() => handleShowSelect(show)}
-                  onLongPress={() => openPreview(show)}
+                  onLongPress={() => openCompactPopup(show)}
                   delayLongPress={300}
                   android_ripple={{ color: show.color + '22' }}
                   accessibilityRole="button"
@@ -500,6 +546,73 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           </View>
         </View>
       </ScrollView>
+
+      {/* Compact Popup Modal (long-press) */}
+      <Modal
+        visible={compactPopup.visible}
+        animationType="slide"
+        onRequestClose={closeCompactPopup}
+        transparent={true}
+      >
+        <View style={styles.compactBackdrop}>
+          <TouchableOpacity style={styles.compactBackdropTouchable} activeOpacity={1} onPress={closeCompactPopup} />
+          <View style={styles.compactPopupContainer}>
+            <View style={styles.compactHandle} />
+            <View style={[styles.compactPopup, { borderLeftColor: compactPopup.show?.color || '#333' }]}>
+              {/* Header with icon and title */}
+              <View style={styles.compactHeader}>
+                <View style={[styles.compactIconContainer, { backgroundColor: (compactPopup.show?.color || '#333') + '20' }]}>
+                  <Ionicons
+                    name={(compactPopup.show?.icon as any) || 'apps'}
+                    size={24}
+                    color={compactPopup.show?.color || '#333'}
+                  />
+                </View>
+                <Text style={styles.compactTitle}>{compactPopup.show?.title}</Text>
+              </View>
+
+              {/* IP Address with status dot */}
+              <View style={styles.compactIpContainer}>
+                <View style={styles.compactStatusDot} />
+                <Text style={styles.compactIpText}>
+                  {connectionHost}:{compactPopup.show?.port}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.compactClipboardButton}
+                  onPress={() => compactPopup.show && copyToClipboard(compactPopup.show)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Copy URL to clipboard"
+                >
+                  <Ionicons name="copy-outline" size={16} color={FreeShowTheme.colors.text + 'AA'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Action buttons */}
+              <View style={styles.compactActions}>
+                <TouchableOpacity 
+                  style={[styles.compactActionButton, styles.compactOpenButton]}
+                  onPress={() => {
+                    if (compactPopup.show) {
+                      closeCompactPopup();
+                      handleShowSelect(compactPopup.show);
+                    }
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.compactActionButtonText}>Open</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.compactActionButton, styles.compactBrowserButton]}
+                  onPress={() => compactPopup.show && openInBrowser(compactPopup.show)}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Open in Browser</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Disconnect Confirmation Modal */}
       {/* Preview Modal (long-press) */}
@@ -828,6 +941,114 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF33',
     alignSelf: 'center',
     marginVertical: FreeShowTheme.spacing.sm,
+  },
+  // Compact popup styles
+  compactBackdrop: {
+    flex: 1,
+    backgroundColor: '#00000066',
+    justifyContent: 'flex-end',
+  },
+  compactBackdropTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  compactPopupContainer: {
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderTopLeftRadius: FreeShowTheme.borderRadius.xl || 24,
+    borderTopRightRadius: FreeShowTheme.borderRadius.xl || 24,
+    overflow: 'hidden',
+    paddingBottom: FreeShowTheme.spacing.xl,
+  },
+  compactHandle: {
+    width: 48,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF33',
+    alignSelf: 'center',
+    marginVertical: FreeShowTheme.spacing.sm,
+  },
+  compactPopup: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.sm,
+    borderLeftWidth: 4,
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: FreeShowTheme.spacing.md,
+  },
+  compactIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: FreeShowTheme.spacing.md,
+  },
+  compactTitle: {
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.text,
+    fontFamily: FreeShowTheme.fonts.system,
+    flex: 1,
+  },
+  compactIpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: FreeShowTheme.spacing.lg,
+    paddingVertical: FreeShowTheme.spacing.sm,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    backgroundColor: '#FFFFFF08',
+    borderRadius: FreeShowTheme.borderRadius.md,
+  },
+  compactStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2ECC40',
+    marginRight: FreeShowTheme.spacing.sm,
+  },
+  compactIpText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.text + 'CC',
+    fontFamily: FreeShowTheme.fonts.system,
+    fontWeight: '600',
+    flex: 1,
+  },
+  compactClipboardButton: {
+    padding: FreeShowTheme.spacing.xs,
+    borderRadius: FreeShowTheme.borderRadius.sm,
+  },
+  compactActions: {
+    flexDirection: 'column',
+    gap: FreeShowTheme.spacing.sm,
+  },
+  compactActionButton: {
+    width: '100%',
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    alignItems: 'center',
+  },
+  compactOpenButton: {
+    backgroundColor: FreeShowTheme.colors.secondary,
+  },
+  compactBrowserButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: FreeShowTheme.colors.text + '33',
+  },
+  compactActionButtonText: {
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
+    fontFamily: FreeShowTheme.fonts.system,
+    color: 'white',
+  },
+  compactBrowserButtonText: {
+    color: FreeShowTheme.colors.text + 'CC',
   },
 });
 
