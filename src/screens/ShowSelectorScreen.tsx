@@ -558,57 +558,65 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           <TouchableOpacity style={styles.compactBackdropTouchable} activeOpacity={1} onPress={closeCompactPopup} />
           <View style={styles.compactPopupContainer}>
             <View style={styles.compactHandle} />
-            <View style={[styles.compactPopup, { borderLeftColor: compactPopup.show?.color || '#333' }]}>
-              {/* Header with icon and title */}
-              <View style={styles.compactHeader}>
-                <View style={[styles.compactIconContainer, { backgroundColor: (compactPopup.show?.color || '#333') + '20' }]}>
-                  <Ionicons
-                    name={(compactPopup.show?.icon as any) || 'apps'}
-                    size={24}
-                    color={compactPopup.show?.color || '#333'}
-                  />
-                </View>
-                <Text style={styles.compactTitle}>{compactPopup.show?.title}</Text>
+            
+            {/* Header with icon and title */}
+            <View style={styles.compactHeader}>
+              <View style={[styles.compactIconContainer, { backgroundColor: (compactPopup.show?.color || '#333') + '15' }]}>
+                <Ionicons
+                  name={(compactPopup.show?.icon as any) || 'apps'}
+                  size={28}
+                  color={compactPopup.show?.color || '#333'}
+                />
               </View>
+              <View style={styles.compactTitleContainer}>
+                <Text style={styles.compactTitle}>{compactPopup.show?.title}</Text>
+                <Text style={styles.compactSubtitle}>{compactPopup.show?.description}</Text>
+              </View>
+            </View>
 
-              {/* IP Address with status dot */}
-              <View style={styles.compactIpContainer}>
+            {/* IP Address with status dot */}
+            <View style={styles.compactIpContainer}>
+              <View style={styles.compactIpRow}>
                 <View style={styles.compactStatusDot} />
                 <Text style={styles.compactIpText}>
                   {connectionHost}:{compactPopup.show?.port}
                 </Text>
-                <TouchableOpacity 
-                  style={styles.compactClipboardButton}
-                  onPress={() => compactPopup.show && copyToClipboard(compactPopup.show)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Copy URL to clipboard"
-                >
-                  <Ionicons name="copy-outline" size={16} color={FreeShowTheme.colors.text + 'AA'} />
-                </TouchableOpacity>
               </View>
+              <TouchableOpacity 
+                style={styles.compactClipboardButton}
+                onPress={() => compactPopup.show && copyToClipboard(compactPopup.show)}
+                accessibilityRole="button"
+                accessibilityLabel="Copy URL to clipboard"
+              >
+                <Ionicons name="copy-outline" size={18} color={FreeShowTheme.colors.text + 'BB'} />
+              </TouchableOpacity>
+            </View>
 
-              {/* Action buttons */}
-              <View style={styles.compactActions}>
-                <TouchableOpacity 
-                  style={[styles.compactActionButton, styles.compactOpenButton]}
-                  onPress={() => {
-                    if (compactPopup.show) {
-                      closeCompactPopup();
-                      handleShowSelect(compactPopup.show);
-                    }
-                  }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.compactActionButtonText}>Open</Text>
-                </TouchableOpacity>
+            {/* Action buttons */}
+            <View style={styles.compactActions}>
+              <TouchableOpacity 
+                style={[styles.compactActionButton, styles.compactOpenButton]}
+                onPress={() => {
+                  if (compactPopup.show) {
+                    closeCompactPopup();
+                    handleShowSelect(compactPopup.show);
+                  }
+                }}
+                accessibilityRole="button"
+              >
+                <Ionicons name="play-circle" size={20} color="white" style={styles.compactButtonIcon} />
+                <Text style={styles.compactActionButtonText}>Open</Text>
+              </TouchableOpacity>
+              {compactPopup.show?.id !== 'api' && (
                 <TouchableOpacity 
                   style={[styles.compactActionButton, styles.compactBrowserButton]}
                   onPress={() => compactPopup.show && openInBrowser(compactPopup.show)}
                   accessibilityRole="button"
                 >
+                  <Ionicons name="globe-outline" size={20} color={FreeShowTheme.colors.text + 'CC'} style={styles.compactButtonIcon} />
                   <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Open in Browser</Text>
                 </TouchableOpacity>
-              </View>
+              )}
             </View>
           </View>
         </View>
@@ -959,50 +967,71 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.primary,
     borderTopLeftRadius: FreeShowTheme.borderRadius.xl || 24,
     borderTopRightRadius: FreeShowTheme.borderRadius.xl || 24,
-    overflow: 'hidden',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
     paddingBottom: FreeShowTheme.spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 12,
   },
   compactHandle: {
-    width: 48,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF33',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: FreeShowTheme.colors.text + '30',
     alignSelf: 'center',
-    marginVertical: FreeShowTheme.spacing.sm,
-  },
-  compactPopup: {
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingTop: FreeShowTheme.spacing.sm,
-    borderLeftWidth: 4,
+    marginTop: FreeShowTheme.spacing.sm,
+    marginBottom: FreeShowTheme.spacing.lg,
   },
   compactHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: FreeShowTheme.spacing.md,
+    marginBottom: FreeShowTheme.spacing.lg,
   },
   compactIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    width: 52,
+    height: 52,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: FreeShowTheme.spacing.md,
   },
+  compactTitleContainer: {
+    flex: 1,
+  },
   compactTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
+    fontSize: FreeShowTheme.fontSize.xl,
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    flex: 1,
+    marginBottom: 2,
+  },
+  compactSubtitle: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.text + 'AA',
+    fontFamily: FreeShowTheme.fonts.system,
+    fontWeight: '500',
   },
   compactIpContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.sm,
+    justifyContent: 'space-between',
+    marginBottom: FreeShowTheme.spacing.xl,
+    paddingVertical: FreeShowTheme.spacing.md,
     paddingHorizontal: FreeShowTheme.spacing.md,
-    backgroundColor: '#FFFFFF08',
+    backgroundColor: FreeShowTheme.colors.text + '08',
     borderRadius: FreeShowTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.text + '10',
+  },
+  compactIpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   compactStatusDot: {
     width: 8,
@@ -1019,8 +1048,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   compactClipboardButton: {
-    padding: FreeShowTheme.spacing.xs,
+    padding: FreeShowTheme.spacing.sm,
     borderRadius: FreeShowTheme.borderRadius.sm,
+    backgroundColor: FreeShowTheme.colors.text + '08',
   },
   compactActions: {
     flexDirection: 'column',
@@ -1028,18 +1058,31 @@ const styles = StyleSheet.create({
   },
   compactActionButton: {
     width: '100%',
-    paddingVertical: FreeShowTheme.spacing.md,
+    paddingVertical: FreeShowTheme.spacing.lg,
     paddingHorizontal: FreeShowTheme.spacing.lg,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  compactButtonIcon: {
+    marginRight: FreeShowTheme.spacing.sm,
   },
   compactOpenButton: {
     backgroundColor: FreeShowTheme.colors.secondary,
   },
   compactBrowserButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: FreeShowTheme.colors.text + '33',
+    backgroundColor: FreeShowTheme.colors.text + '08',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.text + '20',
   },
   compactActionButtonText: {
     fontSize: FreeShowTheme.fontSize.md,
@@ -1048,7 +1091,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   compactBrowserButtonText: {
-    color: FreeShowTheme.colors.text + 'CC',
+    color: FreeShowTheme.colors.text + 'DD',
   },
 });
 
