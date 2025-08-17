@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Linking,
-  Dimensions,
   TouchableWithoutFeedback,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -41,15 +40,13 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     message: ''
   });
 
-  // Double-tap to exit fullscreen for tablets
+  // Double-tap to exit fullscreen
   const [lastTap, setLastTap] = useState<number | null>(null);
   const [showCornerFeedback, setShowCornerFeedback] = useState(false);
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
   const DOUBLE_TAP_DELAY = 300; // milliseconds
   
-  // Check if device is a tablet (screen width > 768px is typically considered tablet)
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-  const isTablet = Math.min(screenWidth, screenHeight) > 600; // More conservative tablet detection
+  // (tablet detection removed — double-tap exit now available on all devices)
 
   useEffect(() => {
     // Get current orientation on mount
@@ -67,9 +64,9 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     };
   }, []);
 
-  // Show fullscreen hint for tablets when entering fullscreen
+  // Show fullscreen hint when entering fullscreen
   useEffect(() => {
-    if (isTablet && isFullScreen) {
+    if (isFullScreen) {
       setShowFullscreenHint(true);
       const timer = setTimeout(() => {
         setShowFullscreenHint(false);
@@ -77,7 +74,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
       
       return () => clearTimeout(timer);
     }
-  }, [isTablet, isFullScreen]);
+  }, [isFullScreen]);
 
   const handleRefresh = () => {
     if (webViewRef.current) {
@@ -125,9 +122,9 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  // Handle double-tap on corner to exit fullscreen (tablets only)
+  // Handle double-tap on corner to exit fullscreen
   const handleCornerDoubleTap = () => {
-    if (!isTablet || !isFullScreen) return;
+    if (!isFullScreen) return;
 
     const now = Date.now();
     
@@ -136,7 +133,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     setTimeout(() => setShowCornerFeedback(false), 200);
 
     if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
-      // Double tap detected - exit fullscreen
+  // Double tap detected - exit fullscreen
       setIsFullScreen(false);
       setLastTap(null);
     } else {
@@ -330,18 +327,22 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
         onClose={() => setErrorModal({visible: false, title: '', message: ''})}
       />
 
-      {/* Fullscreen hint for tablets */}
-      {isTablet && isFullScreen && showFullscreenHint && (
-        <View style={styles.fullscreenHint}>
+      {/* Fullscreen hint (tap to dismiss) */}
+      {isFullScreen && showFullscreenHint && (
+        <TouchableOpacity
+          style={styles.fullscreenHint}
+          activeOpacity={0.85}
+          onPress={() => setShowFullscreenHint(false)}
+        >
           <View style={styles.hintContainer}>
             <Ionicons name="information-circle" size={20} color={FreeShowTheme.colors.text} />
             <Text style={styles.hintText}>Double-tap any corner to exit fullscreen</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       )}
 
-      {/* Double-tap corners to exit fullscreen (tablets only) */}
-      {isTablet && isFullScreen && (
+  {/* Double-tap corners to exit fullscreen */}
+  {isFullScreen && (
         <>
           {/* Top-left corner */}
           <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
@@ -502,8 +503,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   fullscreenHint: {
-    position: 'absolute',
-    top: 20,
+  position: 'absolute',
+  top: 40,
     left: 20,
     right: 20,
     zIndex: 10000,

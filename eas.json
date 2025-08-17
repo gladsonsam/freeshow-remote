@@ -28,8 +28,10 @@
         "buildConfiguration": "Release"
       },
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease",
+        "enableProguardInReleaseBuilds": true,
+        "enableHermes": true
       }
     },
     "production-aab": {

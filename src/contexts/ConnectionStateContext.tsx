@@ -564,14 +564,16 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   }, []);
 
   // Trigger auto-launch when connection becomes connected (backup for auto-connect)
+  // Only run this backup auto-launch if the app's initial auto-connect attempt hasn't already been performed.
+  // This prevents manual connections from causing auto-launch/auto-fullscreen behavior.
   useEffect(() => {
-    if (state.isConnected && state.connectionHost && navigationRef.current) {
-      ErrorLogger.debug('[ConnectionProvider] Connection established, checking for auto-launch', 'ConnectionStateContext');
+    if (!state.autoConnectAttempted && state.isConnected && state.connectionHost && navigationRef.current) {
+      ErrorLogger.debug('[ConnectionProvider] Connection established during initial auto-connect flow, checking for auto-launch', 'ConnectionStateContext');
       setTimeout(async () => {
         await triggerAutoLaunch();
       }, 500);
     }
-  }, [state.isConnected, state.connectionHost, triggerAutoLaunch]);
+  }, [state.isConnected, state.connectionHost, state.autoConnectAttempted, triggerAutoLaunch]);
 
   const actions: ConnectionActions = {
     connect,

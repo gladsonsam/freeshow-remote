@@ -653,7 +653,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           </View>
 
           {/* Quick Connect Section - Premium placement */}
-          {!isConnected && (history.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
+          {(history.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
             <View style={styles.quickConnectCard}>
               <View style={styles.quickConnectHeader}>
                 <View style={styles.quickConnectTitleContainer}>
