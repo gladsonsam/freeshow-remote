@@ -39,11 +39,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const defaultPorts = configService.getDefaultShowPorts();
   
   const [host, setHost] = useState('192.168.1.100');
-  const [remotePort, setRemotePort] = useState(defaultPorts.remote.toString());
-  const [stagePort, setStagePort] = useState(defaultPorts.stage.toString());
-  const [controlPort, setControlPort] = useState(defaultPorts.control.toString());
-  const [outputPort, setOutputPort] = useState(defaultPorts.output.toString());
-  const [apiPort, setApiPort] = useState(defaultPorts.api.toString());
+  const [remotePort, setRemotePort] = useState('');
+  const [stagePort, setStagePort] = useState('');
+  const [controlPort, setControlPort] = useState('');
+  const [outputPort, setOutputPort] = useState('');
+  const [apiPort, setApiPort] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
@@ -98,6 +98,49 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     setScanComplete(false);
   }, []);
 
+  // Load last connection on mount to populate form fields
+  useEffect(() => {
+    const loadLastConnection = async () => {
+      try {
+        const last = await settingsRepository.getLastConnection();
+        if (last) {
+          setHost(last.host);
+          if (last.showPorts) {
+            // Map saved ports to form fields, treating missing or non-number as blank
+            setRemotePort(typeof last.showPorts.remote === 'number' ? String(last.showPorts.remote) : '');
+            setStagePort(typeof last.showPorts.stage === 'number' ? String(last.showPorts.stage) : '');
+            setControlPort(typeof last.showPorts.control === 'number' ? String(last.showPorts.control) : '');
+            setOutputPort(typeof last.showPorts.output === 'number' ? String(last.showPorts.output) : '');
+            setApiPort(typeof (last.showPorts as any).api === 'number' ? String((last.showPorts as any).api) : '');
+          } else {
+            // No saved ports, use defaults
+            setRemotePort(String(defaultPorts.remote));
+            setStagePort(String(defaultPorts.stage));
+            setControlPort(String(defaultPorts.control));
+            setOutputPort(String(defaultPorts.output));
+            setApiPort(String(defaultPorts.api));
+          }
+        } else {
+          // No history, use defaults
+          setRemotePort(String(defaultPorts.remote));
+          setStagePort(String(defaultPorts.stage));
+          setControlPort(String(defaultPorts.control));
+          setOutputPort(String(defaultPorts.output));
+          setApiPort(String(defaultPorts.api));
+        }
+      } catch (error) {
+        // Error loading history, use defaults
+        setRemotePort(String(defaultPorts.remote));
+        setStagePort(String(defaultPorts.stage));
+        setControlPort(String(defaultPorts.control));
+        setOutputPort(String(defaultPorts.output));
+        setApiPort(String(defaultPorts.api));
+      }
+    };
+    
+    loadLastConnection();
+  }, []); // Only run once on mount
+
   // Handle scan progress
   useEffect(() => {
     if (isScanActive) {
@@ -149,14 +192,18 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   // Update current show ports whenever port values change and we're connected
   useEffect(() => {
     if (isConnected) {
-      const showPorts = {
-        remote: parseInt(remotePort) || 5510,
-        stage: parseInt(stagePort) || 5511,
-        control: parseInt(controlPort) || 5512,
-        output: parseInt(outputPort) || 5513,
-        api: parseInt(apiPort) || 5505,
+      const parseOrZero = (s: string) => {
+        const n = parseInt(String(s || '').trim());
+        return Number.isFinite(n) ? n : 0;
       };
-      updateShowPorts(showPorts);
+  // Only include enabled ports in config
+  const showPorts: any = {};
+  if (remotePort.trim()) showPorts.remote = parseInt(remotePort.trim());
+  if (stagePort.trim()) showPorts.stage = parseInt(stagePort.trim());
+  if (controlPort.trim()) showPorts.control = parseInt(controlPort.trim());
+  if (outputPort.trim()) showPorts.output = parseInt(outputPort.trim());
+  if (apiPort.trim()) showPorts.api = parseInt(apiPort.trim());
+  updateShowPorts(showPorts);
     }
   }, [isConnected, remotePort, stagePort, controlPort, outputPort, apiPort]);
 
@@ -187,8 +234,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         return;
       }
 
-      // Validate show ports
-      const portsToValidate = {
+      // Validate show ports as a group. Empty inputs are allowed and will be treated as disabled (0).
+      const rawPorts = {
         remote: remotePort,
         stage: stagePort,
         control: controlPort,
@@ -196,22 +243,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         api: apiPort,
       };
 
-      const validatedPorts: any = {};
-      for (const [portName, portValue] of Object.entries(portsToValidate)) {
-        const portValidation = ValidationService.validatePort(portValue);
-        if (!portValidation.isValid) {
-          setErrorModal({
-            visible: true,
-            title: 'Invalid Port',
-            message: `${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`
-          });
-          return;
-        }
-        validatedPorts[portName] = portValidation.sanitizedValue;
-      }
-
-      // Additional validation for show ports as a group
-      const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
+      const showPortsValidation = ValidationService.validateShowPorts(rawPorts);
       if (!showPortsValidation.isValid) {
         setErrorModal({
           visible: true,
@@ -238,6 +270,19 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       if (connected) {
         // Update show ports after successful connection
         updateShowPorts(sanitizedShowPorts);
+        // Persist the sanitizedShowPorts (including zeros for disabled) to history so they remain blank later
+        try {
+          await settingsRepository.addToConnectionHistory(sanitizedHost, defaultPort, nameToUse, sanitizedShowPorts);
+        } catch (err) {
+          ErrorLogger.warn('Failed to persist show ports on manual connect', 'ConnectScreen', err instanceof Error ? err : new Error(String(err)));
+        }
+        // If a port was blank/0 in the UI, remove that capability so it appears disabled
+        const capabilitiesToRemoveManual: string[] = [];
+        if (!sanitizedShowPorts.stage || sanitizedShowPorts.stage === 0) capabilitiesToRemoveManual.push('stage');
+        if (capabilitiesToRemoveManual.length > 0) {
+          const newCaps = (state.capabilities || []).filter(c => !capabilitiesToRemoveManual.includes(c));
+          updateCapabilities(newCaps);
+        }
         navigation.navigate('Interface');
       }
     } catch (error) {
@@ -271,30 +316,22 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       let validatedShowPorts;
       
       if (historyItem.showPorts) {
-        const showPortsValidation = ValidationService.validateShowPorts(historyItem.showPorts);
-        if (!showPortsValidation.isValid) {
-          ErrorLogger.warn('History item has invalid show ports, using defaults', 'ConnectScreen', 
-            new Error(`Invalid ports: ${JSON.stringify(historyItem.showPorts)}`)
-          );
-          validatedShowPorts = configService.getDefaultShowPorts();
-        } else {
-          validatedShowPorts = showPortsValidation.sanitizedValue;
-        }
-        
-        // Update UI with validated ports
-        setRemotePort(validatedShowPorts.remote.toString());
-        setStagePort(validatedShowPorts.stage.toString());
-        setControlPort(validatedShowPorts.control.toString());
-        setOutputPort(validatedShowPorts.output.toString());
-        setApiPort(validatedShowPorts.api.toString());
+        // Only set fields for present keys; missing means blank/disabled
+        setRemotePort(historyItem.showPorts.remote ? String(historyItem.showPorts.remote) : '');
+        setStagePort(historyItem.showPorts.stage ? String(historyItem.showPorts.stage) : '');
+        setControlPort(historyItem.showPorts.control ? String(historyItem.showPorts.control) : '');
+        setOutputPort(historyItem.showPorts.output ? String(historyItem.showPorts.output) : '');
+        setApiPort((historyItem.showPorts as any).api ? String((historyItem.showPorts as any).api) : '');
+        validatedShowPorts = { ...historyItem.showPorts };
       } else {
         // Use default ports if none stored
-        validatedShowPorts = configService.getDefaultShowPorts();
-        setRemotePort(validatedShowPorts.remote.toString());
-        setStagePort(validatedShowPorts.stage.toString());
-        setControlPort(validatedShowPorts.control.toString());
-        setOutputPort(validatedShowPorts.output.toString());
-        setApiPort(validatedShowPorts.api.toString());
+        const defaults = configService.getDefaultShowPorts();
+        setRemotePort(String(defaults.remote));
+        setStagePort(String(defaults.stage));
+        setControlPort(String(defaults.control));
+        setOutputPort(String(defaults.output));
+        setApiPort(String(defaults.api));
+        validatedShowPorts = { ...defaults };
       }
       
       ErrorLogger.info('Attempting connection from history with validated inputs', 'ConnectScreen', 
@@ -307,6 +344,20 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       if (connected) {
         // Update show ports after successful connection
         updateShowPorts(validatedShowPorts);
+        // Persist validatedShowPorts (including zeros) to history so the UI will keep blanks
+        try {
+          await settingsRepository.addToConnectionHistory(sanitizedHost, defaultPort, historyItem.nickname, validatedShowPorts);
+        } catch (err) {
+          ErrorLogger.warn('Failed to persist show ports after history connect', 'ConnectScreen', err instanceof Error ? err : new Error(String(err)));
+        }
+        // If a port was blank/0 in the UI or history, remove that capability so it appears disabled
+        const capabilitiesToRemove: string[] = [];
+        if (!validatedShowPorts.stage || validatedShowPorts.stage === 0) capabilitiesToRemove.push('stage');
+        // You can add other checks for control/output/api as needed
+        if (capabilitiesToRemove.length > 0) {
+          const newCaps = (state.capabilities || []).filter((c: string) => !capabilitiesToRemove.includes(c));
+          updateCapabilities(newCaps);
+        }
         navigation.navigate('Interface');
       }
     } catch (error) {
@@ -916,8 +967,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       style={styles.portInput}
                       value={remotePort}
                       onChangeText={setRemotePort}
-                      placeholder="5510"
-                      placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
                       editable={!isConnected}
@@ -930,8 +979,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       style={styles.portInput}
                       value={stagePort}
                       onChangeText={setStagePort}
-                      placeholder="5511"
-                      placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
                       editable={!isConnected}
@@ -944,8 +991,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       style={styles.portInput}
                       value={controlPort}
                       onChangeText={setControlPort}
-                      placeholder="5512"
-                      placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
                       editable={!isConnected}
@@ -958,8 +1003,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       style={styles.portInput}
                       value={outputPort}
                       onChangeText={setOutputPort}
-                      placeholder="5513"
-                      placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
                       editable={!isConnected}
@@ -972,14 +1015,33 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
                       style={styles.portInput}
                       value={apiPort}
                       onChangeText={setApiPort}
-                      placeholder="5505"
-                      placeholderTextColor={FreeShowTheme.colors.textSecondary}
                       keyboardType="numeric"
                       maxLength={5}
                       editable={!isConnected}
                     />
                   </View>
                 </View>
+                {/* Restore Default Ports Button */}
+                <TouchableOpacity
+                  style={{
+                    alignSelf: 'flex-end',
+                    marginTop: 8,
+                    marginBottom: 8,
+                    paddingVertical: 6,
+                    paddingHorizontal: 14,
+                    backgroundColor: FreeShowTheme.colors.secondary,
+                    borderRadius: 8,
+                  }}
+                  onPress={() => {
+                    setRemotePort(String(defaultPorts.remote));
+                    setStagePort(String(defaultPorts.stage));
+                    setControlPort(String(defaultPorts.control));
+                    setOutputPort(String(defaultPorts.output));
+                    setApiPort(String(defaultPorts.api));
+                  }}
+                >
+                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 13 }}>Restore Default Ports</Text>
+                </TouchableOpacity>
               </View>
             )}
 

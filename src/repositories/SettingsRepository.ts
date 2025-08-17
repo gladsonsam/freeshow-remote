@@ -21,12 +21,9 @@ export interface ConnectionHistory {
   nickname?: string; // User-friendly nickname/display name
   lastUsed: string; // ISO date string
   successfulConnections: number;
-  showPorts?: { // Interface port configs stored per IP
-    remote: number;
-    stage: number;
-    control: number;
-    output: number;
-  };
+  showPorts?: Partial<Record<string, number>>;
+  // Interfaces the user has forced-enabled (e.g. via long-press) which should persist across restarts
+  forcedInterfaces?: string[];
 }
 
 /**
@@ -114,7 +111,8 @@ export class SettingsRepository {
     host: string,
     port: number = 5505,
     nickname?: string,
-    showPorts?: { remote: number; stage: number; control: number; output: number }
+    showPorts?: Partial<Record<string, number>>,
+    forcedInterfaces?: string[]
   ): Promise<void> {
     try {
       const history = await this.getConnectionHistory();
@@ -125,9 +123,10 @@ export class SettingsRepository {
         history[existingIndex] = {
           ...history[existingIndex],
           lastUsed: new Date().toISOString(),
-          successfulConnections: history[existingIndex].successfulConnections + 1,
-          nickname: nickname || history[existingIndex].nickname || host,
-          showPorts: showPorts || history[existingIndex].showPorts,
+      successfulConnections: history[existingIndex].successfulConnections + 1,
+      nickname: nickname || history[existingIndex].nickname || host,
+      showPorts: showPorts || history[existingIndex].showPorts,
+      forcedInterfaces: forcedInterfaces || history[existingIndex].forcedInterfaces,
         };
       } else {
         // Add new entry
@@ -137,7 +136,8 @@ export class SettingsRepository {
           nickname: nickname || host, // Default nickname to hostname/IP
           lastUsed: new Date().toISOString(),
           successfulConnections: 1,
-          showPorts,
+      showPorts,
+      forcedInterfaces,
         };
         history.push(newEntry);
       }

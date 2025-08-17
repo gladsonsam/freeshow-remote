@@ -16,13 +16,7 @@ export interface ConnectionState {
   lastError: string | null;
   connectionStartTime: Date | null;
   lastActivity: Date | null;
-  currentShowPorts: {
-    remote: number;
-    stage: number;
-    control: number;
-    output: number;
-    api: number;
-  } | null;
+  currentShowPorts: Partial<Record<string, number>> | null;
   capabilities: string[] | null;
   autoConnectAttempted: boolean;
 }
@@ -33,14 +27,10 @@ export interface ConnectionActions {
   reconnect: () => Promise<boolean>;
   checkConnection: () => boolean;
   clearError: () => void;
-  updateShowPorts: (ports: {
-    remote: number;
-    stage: number;
-    control: number;
-    output: number;
-    api: number;
-  }) => void;
+  updateShowPorts: (ports: Partial<Record<string, number>>) => void;
   updateCapabilities: (capabilities: string[]) => void;
+  forceEnableInterface?: (id: string) => void;
+  forceDisableInterface?: (id: string) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
   triggerAutoLaunch?: (navigation: any) => Promise<void>;
@@ -84,6 +74,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   const service = injectedService || getDefaultFreeShowService();
   const logContext = 'ConnectionProvider';
   const cancelConnectionRef = useRef(false);
+  const forcedInterfacesRef = useRef<string[]>([]);
 
   // Update navigation ref when navigation prop changes
   useEffect(() => {
@@ -222,6 +213,11 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
             connectionName: lastConnection.nickname || lastConnection.host, 
             connectionStatus: 'connected' 
           }));
+          // Restore forced interfaces from history so UI shows them as enabled
+          if (lastConnection.forcedInterfaces && Array.isArray(lastConnection.forcedInterfaces)) {
+            forcedInterfacesRef.current = lastConnection.forcedInterfaces;
+            setState(prev => ({ ...prev, capabilities: Array.from(new Set([...(prev.capabilities || []), ...forcedInterfacesRef.current])) }));
+          }
           
           // Trigger auto-launch if enabled (with shorter delay since no navigation needed)
           setTimeout(async () => {
@@ -455,7 +451,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     setState(prev => ({ ...prev, connectionStatus: 'connecting', lastError: null }));
     cancelConnectionRef.current = false;
     try {
-      const connectPromise = service.connect(host, port, name);
+  const connectPromise = service.connect(host, port, name);
       await Promise.race([
         connectPromise,
         new Promise((_, reject) => {
@@ -471,6 +467,18 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       ]);
       if (service.isConnected()) {
         setState(prev => ({ ...prev, isConnected: true, connectionHost: host, connectionName: name || host, connectionPort: port || null, connectionStatus: 'connected', lastError: null }));
+        // Persist connection history including any forced interfaces so they survive restarts
+        try {
+          await settingsRepository.addToConnectionHistory(
+            host,
+            port || 5505,
+            name,
+            state.currentShowPorts || undefined,
+            forcedInterfacesRef.current
+          );
+        } catch (err) {
+          ErrorLogger.error('Failed to persist connection history after connect', logContext, err instanceof Error ? err : new Error(String(err)));
+        }
         return true;
       } else {
         setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Failed to connect to FreeShow' }));
@@ -530,13 +538,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }));
   }, []);
 
-  const updateShowPorts = useCallback((ports: {
-    remote: number;
-    stage: number;
-    control: number;
-    output: number;
-    api: number;
-  }): void => {
+  const updateShowPorts = useCallback((ports: Partial<Record<string, number>>): void => {
     setState(prev => ({
       ...prev,
       currentShowPorts: ports,
@@ -549,6 +551,54 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       capabilities,
     }));
   }, []);
+
+  const forceEnableInterface = useCallback((id: string) => {
+    // Update in-memory capabilities for UI
+    setState(prev => {
+      const caps = prev.capabilities ? Array.from(new Set([...prev.capabilities, id])) : [id];
+      return { ...prev, capabilities: caps };
+    });
+
+    // Update local forced interfaces list
+    forcedInterfacesRef.current = Array.from(new Set([...(forcedInterfacesRef.current || []), id]));
+
+    // Persist to connection history for current host (if any)
+    if (state.connectionHost) {
+      settingsRepository.addToConnectionHistory(
+        state.connectionHost,
+        state.connectionPort || 5505,
+        state.connectionName || state.connectionHost,
+        state.currentShowPorts || undefined,
+        forcedInterfacesRef.current
+      ).catch(err => ErrorLogger.error('Failed to persist forced interfaces to history', logContext, err instanceof Error ? err : new Error(String(err))));
+    }
+
+    ErrorLogger.info(`[ConnectionProvider] Force-enabled interface: ${id}`, logContext);
+  }, [state.connectionHost, state.connectionPort, state.connectionName, state.currentShowPorts]);
+
+  const forceDisableInterface = useCallback((id: string) => {
+    // Remove capability from UI
+    setState(prev => ({
+      ...prev,
+      capabilities: (prev.capabilities || []).filter(c => c !== id),
+    }));
+
+    // Remove from forced list
+    forcedInterfacesRef.current = (forcedInterfacesRef.current || []).filter(f => f !== id);
+
+    // Persist change to history for current host
+    if (state.connectionHost) {
+      settingsRepository.addToConnectionHistory(
+        state.connectionHost,
+        state.connectionPort || 5505,
+        state.connectionName || state.connectionHost,
+        state.currentShowPorts || undefined,
+        forcedInterfacesRef.current
+      ).catch(err => ErrorLogger.error('Failed to persist forced interfaces removal', logContext, err instanceof Error ? err : new Error(String(err))));
+    }
+
+    ErrorLogger.info(`[ConnectionProvider] Force-disabled interface: ${id}`, logContext);
+  }, [state.connectionHost, state.connectionPort, state.connectionName, state.currentShowPorts]);
 
   const cancelConnection = useCallback(() => {
     cancelConnectionRef.current = true;
@@ -583,6 +633,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     clearError,
     updateShowPorts,
     updateCapabilities,
+  forceEnableInterface,
+  forceDisableInterface,
     cancelConnection,
     setAutoConnectAttempted,
     triggerAutoLaunch,

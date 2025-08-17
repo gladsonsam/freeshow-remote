@@ -12,6 +12,7 @@ import {
   Modal,
   ActivityIndicator,
   Linking,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection, useSettings } from '../contexts';
+import { settingsRepository } from '../repositories';
+import { configService } from '../config/AppConfig';
+import { ValidationService } from '../services/InputValidationService';
 import { ShowOption } from '../types';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
@@ -67,7 +71,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const { state, actions } = useConnection();
   const { settings } = useSettings();
   const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
-  const { disconnect } = actions;
+  const { disconnect, updateShowPorts, forceEnableInterface } = actions;
   
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -79,6 +83,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const [compactPopup, setCompactPopup] = useState<{ visible: boolean; show: ShowOption | null }>({ visible: false, show: null });
   const [previewModal, setPreviewModal] = useState<{ visible: boolean; url: string; title: string; description?: string; showId?: string; port?: number }>({ visible: false, url: '', title: '', description: '', showId: undefined, port: undefined });
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [portPrompt, setPortPrompt] = useState<{ visible: boolean; showId?: string | null; value: string }>({ visible: false, showId: null, value: '' });
 
   // Force refresh dimensions when component mounts (helps with navigation from other screens)
   useEffect(() => {
@@ -138,12 +143,12 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     // Use current show ports if available, otherwise fall back to defaults
     const showPorts = currentShowPorts || defaultPorts;
 
-    return [
+    const options = [
       {
         id: 'remote',
         title: 'RemoteShow',
         description: 'Control slides and presentations',
-        port: showPorts.remote,
+        port: typeof showPorts.remote === 'number' ? showPorts.remote : 0,
         icon: 'play-circle',
         color: '#f0008c',
       },
@@ -151,7 +156,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         id: 'stage',
         title: 'StageShow',
         description: 'Display for people on stage',
-        port: showPorts.stage,
+        port: typeof showPorts.stage === 'number' ? showPorts.stage : 0,
         icon: 'desktop',
         color: '#2ECC40',
       },
@@ -159,7 +164,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         id: 'control',
         title: 'ControlShow',
         description: 'Control interface for operators',
-        port: showPorts.control,
+        port: typeof showPorts.control === 'number' ? showPorts.control : 0,
         icon: 'settings',
         color: '#0074D9',
       },
@@ -167,7 +172,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         id: 'output',
         title: 'OutputShow',
         description: 'Output display for screens',
-        port: showPorts.output,
+        port: typeof showPorts.output === 'number' ? showPorts.output : 0,
         icon: 'tv',
         color: '#FF851B',
       },
@@ -175,11 +180,17 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         id: 'api',
         title: 'API Controls',
         description: 'Native API controls',
-        port: showPorts.api,
+        port: typeof showPorts.api === 'number' ? showPorts.api : 0,
         icon: 'code-slash',
         color: '#B10DC9',
       },
     ];
+
+    // Annotate disabled state and sort disabled items to the end
+    return options.map(o => ({ ...o, disabled: o.port === 0 })).sort((a, b) => {
+      if (a.disabled === b.disabled) return 0;
+      return a.disabled ? 1 : -1; // enabled first, disabled last
+    });
   };
 
   const showOptions = getShowOptions();
@@ -466,7 +477,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                 ]}
               >
                 <Pressable
-                  onPress={() => handleShowSelect(show)}
+                  onPress={() => { if (!show.disabled) handleShowSelect(show); }}
+                  // Always allow long-press so user can enable a disabled interface
                   onLongPress={() => openCompactPopup(show)}
                   delayLongPress={300}
                   android_ripple={{ color: show.color + '22' }}
@@ -474,7 +486,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                   accessibilityLabel={`${show.title}. ${show.description}`}
                   style={({ pressed }) => ([
                     styles.pressableCard,
-                    pressed && { transform: [{ scale: 0.98 }], opacity: 0.98 },
+                    pressed && !show.disabled && { transform: [{ scale: 0.98 }], opacity: 0.98 },
+                    show.disabled && { opacity: 0.45 },
                   ])}
                 >
                       <LinearGradient
@@ -510,7 +523,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                       <Ionicons
                         name={show.icon as any}
                         size={dimensions.isTablet ? 40 : 32}
-                        color={show.color}
+                        color={show.disabled ? '#888' : show.color}
                       />
                     </View>
 
@@ -538,6 +551,9 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                       ]} numberOfLines={1}>
                         {show.description}
                       </Text>
+                      {show.disabled && (
+                        <Text style={[styles.showDisabledNote]}>Disabled</Text>
+                      )}
                     </View>
                     </LinearGradient>
                   </Pressable>
@@ -609,6 +625,58 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                 <Ionicons name="play-circle" size={20} color="white" style={styles.compactButtonIcon} />
                 <Text style={styles.compactActionButtonText}>Open</Text>
               </TouchableOpacity>
+              {/* compute enabled state for compact popup target */}
+              {(() => {
+                // Consider an interface enabled if either it's in capabilities OR has a non-zero port configured
+                const id = compactPopup.show?.id || '';
+                const portValue = (currentShowPorts && id ? (currentShowPorts as any)[id] : undefined) as number | undefined;
+                const compactIsEnabled = ((state.capabilities || []).includes(id)) || (typeof portValue === 'number' && portValue > 0);
+
+                return (
+                  <TouchableOpacity 
+                    style={[styles.compactActionButton, styles.compactBrowserButton]}
+                    onPress={async () => {
+                      if (!compactPopup.show) return;
+                      const id = compactPopup.show.id;
+                      const isEnabled = compactIsEnabled;
+
+                      // Toggle enable/disable. If enabling, prompt for port first.
+                      if (isEnabled) {
+                        // Disable: remove port from show ports, persist, and remove capability
+                          try {
+                            const defaults = configService.getDefaultShowPorts();
+                            const current = currentShowPorts || defaults;
+                            const updated = { ...current } as any;
+                            delete updated[id]; // Remove the port key
+                            if (actions.updateShowPorts) actions.updateShowPorts(updated);
+
+                            // Persist to history for this host if available
+                            if (connectionHost) {
+                              await settingsRepository.addToConnectionHistory(connectionHost, 5505, connectionName || connectionHost, updated);
+                            }
+
+                            // Remove capability
+                            if (actions.forceDisableInterface) actions.forceDisableInterface(id);
+                          } catch (err) {
+                            console.warn('Failed to disable interface port and persist', err);
+                            setErrorModal({ visible: true, title: 'Error', message: 'Failed to disable interface' });
+                          }
+
+                          closeCompactPopup();
+                      } else {
+                        // Open port prompt modal
+                        const defaults = configService.getDefaultShowPorts();
+                        setPortPrompt({ visible: true, showId: id, value: (defaults as any)[id]?.toString() || '' });
+                      }
+                    }}
+                    accessibilityRole="button"
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="power" size={18} color={FreeShowTheme.colors.text + 'CC'} style={styles.compactButtonIcon} />
+                    <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>{compactIsEnabled ? 'Disable' : 'Enable'}</Text>
+                  </TouchableOpacity>
+                );
+              })()}
               {compactPopup.show?.id !== 'api' && (
                 <TouchableOpacity 
                   style={[styles.compactActionButton, styles.compactBrowserButton]}
@@ -620,6 +688,66 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
                   <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Open in Browser</Text>
                 </TouchableOpacity>
               )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Port prompt for enabling a disabled interface */}
+      <Modal
+        visible={portPrompt.visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPortPrompt({ visible: false, showId: null, value: '' })}
+      >
+        <View style={styles.compactBackdrop}>
+          <TouchableOpacity style={styles.compactBackdropTouchable} activeOpacity={1} onPress={() => setPortPrompt({ visible: false, showId: null, value: '' })} />
+          <View style={styles.compactPopupContainer}>
+            <Text style={styles.compactTitle}>Enable interface</Text>
+            <Text style={styles.compactSubtitle}>Enter port number to enable this interface</Text>
+            <View style={{ marginTop: FreeShowTheme.spacing.md }}>
+              <TextInput
+                value={portPrompt.value}
+                onChangeText={text => setPortPrompt(prev => ({ ...prev, value: text }))}
+                placeholder="Port number"
+                keyboardType="numeric"
+                style={[styles.input, { marginBottom: FreeShowTheme.spacing.md }]}
+              />
+              <View style={{ flexDirection: 'row', gap: FreeShowTheme.spacing.md }}>
+                <TouchableOpacity style={[styles.compactActionButton, styles.compactOpenButton]} onPress={async () => {
+                  // Validate port
+                  const res = ValidationService.validatePort(portPrompt.value);
+                  if (!res.isValid) {
+                    setErrorModal({ visible: true, title: 'Invalid Port', message: res.error || 'Invalid port' });
+                    return;
+                  }
+                  const portNum = res.sanitizedValue as number;
+                  // Update show ports state
+                  const current = currentShowPorts || configService.getDefaultShowPorts();
+                  const updated = { ...current, [portPrompt.showId as string]: portNum } as any;
+                  updateShowPorts(updated);
+
+                  // Persist to history for this host if available
+                  if (connectionHost) {
+                    try {
+                      await settingsRepository.addToConnectionHistory(connectionHost, 5505, connectionName || connectionHost, updated);
+                    } catch (err) {
+                      console.warn('Failed to persist enabled interface port', err);
+                    }
+                  }
+
+                  // Also force-enable capability in connection context
+                  if (actions.forceEnableInterface && portPrompt.showId) actions.forceEnableInterface(portPrompt.showId);
+
+                  setPortPrompt({ visible: false, showId: null, value: '' });
+                  closeCompactPopup();
+                }}>
+                  <Text style={styles.compactActionButtonText}>Enable</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.compactActionButton, styles.compactBrowserButton]} onPress={() => setPortPrompt({ visible: false, showId: null, value: '' })}>
+                  <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -807,6 +935,20 @@ const styles = StyleSheet.create({
     color: FreeShowTheme.colors.text + 'BB',
     fontFamily: FreeShowTheme.fonts.system,
     // fontSize, lineHeight, marginBottom now handled dynamically
+  },
+  showDisabledNote: {
+    marginTop: FreeShowTheme.spacing.xs,
+    color: FreeShowTheme.colors.text + '88',
+    fontSize: FreeShowTheme.fontSize.xs,
+    fontStyle: 'italic',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.text + '22',
+    padding: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.sm,
+    color: FreeShowTheme.colors.text,
+    backgroundColor: FreeShowTheme.colors.primaryDarker + '10',
   },
   showPort: {
     color: FreeShowTheme.colors.text + 'AA',
@@ -1097,6 +1239,14 @@ const styles = StyleSheet.create({
   },
   compactBrowserButtonText: {
     color: FreeShowTheme.colors.text + 'DD',
+  },
+  compactForceButton: {
+    backgroundColor: '#FFFFFF12',
+    borderColor: '#FFFFFF22',
+  },
+  compactForceButtonText: {
+    color: FreeShowTheme.colors.text + 'DD',
+    fontWeight: '600',
   },
 });
 

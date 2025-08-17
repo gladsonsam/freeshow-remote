@@ -354,6 +354,7 @@ export class InputValidationService {
    */
   static validateShowPorts(ports: any): ValidationResult {
     try {
+      // Allow partial show ports: missing or empty values mean the interface is disabled.
       if (!ports || typeof ports !== 'object') {
         return {
           isValid: false,
@@ -361,18 +362,19 @@ export class InputValidationService {
         };
       }
 
-      const requiredPorts = ['remote', 'stage', 'control', 'output'];
+      const portNames = ['remote', 'stage', 'control', 'output', 'api'];
       const sanitizedPorts: any = {};
 
-      for (const portName of requiredPorts) {
-        if (!(portName in ports)) {
-          return {
-            isValid: false,
-            error: `Missing ${portName} port configuration`,
-          };
+      for (const portName of portNames) {
+        const raw = ports[portName];
+
+        // Treat undefined/null/empty string as disabled -> represent as 0
+        if (raw === undefined || raw === null || (typeof raw === 'string' && raw.trim().length === 0)) {
+          sanitizedPorts[portName] = 0;
+          continue;
         }
 
-        const portResult = this.validatePort(ports[portName]);
+        const portResult = this.validatePort(raw);
         if (!portResult.isValid) {
           return {
             isValid: false,
@@ -383,10 +385,10 @@ export class InputValidationService {
         sanitizedPorts[portName] = portResult.sanitizedValue;
       }
 
-      // Check for port conflicts
-      const portValues = Object.values(sanitizedPorts) as number[];
+      // Check for port conflicts, but ignore disabled (0) ports
+  const allValues: any[] = Object.values(sanitizedPorts);
+  const portValues = allValues.filter(v => typeof v === 'number' && v > 0) as number[];
       const uniquePorts = new Set(portValues);
-      
       if (uniquePorts.size !== portValues.length) {
         return {
           isValid: false,

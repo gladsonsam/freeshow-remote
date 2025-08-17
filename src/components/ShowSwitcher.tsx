@@ -32,13 +32,7 @@ interface ShowSwitcherProps {
   currentTitle: string;
   currentShowId: string;
   connectionHost: string;
-  showPorts?: {
-    remote: number;
-    stage: number;
-    control: number;
-    output: number;
-    api: number;
-  };
+  showPorts?: Partial<Record<string, number>>;
   onShowSelect: (show: ShowOption) => void;
 }
 
@@ -73,7 +67,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'remote',
         title: 'RemoteShow',
         description: 'Control slides and presentations remotely',
-        port: actualPorts.remote,
+    port: typeof actualPorts.remote === 'number' ? actualPorts.remote : 0,
         icon: 'play-circle',
         color: '#f0008c',
       },
@@ -81,7 +75,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'stage',
         title: 'StageShow',
         description: 'Stage display for performers and speakers',
-        port: actualPorts.stage,
+    port: typeof actualPorts.stage === 'number' ? actualPorts.stage : 0,
         icon: 'desktop',
         color: '#2ECC40',
       },
@@ -89,7 +83,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'control',
         title: 'ControlShow',
         description: 'Full control interface for operators',
-        port: actualPorts.control,
+    port: typeof actualPorts.control === 'number' ? actualPorts.control : 0,
         icon: 'settings',
         color: '#0074D9',
       },
@@ -97,7 +91,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'output',
         title: 'OutputShow',
         description: 'Output display for screens and projectors',
-        port: actualPorts.output,
+    port: typeof actualPorts.output === 'number' ? actualPorts.output : 0,
         icon: 'tv',
         color: '#FF851B',
       },
@@ -105,7 +99,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         id: 'api',
         title: 'API Controls',
         description: 'Custom native controls using FreeShow API',
-        port: actualPorts.api,
+    port: typeof actualPorts.api === 'number' ? actualPorts.api : 0,
         icon: 'code-slash',
         color: '#B10DC9',
       },
