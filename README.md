@@ -13,7 +13,6 @@ A mobile remote app for [FreeShow](https://freeshow.app) presentation software, 
 ## Screenshots
 
 <div align="center">
-  <img src=".github/assets/connect-page.jpg" width="200" alt="Connection Page"/>
   <img src=".github/assets/main-page.jpg" width="200" alt="Main Remote Control"/>
   <img src=".github/assets/remoteshow.jpg" width="200" alt="Remote Show View"/>
 </div>
