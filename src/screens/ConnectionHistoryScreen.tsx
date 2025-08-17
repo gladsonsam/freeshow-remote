@@ -11,9 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useSettings } from '../contexts';
+import { useSettings, useConnection } from '../contexts';
 import { ConnectionHistory, settingsRepository } from '../repositories';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { ValidationService } from '../services/InputValidationService';
+import { configService } from '../config/AppConfig';
+import { ErrorLogger } from '../services/ErrorLogger';
 
 interface ConnectionHistoryScreenProps {
   navigation: any;
@@ -21,6 +24,9 @@ interface ConnectionHistoryScreenProps {
 
 const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navigation }) => {
   const { history, actions } = useSettings();
+  const connection = useConnection();
+  const { connect, updateShowPorts } = connection.actions;
+  
   const [showEditNickname, setShowEditNickname] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionHistory | null>(null);
   const [editNicknameText, setEditNicknameText] = useState('');
@@ -130,34 +136,90 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           showsVerticalScrollIndicator={false}
         >
           {history.map((item: ConnectionHistory, _index: number) => (
-            <View key={item.id} style={styles.historyItem}>
+            <TouchableOpacity 
+              key={item.id} 
+              style={styles.historyItem}
+              onPress={async () => {
+                try {
+                  // Validate host from history
+                  const hostValidation = ValidationService.validateHost(item.host);
+                  if (!hostValidation.isValid) {
+                    console.error('Invalid host in history item:', hostValidation.error);
+                    return;
+                  }
+
+                  // Update UI with history item data
+                  const sanitizedHost = hostValidation.sanitizedValue as string;
+                  
+                  // Validate and update interface ports from stored history
+                  let validatedShowPorts;
+                  
+                  if (item.showPorts) {
+                    const showPortsValidation = ValidationService.validateShowPorts(item.showPorts);
+                    if (!showPortsValidation.isValid) {
+                      ErrorLogger.warn('History item has invalid show ports, using defaults', 'ConnectionHistoryScreen', 
+                        new Error(`Invalid ports: ${JSON.stringify(item.showPorts)}`)
+                      );
+                      validatedShowPorts = configService.getDefaultShowPorts();
+                    } else {
+                      validatedShowPorts = showPortsValidation.sanitizedValue;
+                    }
+                  } else {
+                    // Use default ports if none stored
+                    validatedShowPorts = configService.getDefaultShowPorts();
+                  }
+                  
+                  ErrorLogger.info('Attempting connection from history with validated inputs', 'ConnectionHistoryScreen', 
+                    new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(validatedShowPorts)}`)
+                  );
+
+                  const defaultPort = configService.getNetworkConfig().defaultPort;
+                  const connected = await connect(sanitizedHost, defaultPort, item.nickname);
+                  
+                  if (connected) {
+                    // Update show ports after successful connection
+                    updateShowPorts(validatedShowPorts);
+                    // Navigate to Interface screen using the correct nested navigation
+                    navigation.navigate('Main', { screen: 'Interface' });
+                  }
+                } catch (error) {
+                  ErrorLogger.error('History connection failed', 'ConnectionHistoryScreen', error instanceof Error ? error : new Error(String(error)));
+                }
+              }}
+            >
               <View style={styles.historyItemHeader}>
                 <View style={styles.historyItemIcon}>
                   <Ionicons name="desktop" size={20} color={FreeShowTheme.colors.secondary} />
                 </View>
-                                                  <View style={styles.historyItemInfo}>
-                   <Text style={styles.historyItemHost}>{item.nickname || item.host}</Text>
-                   {item.nickname && item.nickname !== item.host && (
-                     <Text style={styles.historyItemIP}>{item.host}</Text>
-                   )}
-                   <Text style={styles.historyItemTime}>
-                     Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                   </Text>
-                 </View>
-                                 <View style={styles.historyItemActions}>
-                   <TouchableOpacity
-                     style={styles.editButton}
-                     onPress={() => handleEditNickname(item)}
-                   >
-                     <Ionicons name="create-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
-                   </TouchableOpacity>
-                   <TouchableOpacity
-                     style={styles.deleteButton}
-                     onPress={() => handleRemoveFromHistory(item.id)}
-                   >
-                     <Ionicons name="trash-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
-                   </TouchableOpacity>
-                 </View>
+                <View style={styles.historyItemInfo}>
+                  <Text style={styles.historyItemHost}>{item.nickname || item.host}</Text>
+                  {item.nickname && item.nickname !== item.host && (
+                    <Text style={styles.historyItemIP}>{item.host}</Text>
+                  )}
+                  <Text style={styles.historyItemTime}>
+                    Last used: {new Date(item.lastUsed).toLocaleDateString()} at {new Date(item.lastUsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+                <View style={styles.historyItemActions}>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleEditNickname(item);
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFromHistory(item.id);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
               </View>
               
               {item.showPorts && (
@@ -183,7 +245,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                   </View>
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       ) : (
@@ -512,4 +574,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ConnectionHistoryScreen; 
+export default ConnectionHistoryScreen;

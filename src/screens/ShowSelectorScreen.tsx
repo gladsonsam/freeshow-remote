@@ -260,7 +260,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     setShowDisconnectConfirm(false);
     try {
       if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Connect');
+        navigation.navigate('Main', { screen: 'Connect' });
       } else {
         console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
       }
@@ -369,7 +369,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const navigateToConnect = () => {
     try {
       if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Connect');
+        navigation.navigate('Main', { screen: 'Connect' });
       } else {
         console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
       }

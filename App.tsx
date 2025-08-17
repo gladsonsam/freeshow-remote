@@ -267,6 +267,12 @@ function SidebarLayout() {
         }
       }
     },
+    addListener: (_event: string, callback: () => void) => {
+      // Mock implementation for sidebar layout
+      // In sidebar layout, we handle focus events differently
+      callback();
+      return () => {}; // Return no-op unsubscribe function
+    },
     getParent: () => mainNavigation || null,
   }), [handleNavigate, mainNavigation]);
 

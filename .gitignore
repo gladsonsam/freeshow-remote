@@ -48,6 +48,7 @@ yarn-error.*
 
 # Local documentation (not for GitHub)
 docs-local/
+QWEN.md
 
 # Build output
 .build/

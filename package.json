@@ -30,7 +30,6 @@
     "submit:ios": "eas submit --platform ios",
     "submit:all": "eas submit --platform all",
     "update": "eas update",
-    "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

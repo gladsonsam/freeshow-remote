@@ -96,6 +96,36 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     setScanComplete(false);
   }, []);
 
+  // Handle navigation parameter for history item connection
+  useEffect(() => {
+    // Only add listener if navigation has addListener method (not available in sidebar layout)
+    if (typeof navigation?.addListener === 'function') {
+      const unsubscribe = navigation.addListener('focus', () => {
+        const historyItem = navigation.getParam?.('historyItem');
+        if (historyItem) {
+          // Remove the parameter so it doesn't trigger again
+          navigation.setParams?.({ historyItem: undefined });
+          // Connect using the history item
+          handleHistoryConnect(historyItem);
+        }
+      });
+
+      return unsubscribe;
+    }
+    
+    // For sidebar layout, check for historyItem on initial render
+    const historyItem = navigation?.getParam?.('historyItem');
+    if (historyItem) {
+      // Remove the parameter so it doesn't trigger again
+      navigation.setParams?.({ historyItem: undefined });
+      // Connect using the history item
+      handleHistoryConnect(historyItem);
+    }
+    
+    // Return a no-op cleanup function
+    return () => {};
+  }, [navigation]);
+
   // Handle scan progress
   useEffect(() => {
     if (isScanActive) {
@@ -291,7 +321,14 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       if (connected) {
         // Update show ports after successful connection
         updateShowPorts(validatedShowPorts);
-        navigation.navigate('Interface');
+        // Navigate to Interface screen, handling both sidebar and bottom tab layouts
+        if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('Interface');
+        } else {
+          // For sidebar layout, we might not need to navigate since we're already on the Connect screen
+          // The interface should update automatically based on the connection state
+          ErrorLogger.debug('Connected successfully, but no navigation function available (likely in sidebar layout)', 'ConnectScreen');
+        }
       }
     } catch (error) {
       ErrorLogger.error('History connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
@@ -358,7 +395,14 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           showPorts
         );
         
-        navigation.navigate('Interface');
+        // Navigate to Interface screen, handling both sidebar and bottom tab layouts
+        if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('Interface');
+        } else {
+          // For sidebar layout, we might not need to navigate since we're already on the Connect screen
+          // The interface should update automatically based on the connection state
+          ErrorLogger.debug('Connected successfully, but no navigation function available (likely in sidebar layout)', 'ConnectScreen');
+        }
       }
     } catch (error) {
       ErrorLogger.error('Discovered service connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
