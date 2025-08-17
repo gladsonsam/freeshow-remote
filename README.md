@@ -13,14 +13,14 @@ A mobile remote app for [FreeShow](https://freeshow.app) presentation software, 
 ## Screenshots
 
 <div align="center">
-  <img src=".github/assets/connect-page.jpg" width="200" alt="Connection Page"/>
-  <img src=".github/assets/main-page.jpg" width="200" alt="Main Remote Control"/>
-  <img src=".github/assets/remoteshow.jpg" width="200" alt="Remote Show View"/>
+  <img src=".github/assets/connect-page1.jpg" width="200" alt="Connection Page"/>
+  <img src=".github/assets/main-page1.jpg" width="200" alt="Main Remote Control"/>
+  <img src=".github/assets/remoteshow1.jpg" width="200" alt="Remote Show View"/>
 </div>
 
 <div align="center">
 
-  <img src=".github/assets/quick-switch.jpg" width="200" alt="Quick Show Switching"/>
+  <img src=".github/assets/quick-switch1.jpg" width="200" alt="Quick Show Switching"/>
   <img src=".github/assets/stageshow.jpg" width="200" alt="Stage Show Display"/>
 </div>
 
