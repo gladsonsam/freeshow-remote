@@ -29,9 +29,7 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease",
-        "enableProguardInReleaseBuilds": true,
-        "enableHermes": true
+        "gradleCommand": ":app:bundleRelease"
       }
     },
     "production-aab": {
