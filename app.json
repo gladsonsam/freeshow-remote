@@ -2,13 +2,16 @@
   "expo": {
     "name": "FreeShow Remote",
     "slug": "freeshow-remote",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "scheme": "freeshow-remote",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "cover",
@@ -25,7 +28,7 @@
           "NSAllowsArbitraryLoads": true
         },
         "CFBundleDisplayName": "FreeShow Remote",
-        "CFBundleShortVersionString": "1.0.0",
+        "CFBundleShortVersionString": "1.0.1",
         "CFBundleVersion": "1",
         "UIStatusBarHidden": false,
         "UIViewControllerBasedStatusBarAppearance": true,

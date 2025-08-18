@@ -1,26 +1,26 @@
 import Zeroconf, { ZeroconfService, ZeroconfError } from 'react-native-zeroconf';
+import { ErrorLogger } from './ErrorLogger';
 
 export interface DiscoveredFreeShowInstance {
   name: string; // Display name (hostname or IP)
   host: string; // mDNS hostname, e.g. 'MyMacBook.local.'
-  port: number; // Primary port (usually API port if available)
+  port: number; // Primary port (API port)
   ip: string; // Primary IP for deduplication
-  ports?: {
+  ports: {
     api?: number;
     remote?: number;
     stage?: number;
     control?: number;
     output?: number;
-    [key: string]: number | undefined;
   };
-  capabilities?: string[];
-  apiEnabled?: boolean;
+  capabilities: string[];
+  apiEnabled: boolean;
 }
 
 export type DiscoveryEventCallback = (instances: DiscoveredFreeShowInstance[]) => void;
 export type ErrorEventCallback = (error: string) => void;
 
-// Temporary interface for pending service aggregation
+// Internal interface for pending service aggregation
 interface PendingService {
   name: string;
   host: string;
@@ -31,59 +31,89 @@ interface PendingService {
   isApi: boolean;
 }
 
-import { ErrorLogger } from './ErrorLogger';
-
 /**
  * Parse service name to determine capability and port mapping
+ * Handles both old format (e.g. "API", "REMOTE") and new format (e.g. "HOSTNAME-REMOTE-RANDOMHEX")
  */
-function parseServiceCapability(serviceName: string, _port: number): { 
+function parseServiceCapability(serviceName: string): { 
   capability: string; 
   portKey: string; 
   isApi: boolean;
 } {
-  const name = (serviceName || '').toUpperCase().trim(); // FreeShow uses uppercase service names
+  const name = (serviceName || '').trim();
+  
+  // Handle new format: HOSTNAME-CONNECTION-RANDOMHEX
+  // Examples: "Gladson-Laptop-REMOTE-d00a5b", "My-PC-With-Hyphens-STAGE-d00a5b"
+  const parts = name.split('-');
+  if (parts.length >= 3) {
+    // New format detected - the connection type is the second-to-last part
+    // and the random hex is the last part
+    const connectionType = parts[parts.length - 2].toUpperCase();
+    
+    switch (connectionType) {
+      case 'API':
+        return { capability: 'api', portKey: 'api', isApi: true };
+      case 'REMOTE':
+        return { capability: 'remoteshow', portKey: 'remote', isApi: false };
+      case 'STAGE':
+        return { capability: 'stageshow', portKey: 'stage', isApi: false };
+      case 'CONTROLLER':
+        return { capability: 'controlshow', portKey: 'control', isApi: false };
+      case 'OUTPUT_STREAM':
+      case 'OUTPUT':
+        return { capability: 'outputshow', portKey: 'output', isApi: false };
+    }
+  }
+  
+  // Handle old format for backward compatibility
+  const upperName = name.toUpperCase();
   
   // Check for exact FreeShow service names
-  if (name === 'API') {
+  if (upperName === 'API') {
     return { capability: 'api', portKey: 'api', isApi: true };
   }
-  if (name === 'REMOTE') {
+  if (upperName === 'REMOTE') {
     return { capability: 'remoteshow', portKey: 'remote', isApi: false };
   }
-  if (name === 'STAGE') {
+  if (upperName === 'STAGE') {
     return { capability: 'stageshow', portKey: 'stage', isApi: false };
   }
-  if (name === 'CONTROLLER') {
+  if (upperName === 'CONTROLLER') {
     return { capability: 'controlshow', portKey: 'control', isApi: false };
   }
-  if (name === 'OUTPUT_STREAM' || name === 'OUTPUT') {
+  if (upperName === 'OUTPUT_STREAM' || upperName === 'OUTPUT') {
     return { capability: 'outputshow', portKey: 'output', isApi: false };
   }
   
-  // Fallback for lowercase or partial matches  
-  const lowerName = serviceName.toLowerCase();
-  if (lowerName.includes('api') || lowerName.includes('server') || lowerName === 'freeshow') {
-    return { capability: 'api', portKey: 'api', isApi: true };
-  }
-  if (lowerName.includes('remote')) {
-    return { capability: 'remoteshow', portKey: 'remote', isApi: false };
-  }
-  if (lowerName.includes('stage')) {
-    return { capability: 'stageshow', portKey: 'stage', isApi: false };
-  }
-  if (lowerName.includes('control')) {
-    return { capability: 'controlshow', portKey: 'control', isApi: false };
-  }
-  if (lowerName.includes('output')) {
-    return { capability: 'outputshow', portKey: 'output', isApi: false };
-  }
-  
-  // For unknown services, use the name as-is
+  // Fallback for unknown services
   return { 
-    capability: `unknown:${name}`, 
-    portKey: name || 'unknown', 
+    capability: `unknown:${upperName}`, 
+    portKey: upperName.toLowerCase() || 'unknown', 
     isApi: false 
   };
+}
+
+/**
+ * Extract hostname from new format service names
+ * Returns the hostname part from names like "Gladson-Laptop-REMOTE-d00a5b"
+ * Handles hostnames with hyphens like "My-PC-With-Hyphens-STAGE-d00a5b"
+ */
+function extractHostnameFromServiceName(serviceName: string): string | null {
+  const parts = serviceName.split('-');
+  // New format has at least 3 parts: HOSTNAME-CONNECTION-RANDOMHEX
+  if (parts.length >= 3) {
+    // Join all parts except the last two (connection type and random hex)
+    const hostnameParts = parts.slice(0, parts.length - 2);
+    return hostnameParts.join('-');
+  }
+  return null;
+}
+
+/**
+ * Format hostname for display by replacing hyphens with spaces
+ */
+function formatHostnameForDisplay(hostname: string): string {
+  return hostname.replace(/-/g, ' ');
 }
 
 class AutoDiscoveryService {
@@ -94,9 +124,9 @@ class AutoDiscoveryService {
   private scanTimeout: NodeJS.Timeout | null = null;
   private readonly SCAN_TIMEOUT_MS = 15000; // 15 seconds timeout
   
-  // Throttling and debouncing for performance optimization
+  // Throttling for performance optimization
   private updateThrottleTimeout: NodeJS.Timeout | null = null;
-  private readonly UPDATE_THROTTLE_MS = 500; // Throttle service updates to max once per 500ms
+  private readonly UPDATE_THROTTLE_MS = 500; // Throttle service updates
   private pendingUpdate = false;
   
   private listeners: {
@@ -109,14 +139,7 @@ class AutoDiscoveryService {
 
   constructor() {
     try {
-      ErrorLogger.debug('🔧 AutoDiscovery: Initializing Zeroconf service...', 'AutoDiscoveryService');
       this.zeroconf = new Zeroconf();
-      
-      if (!this.zeroconf) {
-        throw new Error('Zeroconf constructor returned null/undefined');
-      }
-      
-      ErrorLogger.info('✅ AutoDiscovery: Zeroconf initialized successfully', 'AutoDiscoveryService');
       this.setupEventListeners();
     } catch (error) {
       ErrorLogger.error('❌ AutoDiscovery: Failed to initialize Zeroconf', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
@@ -133,8 +156,6 @@ class AutoDiscoveryService {
       }
       
       this.zeroconf = null;
-      
-      // Don't notify error immediately - wait until discovery is actually attempted
     }
   }
 
@@ -148,10 +169,8 @@ class AutoDiscoveryService {
     // Initialize the aggregated instance
     const ports: Record<string, number> = {};
     const capabilities: string[] = [];
-    let primaryPort = 5505; // Default fallback
     let displayName = ip;
     let host = '';
-    let hasApi = false;
     
     // Process each service for this IP
     services.forEach((service: PendingService) => {
@@ -163,46 +182,42 @@ class AutoDiscoveryService {
         capabilities.push(service.capability);
       }
       
-      if (service.isApi) {
-        hasApi = true;
-        primaryPort = service.port; // Use API port as primary
-      }
-      
-      // Prioritize hostname over service name for display
+      // Use hostname for display name if available
       if (service.host) {
         host = service.host;
-        // Use hostname without .local suffix as display name
         const hostname = service.host.replace(/\.local\.?$/, '');
         if (hostname && hostname !== ip) {
-          displayName = hostname;
+          displayName = formatHostnameForDisplay(hostname);
         }
+      }
+      
+      // For new format service names, extract hostname for display
+      const extractedHostname = extractHostnameFromServiceName(service.name);
+      if (extractedHostname && extractedHostname !== ip) {
+        displayName = formatHostnameForDisplay(extractedHostname);
       }
     });
     
-    // API always uses default port 5505 (not broadcasted via Bonjour)
-    // Set primary port to default API port since that's what we'll connect to
-    primaryPort = 5505;
-    
     // Create the aggregated instance
-    // API is available as long as any service is running (API endpoint runs on service ports)
     const aggregatedInstance: DiscoveredFreeShowInstance = {
       name: displayName,
       host: host || '',
-      port: primaryPort,
+      // Use discovered API port or default to 5505
+      port: ports.api || 5505,
       ip: ip,
-      ports: ports,
+      ports: {
+        api: ports.api,
+        remote: ports.remote,
+        stage: ports.stage,
+        control: ports.control,
+        output: ports.output,
+      },
       capabilities: capabilities,
-      apiEnabled: capabilities.length > 0, // API available if any service is running
+      apiEnabled: capabilities.length > 0,
     };
     
     // Store the aggregated instance
     this.discoveredServices.set(ip, aggregatedInstance);
-    
-    ErrorLogger.debug(`🔗 AutoDiscovery: Aggregated ${services.length} services for ${ip}`, 'AutoDiscoveryService', {
-      ports,
-      capabilities,
-      apiEnabled: hasApi,
-    });
   }
 
   private setupEventListeners(): void {
@@ -211,7 +226,6 @@ class AutoDiscoveryService {
       return;
     }
 
-    // Service found
     this.zeroconf.on('start', () => {
       ErrorLogger.info('🔍 AutoDiscovery: Started scanning for FreeShow instances', 'AutoDiscoveryService');
     });
@@ -223,26 +237,30 @@ class AutoDiscoveryService {
     });
 
     this.zeroconf.on('error', (error: ZeroconfError) => {
-      ErrorLogger.error('❌ AutoDiscovery Error', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error('❌ AutoDiscovery Error', 'AutoDiscoveryService', new Error(error.message || 'Unknown error'));
       this.notifyError(`Discovery error: ${error.message || 'Unknown error'}`);
     });
 
     // Service resolved (we get the full details)
     this.zeroconf.on('resolved', (service: ZeroconfService) => {
-      ErrorLogger.info('✅ AutoDiscovery: FreeShow service resolved', 'AutoDiscoveryService', { service });
+      ErrorLogger.info('✅ AutoDiscovery: FreeShow service resolved', 'AutoDiscoveryService', { 
+        name: service.name, 
+        host: service.host, 
+        port: service.port 
+      });
       
       // Get the primary IP address
       const primaryIP = service.addresses?.[0] || service.host;
       
-      // Parse service capability from name and port
-      const { capability, portKey, isApi } = parseServiceCapability(service.name, service.port);
+      // Parse service capability from name
+      const { capability, portKey, isApi } = parseServiceCapability(service.name);
       
       // Get or create pending services for this IP
       const ipServices = this.pendingServices.get(primaryIP) || [];
       
       // Add this service to the pending list
       ipServices.push({
-        name: service.name || primaryIP, // Keep service name for debugging
+        name: service.name || primaryIP,
         host: service.host || '',
         port: service.port,
         ip: primaryIP,
@@ -284,14 +302,10 @@ class AutoDiscoveryService {
     });
   }
 
-  /**
-   * Start scanning for FreeShow services on the network
-   * FreeShow publishes services with type "freeshow" over UDP
-   */
   startDiscovery(): void {
     if (!this.zeroconf) {
       const error = 'Autodiscovery requires a development build. Please use manual connection.';
-      ErrorLogger.error('❌ AutoDiscovery', 'AutoDiscoveryService', new Error(String(error)));
+      ErrorLogger.error('❌ AutoDiscovery', 'AutoDiscoveryService', new Error(error));
       this.notifyError(error);
       return;
     }
@@ -311,7 +325,6 @@ class AutoDiscoveryService {
       this.setScanTimeout();
       
       // Scan for FreeShow services
-      // FreeShow publishes with type "freeshow" and protocol "udp"
       this.zeroconf.scan('freeshow', 'udp');
     } catch (error) {
       ErrorLogger.error('❌ AutoDiscovery: Failed to start scanning', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
@@ -320,9 +333,6 @@ class AutoDiscoveryService {
     }
   }
 
-  /**
-   * Stop scanning for services
-   */
   stopDiscovery(): void {
     if (!this.zeroconf) {
       ErrorLogger.warn('⚠️ AutoDiscovery: Zeroconf not initialized', 'AutoDiscoveryService');
@@ -344,44 +354,26 @@ class AutoDiscoveryService {
     }
   }
 
-  /**
-   * Get all currently discovered FreeShow instances
-   */
   getDiscoveredServices(): DiscoveredFreeShowInstance[] {
     return Array.from(this.discoveredServices.values());
   }
 
-  /**
-   * Check if currently scanning
-   */
   isActive(): boolean {
     return this.isScanning;
   }
 
-  /**
-   * Check if autodiscovery is available (requires development build)
-   */
   isAvailable(): boolean {
     return this.zeroconf !== null;
   }
 
-  /**
-   * Add listener for when services are updated
-   */
   onServicesUpdated(callback: DiscoveryEventCallback): void {
     this.listeners.onServicesUpdated.push(callback);
   }
 
-  /**
-   * Add listener for errors
-   */
   onError(callback: ErrorEventCallback): void {
     this.listeners.onError.push(callback);
   }
 
-  /**
-   * Remove a specific listener
-   */
   removeListener(event: 'onServicesUpdated' | 'onError', callback: DiscoveryEventCallback | ErrorEventCallback): void {
     if (event === 'onServicesUpdated') {
       const index = this.listeners.onServicesUpdated.indexOf(callback as DiscoveryEventCallback);
@@ -396,17 +388,11 @@ class AutoDiscoveryService {
     }
   }
 
-  /**
-   * Remove all listeners
-   */
   removeAllListeners(): void {
     this.listeners.onServicesUpdated = [];
     this.listeners.onError = [];
   }
 
-  /**
-   * Clean up resources
-   */
   destroy(): void {
     this.stopDiscovery();
     this.removeAllListeners();
@@ -447,7 +433,6 @@ class AutoDiscoveryService {
 
   /**
    * Throttled version of notifyServicesUpdated to prevent excessive updates
-   * This improves performance by batching rapid discovery events
    */
   private notifyServicesUpdatedThrottled(): void {
     // If we already have a pending update, just mark that we need to update
@@ -473,8 +458,6 @@ class AutoDiscoveryService {
 
   private notifyServicesUpdated(): void {
     const services = this.getDiscoveredServices();
-    ErrorLogger.debug(`🔄 AutoDiscovery: Notifying ${this.listeners.onServicesUpdated.length} listeners of ${services.length} services`, 'AutoDiscoveryService');
-    
     this.listeners.onServicesUpdated.forEach(callback => {
       try {
         callback(services);

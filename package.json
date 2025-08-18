@@ -1,6 +1,6 @@
 {
   "name": "freeshow-remote",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A mobile remote app for FreeShow presentation software",
   "main": "index.ts",
   "license": "MIT",
@@ -31,7 +31,8 @@
     "submit:all": "eas submit --platform all",
     "update": "eas update",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "version": "node scripts/sync-version.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",

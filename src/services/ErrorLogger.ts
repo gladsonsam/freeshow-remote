@@ -1,4 +1,6 @@
 // Error logging and reporting service
+const packageJson = require('../../package.json');
+
 export interface LogEntry {
   timestamp: Date;
   level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
@@ -150,7 +152,7 @@ export class ErrorLogger {
   static exportLogs(): string {
     const exportData = {
       timestamp: new Date().toISOString(),
-      appVersion: '1.0.0', // Could be imported from package.json
+      appVersion: packageJson.version,
       platform: 'React Native',
       stats: this.getStats(),
       logs: this.logs.map(log => ({
@@ -197,11 +199,10 @@ export class ErrorLogger {
         if (result instanceof Promise) {
           return this.wrapAsync(result, context, `${functionName || 'Function'} failed`);
         }
-        
         return result;
       } catch (error) {
         this.error(
-          `${functionName || 'Function'} threw an error`,
+          `${functionName || 'Function'} failed`,
           context,
           error instanceof Error ? error : new Error(String(error))
         );

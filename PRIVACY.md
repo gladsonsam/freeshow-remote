@@ -1,10 +1,12 @@
 # Privacy Policy for FreeShow Remote
 
-**Last updated: August 16, 2025**
+**Last updated: August 18, 2025**
 
 ## Overview
 
 FreeShow Remote ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard information when you use our mobile application.
+
+This app is rated for ages 3 and up. It does not contain any content inappropriate for children and has no age restrictions for use.
 
 ## Information We Collect
 
@@ -43,7 +45,7 @@ We do not share, sell, or transfer your personal information to third parties. A
 
 ## Children's Privacy
 
-This app is not designed for children under 13. We do not knowingly collect personal information from children under 13.
+This app is designed for users of all ages. It does not collect personal information from children, and all data remains on the user's device.
 
 ## Your Rights
 
