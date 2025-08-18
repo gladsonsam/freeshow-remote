@@ -24,6 +24,9 @@ const ShowCard: React.FC<ShowCardProps> = ({
   isGrid,
   index,
 }) => {
+  // Check if interface is disabled (port is 0 or falsy)
+  const isDisabled = !show.port || show.port === 0;
+  
   return (
     <View
       style={[
@@ -42,7 +45,7 @@ const ShowCard: React.FC<ShowCardProps> = ({
       ]}
     >
       <Pressable
-        onPress={onPress}
+        onPress={isDisabled ? undefined : onPress}
         onLongPress={onLongPress}
         delayLongPress={300}
         android_ripple={{ color: show.color + '22' }}
@@ -51,13 +54,14 @@ const ShowCard: React.FC<ShowCardProps> = ({
         style={({ pressed }) => ([
           styles.pressableCard,
           pressed && { transform: [{ scale: 0.98 }], opacity: 0.98 },
+          isDisabled && styles.disabledCard,
         ])}
       >
         <LinearGradient
           colors={[
             FreeShowTheme.colors.primaryDarker,
             FreeShowTheme.colors.primaryDarker + 'F2',
-            show.color + '18',
+            isDisabled ? '#66666618' : show.color + '18',
           ]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -65,7 +69,7 @@ const ShowCard: React.FC<ShowCardProps> = ({
             styles.showCard,
             styles.cardShadow,
             {
-              borderLeftColor: show.color,
+              borderLeftColor: isDisabled ? '#666666' : show.color,
               padding: isTablet
                 ? FreeShowTheme.spacing.xxl
                 : isSmallScreen
@@ -78,7 +82,7 @@ const ShowCard: React.FC<ShowCardProps> = ({
           <View style={[
             styles.iconContainer,
             {
-              backgroundColor: show.color + '20',
+              backgroundColor: isDisabled ? '#66666620' : show.color + '20',
               width: isTablet ? 72 : 56,
               height: isTablet ? 72 : 56,
             }
@@ -86,13 +90,14 @@ const ShowCard: React.FC<ShowCardProps> = ({
             <Ionicons
               name={show.icon as any}
               size={isTablet ? 40 : 32}
-              color={show.color}
+              color={isDisabled ? '#666666' : show.color}
             />
           </View>
 
           <View style={styles.showInfo}>
             <Text style={[
               styles.showTitle,
+              isDisabled && styles.disabledText,
               {
                 fontSize: isTablet
                   ? FreeShowTheme.fontSize.xl
@@ -104,6 +109,7 @@ const ShowCard: React.FC<ShowCardProps> = ({
             </Text>
             <Text style={[
               styles.showDescription,
+              isDisabled && styles.disabledText,
               {
                 fontSize: isTablet
                   ? FreeShowTheme.fontSize.md
@@ -160,6 +166,12 @@ const styles = StyleSheet.create({
   showDescription: {
     color: FreeShowTheme.colors.text + 'BB',
     fontFamily: FreeShowTheme.fonts.system,
+  },
+  disabledCard: {
+    opacity: 0.6,
+  },
+  disabledText: {
+    color: '#666666',
   },
 });
 

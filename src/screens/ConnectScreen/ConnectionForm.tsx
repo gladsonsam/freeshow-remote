@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { useConnection } from '../../contexts';
 import { ValidationService } from '../../services/InputValidationService';
 import { ErrorLogger } from '../../services/ErrorLogger';
+import { configService } from '../../config/AppConfig';
 
 interface ConnectionFormProps {
   host: string;
@@ -57,20 +58,28 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
 }) => {
   const connection = useConnection();
   const { updateShowPorts } = connection.actions;
+  const defaultPorts = configService.getDefaultShowPorts();
 
-  // Update current show ports whenever port values change and we're connected
+  // Convert port strings to numbers for show ports
+  const getShowPorts = useCallback(() => ({
+    remote: remotePort.trim() === '' ? 0 : (parseInt(remotePort) || 0),
+    stage: stagePort.trim() === '' ? 0 : (parseInt(stagePort) || 0),
+    control: controlPort.trim() === '' ? 0 : (parseInt(controlPort) || 0),
+    output: outputPort.trim() === '' ? 0 : (parseInt(outputPort) || 0),
+    api: apiPort.trim() === '' ? 0 : (parseInt(apiPort) || 0),
+  }), [remotePort, stagePort, controlPort, outputPort, apiPort]);
+
+  // Update show ports when connected and ports change
+  const prevPortsRef = useRef<string>('');
   useEffect(() => {
     if (isConnected) {
-      const showPorts = {
-        remote: parseInt(remotePort) || 5510,
-        stage: parseInt(stagePort) || 5511,
-        control: parseInt(controlPort) || 5512,
-        output: parseInt(outputPort) || 5513,
-        api: parseInt(apiPort) || 5505,
-      };
-      updateShowPorts(showPorts);
+      const currentPortsKey = `${remotePort}-${stagePort}-${controlPort}-${outputPort}-${apiPort}`;
+      if (currentPortsKey !== prevPortsRef.current) {
+        updateShowPorts(getShowPorts());
+        prevPortsRef.current = currentPortsKey;
+      }
     }
-  }, [isConnected, remotePort, stagePort, controlPort, outputPort, apiPort]);
+  }, [isConnected, remotePort, stagePort, controlPort, outputPort, apiPort, updateShowPorts, getShowPorts]);
 
   const handleConnect = async () => {
     try {
@@ -81,7 +90,7 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
         throw new Error(`Invalid host: ${hostValidation.error || 'Please enter a valid host address'}`);
       }
 
-      // Validate show ports
+      // Validate show ports (allow blank ports to be treated as disabled)
       const portsToValidate = {
         remote: remotePort,
         stage: stagePort,
@@ -92,14 +101,19 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
       const validatedPorts: any = {};
       for (const [portName, portValue] of Object.entries(portsToValidate)) {
-        const portValidation = ValidationService.validatePort(portValue);
-        if (!portValidation.isValid) {
-          throw new Error(`${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`);
+        // If port is blank, treat as disabled (port = 0)
+        if (portValue.trim() === '') {
+          validatedPorts[portName] = 0;
+        } else {
+          const portValidation = ValidationService.validatePort(portValue);
+          if (!portValidation.isValid) {
+            throw new Error(`${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`);
+          }
+          validatedPorts[portName] = portValidation.sanitizedValue;
         }
-        validatedPorts[portName] = portValidation.sanitizedValue;
       }
 
-      // Additional validation for show ports as a group
+      // Validate all ports (the validation function handles disabled ports)
       const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
       if (!showPortsValidation.isValid) {
         throw new Error(showPortsValidation.error || 'Invalid port configuration');
@@ -109,6 +123,35 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
     } catch (error) {
       ErrorLogger.error('Manual connection failed', 'ConnectionForm', error instanceof Error ? error : new Error(String(error)));
       throw error;
+    }
+  };
+
+  const handleRestoreDefaults = () => {
+    setRemotePort(String(defaultPorts?.remote ?? 5510));
+    setStagePort(String(defaultPorts?.stage ?? 5511));
+    setControlPort(String(defaultPorts?.control ?? 5512));
+    setOutputPort(String(defaultPorts?.output ?? 5513));
+    setApiPort(String(defaultPorts?.api ?? 5505));
+  };
+
+  // Function to clear a port (disable an interface)
+  const handleClearPort = (portType: 'remote' | 'stage' | 'control' | 'output' | 'api') => {
+    switch (portType) {
+      case 'remote':
+        setRemotePort('');
+        break;
+      case 'stage':
+        setStagePort('');
+        break;
+      case 'control':
+        setControlPort('');
+        break;
+      case 'output':
+        setOutputPort('');
+        break;
+      case 'api':
+        setApiPort('');
+        break;
     }
   };
 
@@ -160,74 +203,135 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
           <View style={styles.portGrid}>
             <View style={styles.portItem}>
               <Text style={styles.portLabel}>Remote</Text>
-              <TextInput
-                style={styles.portInput}
-                value={remotePort}
-                onChangeText={setRemotePort}
-                placeholder="5510"
-                placeholderTextColor={FreeShowTheme.colors.textSecondary}
-                keyboardType="numeric"
-                maxLength={5}
-                editable={!isConnected}
-              />
+              <View style={styles.portInputContainer}>
+                <TextInput
+                  style={styles.portInput}
+                  value={remotePort}
+                  onChangeText={setRemotePort}
+                  placeholder=""
+                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!isConnected}
+                />
+                {remotePort !== '' && !isConnected && (
+                  <TouchableOpacity 
+                    style={styles.clearPortButton}
+                    onPress={() => handleClearPort('remote')}
+                  >
+                    <Ionicons name="close" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <View style={styles.portItem}>
               <Text style={styles.portLabel}>Stage</Text>
-              <TextInput
-                style={styles.portInput}
-                value={stagePort}
-                onChangeText={setStagePort}
-                placeholder="5511"
-                placeholderTextColor={FreeShowTheme.colors.textSecondary}
-                keyboardType="numeric"
-                maxLength={5}
-                editable={!isConnected}
-              />
+              <View style={styles.portInputContainer}>
+                <TextInput
+                  style={styles.portInput}
+                  value={stagePort}
+                  onChangeText={setStagePort}
+                  placeholder=""
+                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!isConnected}
+                />
+                {stagePort !== '' && !isConnected && (
+                  <TouchableOpacity 
+                    style={styles.clearPortButton}
+                    onPress={() => handleClearPort('stage')}
+                  >
+                    <Ionicons name="close" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <View style={styles.portItem}>
               <Text style={styles.portLabel}>Control</Text>
-              <TextInput
-                style={styles.portInput}
-                value={controlPort}
-                onChangeText={setControlPort}
-                placeholder="5512"
-                placeholderTextColor={FreeShowTheme.colors.textSecondary}
-                keyboardType="numeric"
-                maxLength={5}
-                editable={!isConnected}
-              />
+              <View style={styles.portInputContainer}>
+                <TextInput
+                  style={styles.portInput}
+                  value={controlPort}
+                  onChangeText={setControlPort}
+                  placeholder=""
+                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!isConnected}
+                />
+                {controlPort !== '' && !isConnected && (
+                  <TouchableOpacity 
+                    style={styles.clearPortButton}
+                    onPress={() => handleClearPort('control')}
+                  >
+                    <Ionicons name="close" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <View style={styles.portItem}>
               <Text style={styles.portLabel}>Output</Text>
-              <TextInput
-                style={styles.portInput}
-                value={outputPort}
-                onChangeText={setOutputPort}
-                placeholder="5513"
-                placeholderTextColor={FreeShowTheme.colors.textSecondary}
-                keyboardType="numeric"
-                maxLength={5}
-                editable={!isConnected}
-              />
+              <View style={styles.portInputContainer}>
+                <TextInput
+                  style={styles.portInput}
+                  value={outputPort}
+                  onChangeText={setOutputPort}
+                  placeholder=""
+                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!isConnected}
+                />
+                {outputPort !== '' && !isConnected && (
+                  <TouchableOpacity 
+                    style={styles.clearPortButton}
+                    onPress={() => handleClearPort('output')}
+                  >
+                    <Ionicons name="close" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <View style={styles.portItem}>
               <Text style={styles.portLabel}>API</Text>
-              <TextInput
-                style={styles.portInput}
-                value={apiPort}
-                onChangeText={setApiPort}
-                placeholder="5505"
-                placeholderTextColor={FreeShowTheme.colors.textSecondary}
-                keyboardType="numeric"
-                maxLength={5}
-                editable={!isConnected}
-              />
+              <View style={styles.portInputContainer}>
+                <TextInput
+                  style={styles.portInput}
+                  value={apiPort}
+                  onChangeText={setApiPort}
+                  placeholder=""
+                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!isConnected}
+                />
+                {apiPort !== '' && !isConnected && (
+                  <TouchableOpacity 
+                    style={styles.clearPortButton}
+                    onPress={() => handleClearPort('api')}
+                  >
+                    <Ionicons name="close" size={16} color={FreeShowTheme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
+          
+          {/* Restore Defaults Button */}
+          {!isConnected && (
+            <TouchableOpacity 
+              style={styles.restoreDefaultsButton}
+              onPress={handleRestoreDefaults}
+            >
+              <Ionicons name="refresh" size={16} color={FreeShowTheme.colors.textSecondary} />
+              <Text style={styles.restoreDefaultsText}>Restore Defaults</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -259,7 +363,10 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 disabled
               >
                 <View style={styles.spinner} />
-                <Text style={styles.buttonText}>Connecting...</Text>
+                <Text style={styles.buttonText}>
+                  {/* Show different text based on what's happening */}
+                  Connecting...
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.cancelButton]}
@@ -371,6 +478,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  portInputContainer: {
+    position: 'relative',
+  },
   portInput: {
     height: 40,
     backgroundColor: FreeShowTheme.colors.primary,
@@ -381,6 +491,34 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.text,
     textAlign: 'center',
+  },
+  clearPortButton: {
+    position: 'absolute',
+    right: 8,
+    top: 10,
+    padding: 4,
+    borderRadius: 10,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+  },
+  
+  // Restore Defaults Button
+  restoreDefaultsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: FreeShowTheme.spacing.md,
+    paddingVertical: FreeShowTheme.spacing.sm,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.sm,
+    backgroundColor: FreeShowTheme.colors.primary,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  restoreDefaultsText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.textSecondary,
+    marginLeft: FreeShowTheme.spacing.xs,
   },
   
   // Action Buttons

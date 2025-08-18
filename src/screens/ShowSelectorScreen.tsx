@@ -21,6 +21,8 @@ import ShowList from './ShowSelectorScreen/ShowList';
 import CompactPopup from './ShowSelectorScreen/CompactPopup';
 import PreviewModal from './ShowSelectorScreen/PreviewModal';
 import NotConnectedView from './ShowSelectorScreen/NotConnectedView';
+import { configService } from '../config/AppConfig';
+import EnableInterfaceModal from './ShowSelectorScreen/EnableInterfaceModal';
 
 // Responsive sizing utility
 const getResponsiveDimensions = () => {
@@ -40,14 +42,6 @@ const getResponsiveDimensions = () => {
   const isTablet = windowSize > 600 || (windowSize < 300 && screenSize > 600);
   const isLandscape = effectiveWidth > effectiveHeight;
   
-  // Log for debugging tablet detection issues (less verbose now)
-  console.log('[ShowSelectorScreen] Dimensions:', {
-    effective: { width: effectiveWidth, height: effectiveHeight },
-    isTablet,
-    windowSize,
-    screenSize
-  });
-  
   return {
     isTablet,
     isLandscape,
@@ -65,7 +59,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const { state, actions } = useConnection();
   const { settings } = useSettings();
   const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
-  const { disconnect } = actions;
+  const { disconnect, updateShowPorts } = actions;
   
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -77,11 +71,17 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const [compactPopup, setCompactPopup] = useState<{ visible: boolean; show: ShowOption | null }>({ visible: false, show: null });
   const [previewModal, setPreviewModal] = useState<{ visible: boolean; url: string; title: string; description?: string; showId?: string; port?: number }>({ visible: false, url: '', title: '', description: '', showId: undefined, port: undefined });
   const [toast, setToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  
+  // State for enable interface modal
+  const [enableInterfaceModal, setEnableInterfaceModal] = useState<{ 
+    visible: boolean; 
+    show: ShowOption | null;
+    port: string;
+  }>({ visible: false, show: null, port: '' });
 
   // Force refresh dimensions when component mounts (helps with navigation from other screens)
   useEffect(() => {
     const refreshTimer = setTimeout(() => {
-      console.log('[ShowSelectorScreen] Component mounted, refreshing dimensions');
       setDimensions(getResponsiveDimensions());
     }, 50);
 
@@ -102,12 +102,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     let previousAppState = AppState.currentState;
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      console.log(`[ShowSelectorScreen] App state changed from ${previousAppState} to ${nextAppState}`);
-      
       // If app is coming to foreground, refresh dimensions
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('[ShowSelectorScreen] App came to foreground, refreshing dimensions');
-        
         // Small delay to ensure screen is properly rendered
         setTimeout(() => {
           const newDimensions = getResponsiveDimensions();
@@ -125,18 +121,16 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   }, []);
 
   const getShowOptions = () => {
-    const defaultPorts = {
-      remote: 5510,
-      stage: 5511,
-      control: 5512,
-      output: 5513,
-      api: 5505,
-    };
+    const defaultPorts = configService.getDefaultShowPorts();
 
     // Use current show ports if available, otherwise fall back to defaults
     const showPorts = currentShowPorts || defaultPorts;
 
-    return [
+    // Separate enabled and disabled interfaces
+    const enabledOptions: ShowOption[] = [];
+    const disabledOptions: ShowOption[] = [];
+
+    const allOptions: ShowOption[] = [
       {
         id: 'remote',
         title: 'RemoteShow',
@@ -178,12 +172,36 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         color: '#B10DC9',
       },
     ];
+
+    // Separate enabled and disabled interfaces
+    allOptions.forEach(option => {
+      if (option.port && option.port > 0) {
+        enabledOptions.push(option);
+      } else {
+        // Mark as disabled with port 0
+        disabledOptions.push({ ...option, port: 0 });
+      }
+    });
+
+    // Return enabled options first, then disabled options
+    return [...enabledOptions, ...disabledOptions];
   };
 
   const showOptions = getShowOptions();
   const isGrid = dimensions.isTablet || (dimensions.isLandscape && dimensions.screenWidth >= 800);
 
   const handleShowSelect = (show: ShowOption) => {
+    // Check if interface is disabled
+    if (!show.port || show.port === 0) {
+      // Don't allow selection of disabled interfaces
+      setErrorModal({
+        visible: true,
+        title: 'Interface Disabled',
+        message: `${show.title} is currently disabled. Enable it first to use this interface.`
+      });
+      return;
+    }
+
     if (!isConnected || !connectionHost) {
       setErrorModal({
         visible: true,
@@ -279,6 +297,39 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
 
   const closeCompactPopup = () => {
     setCompactPopup({ visible: false, show: null });
+  };
+
+  // Handle enabling an interface
+  const handleEnableInterface = (show: ShowOption) => {
+    setEnableInterfaceModal({ 
+      visible: true, 
+      show,
+      port: show.id === 'api' ? '5505' : 
+             show.id === 'remote' ? '5510' : 
+             show.id === 'stage' ? '5511' : 
+             show.id === 'control' ? '5512' : 
+             show.id === 'output' ? '5513' : ''
+    });
+  };
+
+  // Handle disabling an interface
+  const handleDisableInterface = (show: ShowOption) => {
+    if (!currentShowPorts) return;
+    
+    // Create updated ports object with the selected interface disabled (port = 0)
+    const updatedPorts = { ...currentShowPorts };
+    updatedPorts[show.id as keyof typeof updatedPorts] = 0;
+    
+    // Update show ports in connection context
+    updateShowPorts(updatedPorts); // Fire and forget - auto-save will handle persistence
+    
+    // Show confirmation toast
+    showToast(`${show.title} disabled`);
+  };
+
+  // Handle canceling the enable interface modal
+  const handleCancelEnableInterface = () => {
+    setEnableInterfaceModal({ visible: false, show: null, port: '' });
   };
 
   const showToast = (message: string) => {
@@ -415,6 +466,44 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         onCopyToClipboard={copyToClipboard}
         onOpenInBrowser={openInBrowser}
         onOpenShow={handleShowSelect}
+        onEnableInterface={handleEnableInterface}
+        onDisableInterface={handleDisableInterface}
+      />
+
+      {/* Enable Interface Modal */}
+      <EnableInterfaceModal
+        visible={enableInterfaceModal.visible}
+        show={enableInterfaceModal.show}
+        onClose={handleCancelEnableInterface}
+        onSave={(port) => {
+          const show = enableInterfaceModal.show;
+          if (!show || !port) return;
+          
+          // Validate port
+          const portNumber = parseInt(port, 10);
+          if (isNaN(portNumber) || portNumber < 1 || portNumber > 65535) {
+            setErrorModal({
+              visible: true,
+              title: 'Invalid Port',
+              message: 'Please enter a valid port number between 1 and 65535'
+            });
+            return;
+          }
+          
+          if (!currentShowPorts) return;
+          
+          // Create updated ports object with the selected interface enabled
+          const updatedPorts = { ...currentShowPorts };
+          updatedPorts[show.id as keyof typeof updatedPorts] = portNumber;
+          
+          // Update show ports in connection context
+          updateShowPorts(updatedPorts); // Fire and forget - auto-save will handle persistence
+          
+          // Close modal and show confirmation
+          setEnableInterfaceModal({ visible: false, show: null, port: '' });
+          showToast(`${show.title} enabled on port ${portNumber}`);
+        }}
+        onCancel={handleCancelEnableInterface}
       />
 
       {/* Preview Modal */}

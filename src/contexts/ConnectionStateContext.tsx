@@ -6,6 +6,7 @@ import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { settingsRepository, AppSettings } from '../repositories';
+import { configService } from '../config/AppConfig';
 
 export interface ConnectionState {
   isConnected: boolean;
@@ -39,7 +40,7 @@ export interface ConnectionActions {
     control: number;
     output: number;
     api: number;
-  }) => void;
+  }) => Promise<void>;
   updateCapabilities: (capabilities: string[]) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
@@ -59,12 +60,14 @@ interface ConnectionProviderProps {
   children: ReactNode;
   service?: IFreeShowService; // Allow dependency injection for testing
   navigation?: any;
+  onConnectionHistoryUpdate?: () => Promise<void>; // Callback to refresh connection history
 }
 
 export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ 
   children, 
   service: injectedService,
-  navigation 
+  navigation,
+  onConnectionHistoryUpdate
 }) => {
   const [state, setState] = useState<ConnectionState>({
     isConnected: false,
@@ -84,6 +87,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   const service = injectedService || getDefaultFreeShowService();
   const logContext = 'ConnectionProvider';
   const cancelConnectionRef = useRef(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update navigation ref when navigation prop changes
   useEffect(() => {
@@ -166,55 +170,41 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   useEffect(() => {
     let didAttempt = false;
     const autoReconnect = async () => {
-      ErrorLogger.info('[AutoConnect] useEffect triggered', 'AutoConnect');
       try {
-        const appSettings: AppSettings = await settingsRepository.getAppSettings();
-        ErrorLogger.info('[AutoConnect] Loaded app settings', 'AutoConnect', appSettings);
+        const appSettings = await settingsRepository.getAppSettings();
         if (!appSettings.autoReconnect) {
-          ErrorLogger.info('[AutoConnect] autoReconnect is false, skipping', 'AutoConnect');
-          // Mark auto-connect as attempted even if disabled
           setState(prev => ({ ...prev, autoConnectAttempted: true }));
           return;
         }
         if (didAttempt) return;
         didAttempt = true;
+        
         const lastConnection = await settingsRepository.getLastConnection();
-        if (lastConnection) {
-          ErrorLogger.info('[AutoConnect] Last connection', 'AutoConnect', lastConnection);
-        } else {
-          ErrorLogger.info('[AutoConnect] Last connection is null', 'AutoConnect');
-        }
-        if (!lastConnection || !lastConnection.host) {
-          ErrorLogger.info('[AutoConnect] No valid last connection found, skipping', 'AutoConnect');
-          // Mark auto-connect as attempted even if no last connection
+        if (!lastConnection?.host) {
           setState(prev => ({ ...prev, autoConnectAttempted: true }));
           return;
         }
-        const timeoutMs = require('../config/AppConfig').configService.getNetworkConfig().autoConnectTimeout;
-        ErrorLogger.info('[AutoConnect] Attempting to connect', 'AutoConnect', {
-          host: lastConnection.host,
-          port: lastConnection.showPorts?.remote || 5505,
-          showPorts: lastConnection.showPorts,
-          timeoutMs
-        });
+        
+        const timeoutMs = configService.getNetworkConfig().autoConnectTimeout;
         let timeoutHandle: NodeJS.Timeout | null = null;
         let didTimeout = false;
+        
         timeoutHandle = setTimeout(() => {
           didTimeout = true;
-          ErrorLogger.info('[AutoConnect] Connection attempt timed out', 'AutoConnect');
           service.disconnect();
-          setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout - connection took too long' }));
-        }, timeoutMs); // timeoutMs is already in milliseconds
+          setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout' }));
+        }, timeoutMs);
+        
         const success = await service.connect(
           lastConnection.host,
           lastConnection.showPorts?.remote || 5505,
-          lastConnection.nickname // Pass the stored nickname to preserve it
+          lastConnection.nickname
         ).then(() => true).catch(() => false);
+        
         if (timeoutHandle) clearTimeout(timeoutHandle);
         if (didTimeout) return;
+        
         if (success) {
-          ErrorLogger.info('[AutoConnect] Auto-connect successful', 'AutoConnect', { host: lastConnection.host });
-          // Set the connection name in state to preserve nickname in UI
           setState(prev => ({ 
             ...prev, 
             isConnected: true, 
@@ -223,129 +213,69 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
             connectionStatus: 'connected' 
           }));
           
-          // Trigger auto-launch if enabled (with shorter delay since no navigation needed)
-          setTimeout(async () => {
-            await triggerAutoLaunch();
-          }, 500);
+          setTimeout(() => triggerAutoLaunch(), 500);
         } else {
-          ErrorLogger.info('[AutoConnect] Auto-connect failed', 'AutoConnect', { host: lastConnection.host });
-          
-          // Only navigate to Connect tab if auto-connect failed AND we're using bottom tab navigation
-          // For sidebar navigation, let the user stay where they are
+          // Navigate to Connect tab only for bottom tab layout
           setTimeout(async () => {
-            try {
-              const appSettings = await settingsRepository.getAppSettings();
-              
-              // Skip forced navigation for sidebar layout - user can manually navigate if needed
-              if (appSettings.navigationLayout === 'sidebar') {
-                ErrorLogger.info('[AutoConnect] Auto-connect failed but staying on current screen for sidebar navigation', 'AutoConnect');
-                return;
-              }
-              
-              // Only force navigation for bottom tab layout
-              if (navigationRef.current && typeof navigationRef.current.navigate === 'function') {
-                ErrorLogger.info('[AutoConnect] Auto-connect failed, navigating to Connect tab', 'AutoConnect');
-                navigationRef.current.navigate('Main', { screen: 'Connect' });
-              }
-            } catch (navigationError) {
-              ErrorLogger.error('[AutoConnect] Navigation error during auto-connect fallback', 'AutoConnect', 
-                navigationError instanceof Error ? navigationError : new Error(String(navigationError)));
+            const settings = await settingsRepository.getAppSettings();
+            if (settings.navigationLayout !== 'sidebar' && navigationRef.current?.navigate) {
+              navigationRef.current.navigate('Main', { screen: 'Connect' });
             }
           }, 100);
         }
         
-        // Mark auto-connect attempt as completed regardless of success/failure
         setState(prev => ({ ...prev, autoConnectAttempted: true }));
       } catch (err) {
         ErrorLogger.error('[AutoConnect] Error in auto-reconnect', 'AutoConnect', err instanceof Error ? err : new Error(String(err)));
-        // Mark auto-connect as attempted even if there was an error
         setState(prev => ({ ...prev, autoConnectAttempted: true }));
       }
     };
     autoReconnect();
-    // Only run once on mount
   }, []);
 
   // Auto-launch functionality
   const triggerAutoLaunch = useCallback(async (nav?: any) => {
     try {
       const navToUse = nav || navigationRef.current;
-      ErrorLogger.debug('[AutoLaunch] Attempting auto-launch', 'ConnectionStateContext', { 
-        hasNavigation: !!navToUse,
-        isConnected: state.isConnected,
-        connectionHost: state.connectionHost
-      });
-      
-      if (!navToUse || typeof navToUse.navigate !== 'function') {
-        ErrorLogger.warn('[AutoLaunch] No valid navigation available', 'ConnectionStateContext', 
-          new Error(`Navigation validation failed: hasNavigation=${!!navToUse}, hasNavigateMethod=${!!(navToUse && typeof navToUse.navigate === 'function')}`));
-        return;
-      }
+      if (!navToUse?.navigate) return;
 
       const appSettings = await settingsRepository.getAppSettings();
-      ErrorLogger.debug('[AutoLaunch] App settings loaded', 'ConnectionStateContext', { 
-        autoLaunchInterface: appSettings.autoLaunchInterface,
-        navigationLayout: appSettings.navigationLayout
-      });
       
-      // Removed sidebar navigation check so auto-launch works for all layouts
-      
-      // Auto-launch interface only if auto-reconnect is enabled
+      // Auto-launch interface only if conditions are met
       if (appSettings.autoReconnect && appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
+        const defaultPorts = configService.getDefaultShowPorts();
         const showOptions = [
-          { id: 'remote', port: 5510 },
-          { id: 'stage', port: 5511 },
-          { id: 'control', port: 5512 },
-          { id: 'output', port: 5513 },
-          { id: 'api', port: 5505 },
+          { id: 'remote', port: defaultPorts.remote },
+          { id: 'stage', port: defaultPorts.stage },
+          { id: 'control', port: defaultPorts.control },
+          { id: 'output', port: defaultPorts.output },
+          { id: 'api', port: defaultPorts.api },
         ];
         
         const selectedShow = showOptions.find(show => show.id === appSettings.autoLaunchInterface);
         if (selectedShow) {
           try {
             if (appSettings.autoLaunchInterface === 'api') {
-              // Navigate to APIScreen for API interface
-              ErrorLogger.info('[AutoLaunch] Navigating to API interface', 'ConnectionStateContext', {
-                interface: appSettings.autoLaunchInterface,
-                title: 'API Controls'
-              });
-              
               navToUse.navigate('APIScreen', {
                 title: 'API Controls',
                 showId: appSettings.autoLaunchInterface,
               });
             } else {
-              // Navigate to WebView for other interfaces
               const url = `http://${state.connectionHost}:${selectedShow.port}`;
-              ErrorLogger.info('[AutoLaunch] Navigating to auto-launch interface', 'ConnectionStateContext', {
-                interface: appSettings.autoLaunchInterface,
-                url,
-                title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show'
-              });
+              const title = appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show';
               
               navToUse.navigate('WebView', {
                 url,
-                title: appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show',
+                title,
                 showId: appSettings.autoLaunchInterface,
                 initialFullscreen: appSettings.autoLaunchFullscreen || false,
               });
             }
           } catch (navigationError) {
-            ErrorLogger.error('[AutoLaunch] Navigation error during auto-launch', 'ConnectionStateContext', 
+            ErrorLogger.error('[AutoLaunch] Navigation error', 'ConnectionStateContext', 
               navigationError instanceof Error ? navigationError : new Error(String(navigationError)));
           }
-        } else {
-          ErrorLogger.warn('[AutoLaunch] Selected show not found', 'ConnectionStateContext', 
-            new Error(`autoLaunchInterface: ${appSettings.autoLaunchInterface}`)
-          );
         }
-      } else {
-        ErrorLogger.debug('[AutoLaunch] Auto-launch conditions not met', 'ConnectionStateContext', {
-          autoReconnect: appSettings.autoReconnect,
-          autoLaunchInterface: appSettings.autoLaunchInterface,
-          isConnected: state.isConnected,
-          hasConnectionHost: !!state.connectionHost
-        });
       }
     } catch (error) {
       ErrorLogger.error('[AutoLaunch] Error in auto-launch', 'ConnectionStateContext', error instanceof Error ? error : new Error(String(error)));
@@ -357,32 +287,19 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     let previousAppState = AppState.currentState;
 
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      ErrorLogger.info(`[AppState] App state changed from ${previousAppState} to ${nextAppState}`, 'ConnectionStateContext');
-      
-      // If app is coming to foreground and we were previously connected but now disconnected
+      // If app is coming to foreground, attempt reconnection
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
-        ErrorLogger.info('[AppState] App came to foreground, checking reconnection', 'ConnectionStateContext');
-        
         try {
-          // Check if auto-reconnect is enabled
           const appSettings = await settingsRepository.getAppSettings();
           if (!appSettings.autoReconnect) {
-            ErrorLogger.info('[AppState] Auto-reconnect disabled, skipping foreground reconnection', 'ConnectionStateContext');
             previousAppState = nextAppState;
             return;
           }
 
-          // Only attempt reconnection if we're not currently connected but have connection info
-          // Also check if we're not already in a connecting state to avoid duplicate attempts
           const currentState = service.isConnected();
           const isAlreadyConnecting = state.connectionStatus === 'connecting';
           
           if (!currentState && !isAlreadyConnecting && state.connectionHost && state.connectionStatus === 'disconnected') {
-            ErrorLogger.info('[AppState] Attempting foreground reconnection', 'ConnectionStateContext', {
-              host: state.connectionHost,
-              port: state.connectionPort
-            });
-
             setState(prev => ({ 
               ...prev, 
               connectionStatus: 'connecting',
@@ -396,11 +313,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
                 state.connectionName || state.connectionHost
               );
               
-              // Check if connection was successful and update state properly
               if (service.isConnected()) {
-                ErrorLogger.info('[AppState] Foreground reconnection successful', 'ConnectionStateContext');
-                
-                // Update state to trigger auto-launch mechanism
                 setState(prev => ({
                   ...prev,
                   isConnected: true,
@@ -410,33 +323,23 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
                   lastError: null,
                 }));
 
-                // Trigger auto-launch after a short delay
-                setTimeout(async () => {
-                  await triggerAutoLaunch();
-                }, 500);
+                setTimeout(() => triggerAutoLaunch(), 500);
               } else {
-                ErrorLogger.info('[AppState] Foreground reconnection failed', 'ConnectionStateContext');
                 setState(prev => ({
                   ...prev,
                   connectionStatus: 'disconnected',
                 }));
               }
             } catch (error) {
-              ErrorLogger.error('[AppState] Error during foreground reconnection', 'ConnectionStateContext', 
-                error instanceof Error ? error : new Error(String(error)));
               setState(prev => ({
                 ...prev,
                 connectionStatus: 'error',
                 lastError: error instanceof Error ? error.message : 'Foreground reconnection failed',
               }));
             }
-          } else if (currentState) {
-            ErrorLogger.info('[AppState] Already connected, no foreground reconnection needed', 'ConnectionStateContext');
-          } else {
-            ErrorLogger.info('[AppState] No previous connection info for foreground reconnection', 'ConnectionStateContext');
           }
         } catch (error) {
-          ErrorLogger.error('[AppState] Error checking foreground reconnection settings', 'ConnectionStateContext', 
+          ErrorLogger.error('[AppState] Error during foreground reconnection', 'ConnectionStateContext', 
             error instanceof Error ? error : new Error(String(error)));
         }
       }
@@ -445,10 +348,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription?.remove();
-    };
+    return () => subscription?.remove();
   }, [service, state.connectionHost, state.connectionPort, state.connectionName, triggerAutoLaunch]);
 
   const connect = useCallback(async (host: string, port?: number, name?: string): Promise<boolean> => {
@@ -530,18 +430,46 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }));
   }, []);
 
-  const updateShowPorts = useCallback((ports: {
+  const updateShowPorts = useCallback(async (ports: {
     remote: number;
     stage: number;
     control: number;
     output: number;
     api: number;
-  }): void => {
+  }): Promise<void> => {
     setState(prev => ({
       ...prev,
       currentShowPorts: ports,
     }));
-  }, []);
+
+    // Auto-save connection history when ports change (only if connected)
+    if (state.isConnected && state.connectionHost) {
+      // Clear any existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Set a new timeout to save after 200ms of inactivity (reduced for better UX)
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await settingsRepository.updateConnectionPorts(state.connectionHost!, ports);
+          ErrorLogger.debug('Auto-saved connection ports to history', logContext, { 
+            host: state.connectionHost, 
+            ports 
+          });
+          
+          // Immediately refresh connection history in the UI
+          if (onConnectionHistoryUpdate) {
+            await onConnectionHistoryUpdate();
+          }
+        } catch (error) {
+          ErrorLogger.warn('Failed to auto-save connection ports', logContext, 
+            error instanceof Error ? error : new Error(String(error))
+          );
+        }
+      }, 200); // Reduced from 500ms to 200ms for more responsive feel
+    }
+  }, [state.isConnected, state.connectionHost, logContext, onConnectionHistoryUpdate]);
 
   const updateCapabilities = useCallback((capabilities: string[]): void => {
     setState(prev => ({
@@ -594,6 +522,15 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     service,
     navigation: navigationRef.current,
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <ConnectionContext.Provider value={contextValue}>

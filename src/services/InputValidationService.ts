@@ -171,6 +171,14 @@ export class InputValidationService {
    */
   static validatePort(port: string | number): ValidationResult {
     try {
+      // Allow blank ports (treat as disabled)
+      if (port === '' || port === 0) {
+        return {
+          isValid: true,
+          sanitizedValue: 0,
+        };
+      }
+
       let portNumber: number;
 
       // Convert to number if string
@@ -237,7 +245,7 @@ export class InputValidationService {
         error: 'Port validation failed',
       };
     }
-  }
+  };
 
   /**
    * Validate host (IP address or hostname)
@@ -361,7 +369,7 @@ export class InputValidationService {
         };
       }
 
-      const requiredPorts = ['remote', 'stage', 'control', 'output'];
+      const requiredPorts = ['remote', 'stage', 'control', 'output', 'api'];
       const sanitizedPorts: any = {};
 
       for (const portName of requiredPorts) {
@@ -372,7 +380,13 @@ export class InputValidationService {
           };
         }
 
-        const portResult = this.validatePort(ports[portName]);
+        // Allow blank ports (treat as disabled)
+        if (ports[portName] === '' || ports[portName] === 0) {
+          sanitizedPorts[portName] = 0;
+          continue;
+        }
+
+        const portResult = this.validatePort(ports[portName] as string | number);
         if (!portResult.isValid) {
           return {
             isValid: false,
@@ -383,15 +397,19 @@ export class InputValidationService {
         sanitizedPorts[portName] = portResult.sanitizedValue;
       }
 
-      // Check for port conflicts
-      const portValues = Object.values(sanitizedPorts) as number[];
-      const uniquePorts = new Set(portValues);
+      // Check for port conflicts (only among enabled ports)
+      const enabledPortValues = Object.values(sanitizedPorts).filter((port): port is number => typeof port === 'number' && port > 0);
       
-      if (uniquePorts.size !== portValues.length) {
-        return {
-          isValid: false,
-          error: 'Port numbers must be unique',
-        };
+      // Allow all ports to be disabled (all ports = 0), but if any are enabled, they must be unique
+      if (enabledPortValues.length > 0) {
+        const uniquePorts = new Set(enabledPortValues);
+        
+        if (uniquePorts.size !== enabledPortValues.length) {
+          return {
+            isValid: false,
+            error: 'Port numbers must be unique',
+          };
+        }
       }
 
       return {

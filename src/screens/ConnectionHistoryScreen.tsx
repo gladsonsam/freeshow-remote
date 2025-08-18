@@ -178,7 +178,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                   
                   if (connected) {
                     // Update show ports after successful connection
-                    updateShowPorts(validatedShowPorts);
+                    await updateShowPorts(validatedShowPorts);
                     // Navigate to Interface screen using the correct nested navigation
                     navigation.navigate('Main', { screen: 'Interface' });
                   }

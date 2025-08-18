@@ -26,6 +26,7 @@ export interface ConnectionHistory {
     stage: number;
     control: number;
     output: number;
+    api: number; // Include API port as well
   };
 }
 
@@ -114,11 +115,32 @@ export class SettingsRepository {
     host: string,
     port: number = 5505,
     nickname?: string,
-    showPorts?: { remote: number; stage: number; control: number; output: number }
+    showPorts?: { remote: number; stage: number; control: number; output: number; api: number }
   ): Promise<void> {
     try {
       const history = await this.getConnectionHistory();
       const existingIndex = history.findIndex(item => item.host === host);
+      
+      // Get default ports if not provided, but preserve existing ports if they exist
+      const defaultPorts = configService.getDefaultShowPorts();
+      let portsToStore;
+      
+      if (showPorts) {
+        // Use provided ports
+        portsToStore = showPorts;
+      } else if (existingIndex >= 0 && history[existingIndex].showPorts) {
+        // Preserve existing ports for this connection
+        portsToStore = history[existingIndex].showPorts;
+      } else {
+        // Use defaults for new connections
+        portsToStore = {
+          remote: defaultPorts.remote,
+          stage: defaultPorts.stage,
+          control: defaultPorts.control,
+          output: defaultPorts.output,
+          api: defaultPorts.api,
+        };
+      }
       
       if (existingIndex >= 0) {
         // Update existing entry
@@ -127,7 +149,7 @@ export class SettingsRepository {
           lastUsed: new Date().toISOString(),
           successfulConnections: history[existingIndex].successfulConnections + 1,
           nickname: nickname || history[existingIndex].nickname || host,
-          showPorts: showPorts || history[existingIndex].showPorts,
+          showPorts: portsToStore,
         };
       } else {
         // Add new entry
@@ -137,7 +159,7 @@ export class SettingsRepository {
           nickname: nickname || host, // Default nickname to hostname/IP
           lastUsed: new Date().toISOString(),
           successfulConnections: 1,
-          showPorts,
+          showPorts: portsToStore,
         };
         history.push(newEntry);
       }
@@ -182,6 +204,40 @@ export class SettingsRepository {
       }
     } catch (error) {
       ErrorLogger.error('Failed to update connection nickname', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  async updateConnectionPorts(
+    host: string,
+    showPorts: { remote: number; stage: number; control: number; output: number; api: number }
+  ): Promise<void> {
+    try {
+      const history = await this.getConnectionHistory();
+      const existingIndex = history.findIndex(item => item.host === host);
+      
+      if (existingIndex >= 0) {
+        // Update existing entry without incrementing connection count
+        history[existingIndex] = {
+          ...history[existingIndex],
+          lastUsed: new Date().toISOString(),
+          showPorts,
+        };
+        
+        await this.setConnectionHistory(history);
+        ErrorLogger.info('Updated connection ports', this.logContext, { 
+          host, 
+          showPorts 
+        });
+      } else {
+        // If connection doesn't exist in history, this shouldn't happen during port updates
+        // But we can handle it gracefully
+        ErrorLogger.warn('Attempted to update ports for non-existent connection', this.logContext, 
+          new Error(`Host not found in history: ${host}`)
+        );
+      }
+    } catch (error) {
+      ErrorLogger.error('Failed to update connection ports', this.logContext, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }

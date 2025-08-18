@@ -12,6 +12,8 @@ interface CompactPopupProps {
   onCopyToClipboard: (show: ShowOption) => void;
   onOpenInBrowser: (show: ShowOption) => void;
   onOpenShow: (show: ShowOption) => void;
+  onEnableInterface?: (show: ShowOption) => void;
+  onDisableInterface?: (show: ShowOption) => void;
 }
 
 const CompactPopup: React.FC<CompactPopupProps> = ({
@@ -22,7 +24,12 @@ const CompactPopup: React.FC<CompactPopupProps> = ({
   onCopyToClipboard,
   onOpenInBrowser,
   onOpenShow,
+  onEnableInterface,
+  onDisableInterface,
 }) => {
+  // Check if interface is disabled
+  const isDisabled = show && (!show.port || show.port === 0);
+  
   return (
     <Modal
       visible={visible}
@@ -50,51 +57,91 @@ const CompactPopup: React.FC<CompactPopupProps> = ({
             </View>
           </View>
 
-          {/* IP Address with status dot */}
-          <View style={styles.compactIpContainer}>
-            <View style={styles.compactIpRow}>
-              <View style={styles.compactStatusDot} />
-              <Text style={styles.compactIpText}>
-                {connectionHost}:{show?.port}
-              </Text>
+          {/* IP Address with status dot - only show for enabled interfaces */}
+          {!isDisabled && show?.port && (
+            <View style={styles.compactIpContainer}>
+              <View style={styles.compactIpRow}>
+                <View style={styles.compactStatusDot} />
+                <Text style={styles.compactIpText}>
+                  {connectionHost}:{show?.port}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.compactClipboardButton}
+                onPress={() => show && onCopyToClipboard(show)}
+                accessibilityRole="button"
+                accessibilityLabel="Copy URL to clipboard"
+                activeOpacity={0.6}
+              >
+                <Ionicons name="copy-outline" size={18} color={FreeShowTheme.colors.text + 'BB'} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              style={styles.compactClipboardButton}
-              onPress={() => show && onCopyToClipboard(show)}
-              accessibilityRole="button"
-              accessibilityLabel="Copy URL to clipboard"
-              activeOpacity={0.6}
-            >
-              <Ionicons name="copy-outline" size={18} color={FreeShowTheme.colors.text + 'BB'} />
-            </TouchableOpacity>
-          </View>
+          )}
 
           {/* Action buttons */}
           <View style={styles.compactActions}>
-            <TouchableOpacity 
-              style={[styles.compactActionButton, styles.compactOpenButton]}
-              onPress={() => {
-                if (show) {
-                  onClose();
-                  onOpenShow(show);
-                }
-              }}
-              accessibilityRole="button"
-              activeOpacity={0.8}
-            >
-              <Ionicons name="play-circle" size={20} color="white" style={styles.compactButtonIcon} />
-              <Text style={styles.compactActionButtonText}>Open</Text>
-            </TouchableOpacity>
-            {show?.id !== 'api' && (
+            {isDisabled ? (
+              // Show enable button for disabled interfaces
               <TouchableOpacity 
-                style={[styles.compactActionButton, styles.compactBrowserButton]}
-                onPress={() => show && onOpenInBrowser(show)}
+                style={[styles.compactActionButton, styles.compactOpenButton]}
+                onPress={() => {
+                  if (show && onEnableInterface) {
+                    onClose();
+                    onEnableInterface(show);
+                  }
+                }}
                 accessibilityRole="button"
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
-                <Ionicons name="globe-outline" size={20} color={FreeShowTheme.colors.text + 'CC'} style={styles.compactButtonIcon} />
-                <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Open in Browser</Text>
+                <Ionicons name="add-circle" size={20} color="white" style={styles.compactButtonIcon} />
+                <Text style={styles.compactActionButtonText}>Enable</Text>
               </TouchableOpacity>
+            ) : (
+              // Show regular actions for enabled interfaces
+              <>
+                <TouchableOpacity 
+                  style={[styles.compactActionButton, styles.compactOpenButton]}
+                  onPress={() => {
+                    if (show) {
+                      onClose();
+                      onOpenShow(show);
+                    }
+                  }}
+                  accessibilityRole="button"
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="play-circle" size={20} color="white" style={styles.compactButtonIcon} />
+                  <Text style={styles.compactActionButtonText}>Open</Text>
+                </TouchableOpacity>
+                {show?.id !== 'api' && (
+                  <TouchableOpacity 
+                    style={[styles.compactActionButton, styles.compactBrowserButton]}
+                    onPress={() => show && onOpenInBrowser(show)}
+                    accessibilityRole="button"
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="globe-outline" size={20} color={FreeShowTheme.colors.text + 'CC'} style={styles.compactButtonIcon} />
+                    <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Open in Browser</Text>
+                  </TouchableOpacity>
+                )}
+                {/* Add disable button for enabled interfaces */}
+                {onDisableInterface && (
+                  <TouchableOpacity 
+                    style={[styles.compactActionButton, styles.compactBrowserButton]}
+                    onPress={() => {
+                      if (show && onDisableInterface) {
+                        onClose();
+                        onDisableInterface(show);
+                      }
+                    }}
+                    accessibilityRole="button"
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color={FreeShowTheme.colors.text + 'CC'} style={styles.compactButtonIcon} />
+                    <Text style={[styles.compactActionButtonText, styles.compactBrowserButtonText]}>Disable</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </View>

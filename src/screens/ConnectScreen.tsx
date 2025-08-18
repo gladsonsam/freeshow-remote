@@ -20,6 +20,7 @@ import QRScannerModal from '../components/QRScannerModal';
 import { ErrorLogger } from '../services/ErrorLogger';
 import ShareQRModal from '../components/ShareQRModal';
 import { ValidationService } from '../services/InputValidationService';
+import { interfacePingService } from '../services/InterfacePingService';
 import { configService } from '../config/AppConfig';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
@@ -37,11 +38,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const defaultPorts = configService.getDefaultShowPorts();
   
   const [host, setHost] = useState('192.168.1.100');
-  const [remotePort, setRemotePort] = useState(defaultPorts.remote.toString());
-  const [stagePort, setStagePort] = useState(defaultPorts.stage.toString());
-  const [controlPort, setControlPort] = useState(defaultPorts.control.toString());
-  const [outputPort, setOutputPort] = useState(defaultPorts.output.toString());
-  const [apiPort, setApiPort] = useState(defaultPorts.api.toString());
+  const [remotePort, setRemotePort] = useState(String(defaultPorts?.remote ?? 5510));
+  const [stagePort, setStagePort] = useState(String(defaultPorts?.stage ?? 5511));
+  const [controlPort, setControlPort] = useState(String(defaultPorts?.control ?? 5512));
+  const [outputPort, setOutputPort] = useState(String(defaultPorts?.output ?? 5513));
+  const [apiPort, setApiPort] = useState(String(defaultPorts?.api ?? 5505));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
@@ -56,6 +57,10 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     title: '',
     message: ''
   });
+  const [isPingingInterfaces, setIsPingingInterfaces] = useState(false);
+  
+  // Ref to track if we've already processed the history item
+  const processedHistoryItemRef = useRef(false);
   
   // Use focused contexts
   const connection = useConnection();
@@ -65,6 +70,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     connectionStatus,
     connectionHost,
     connectionName,
+    currentShowPorts,
   } = state;
   const {
     connect,
@@ -96,35 +102,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     setScanComplete(false);
   }, []);
 
-  // Handle navigation parameter for history item connection
+  // Update host when connection changes
   useEffect(() => {
-    // Only add listener if navigation has addListener method (not available in sidebar layout)
-    if (typeof navigation?.addListener === 'function') {
-      const unsubscribe = navigation.addListener('focus', () => {
-        const historyItem = navigation.getParam?.('historyItem');
-        if (historyItem) {
-          // Remove the parameter so it doesn't trigger again
-          navigation.setParams?.({ historyItem: undefined });
-          // Connect using the history item
-          handleHistoryConnect(historyItem);
-        }
-      });
-
-      return unsubscribe;
+    if (isConnected && connectionHost) {
+      setHost(connectionHost);
     }
-    
-    // For sidebar layout, check for historyItem on initial render
-    const historyItem = navigation?.getParam?.('historyItem');
-    if (historyItem) {
-      // Remove the parameter so it doesn't trigger again
-      navigation.setParams?.({ historyItem: undefined });
-      // Connect using the history item
-      handleHistoryConnect(historyItem);
-    }
-    
-    // Return a no-op cleanup function
-    return () => {};
-  }, [navigation]);
+  }, [isConnected, connectionHost]);
 
   // Handle scan progress
   useEffect(() => {
@@ -136,6 +119,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         const elapsed = Date.now() - start;
         const progress = Math.min(elapsed / discoveryTimeout, 1);
         setScanProgress(progress);
+        Animated.timing(animatedScanProgress, {
+          toValue: progress,
+          duration: 50,
+          useNativeDriver: false,
+        }).start();
         if (progress >= 1) {
           clearInterval(scanTimerRef.current!);
           setScanComplete(true);
@@ -143,13 +131,15 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           stopDiscovery();
         }
       }, 50);
-      return () => clearInterval(scanTimerRef.current!);
+      return () => {
+        if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+      };
     } else {
       setScanProgress(0);
       animatedScanProgress.setValue(0);
       if (scanTimerRef.current) clearInterval(scanTimerRef.current);
     }
-  }, [isScanActive, discoveryTimeout, stopDiscovery]);
+  }, [isScanActive, discoveryTimeout, stopDiscovery, animatedScanProgress]);
 
   // When discovery stops for any reason, also end scan feedback
   useEffect(() => {
@@ -158,35 +148,32 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     }
   }, [isDiscovering]);
 
-  // Update form fields when connection changes (auto-connect or manual connect)
-  useEffect(() => {
-    if (isConnected && connectionHost) {
-      setHost(connectionHost);
-      // Port should remain as user set or default
-    }
-  }, [isConnected, connectionHost]);
+  // Initialize port values when component mounts and when connection changes
+  // Use a ref to track previous values to avoid infinite loops
+  const prevShowPortsRef = useRef(currentShowPorts);
 
-  // Update form fields when connected to show current connection details
   useEffect(() => {
-    if (isConnected && connectionHost) {
-      ErrorLogger.debug('Updating form with current connection', 'ConnectScreen', { connectionHost });
-      setHost(connectionHost);
+    // Only update port fields if show ports have actually changed
+    if (currentShowPorts && 
+        (prevShowPortsRef.current?.remote !== currentShowPorts.remote ||
+         prevShowPortsRef.current?.stage !== currentShowPorts.stage ||
+         prevShowPortsRef.current?.control !== currentShowPorts.control ||
+         prevShowPortsRef.current?.output !== currentShowPorts.output ||
+         prevShowPortsRef.current?.api !== currentShowPorts.api)) {
+      
+      // Update port fields based on current show ports
+      setRemotePort(currentShowPorts.remote ? String(currentShowPorts.remote) : '');
+      setStagePort(currentShowPorts.stage ? String(currentShowPorts.stage) : '');
+      setControlPort(currentShowPorts.control ? String(currentShowPorts.control) : '');
+      setOutputPort(currentShowPorts.output ? String(currentShowPorts.output) : '');
+      setApiPort(currentShowPorts.api ? String(currentShowPorts.api) : '');
+      
+      // Update the ref with current values
+      prevShowPortsRef.current = currentShowPorts;
     }
-  }, [isConnected, connectionHost, history]);
+  }, [currentShowPorts]);
 
-  // In the scan progress effect, animate the fill smoothly
-  useEffect(() => {
-    if (isScanActive) {
-      Animated.timing(animatedScanProgress, {
-        toValue: scanProgress,
-        duration: 100,
-        useNativeDriver: false,
-      }).start();
-    } else {
-      // Reset animation when not scanning
-      animatedScanProgress.setValue(0);
-    }
-  }, [scanProgress, isScanActive]);
+  // Remove this useEffect as the animation is now handled in the scan progress effect above
 
   const handleConnect = async () => {
     try {
@@ -240,6 +227,27 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       const sanitizedShowPorts = showPortsValidation.sanitizedValue;
       const defaultPort = configService.getNetworkConfig().defaultPort;
 
+      // Ping host to check if it's reachable
+      setIsPingingInterfaces(true);
+      try {
+        const pingResult = await interfacePingService.pingHost(sanitizedHost);
+        
+        if (!pingResult.isReachable) {
+          setErrorModal({
+            visible: true,
+            title: 'Host Not Reachable',
+            message: `Cannot reach ${sanitizedHost}. Please check that the host is online and accessible from your network.`
+          });
+          return;
+        }
+
+        ErrorLogger.info('Host ping successful', 'ConnectScreen', 
+          new Error(`Host ${sanitizedHost} is reachable (${pingResult.responseTime}ms)`)
+        );
+      } finally {
+        setIsPingingInterfaces(false);
+      }
+
       // Find existing nickname before connecting
       const historyMatch = history.find(h => h.host === sanitizedHost);
       const nameToUse = historyMatch?.nickname;
@@ -251,7 +259,16 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       const connected = await connect(sanitizedHost, defaultPort, nameToUse);
       if (connected) {
         // Update show ports after successful connection
-        updateShowPorts(sanitizedShowPorts);
+        await updateShowPorts(sanitizedShowPorts);
+        
+        // Save connection to history with show ports
+        await settingsRepository.addToConnectionHistory(
+          sanitizedHost,
+          defaultPort,
+          nameToUse,
+          sanitizedShowPorts
+        );
+        
         navigation.navigate('Interface');
       }
     } catch (error) {
@@ -295,22 +312,39 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           validatedShowPorts = showPortsValidation.sanitizedValue;
         }
         
-        // Update UI with validated ports, ensuring they're not undefined
-        setRemotePort((validatedShowPorts.remote ?? 5510).toString());
-        setStagePort((validatedShowPorts.stage ?? 5511).toString());
-        setControlPort((validatedShowPorts.control ?? 5512).toString());
-        setOutputPort((validatedShowPorts.output ?? 5513).toString());
-        setApiPort((validatedShowPorts.api ?? 5505).toString());
+        // Update UI with validated ports
+        setRemotePort(validatedShowPorts.remote ? String(validatedShowPorts.remote) : '');
+        setStagePort(validatedShowPorts.stage ? String(validatedShowPorts.stage) : '');
+        setControlPort(validatedShowPorts.control ? String(validatedShowPorts.control) : '');
+        setOutputPort(validatedShowPorts.output ? String(validatedShowPorts.output) : '');
+        setApiPort(validatedShowPorts.api ? String(validatedShowPorts.api) : '');
       } else {
         // Use default ports if none stored
         validatedShowPorts = configService.getDefaultShowPorts();
-        setRemotePort((validatedShowPorts.remote ?? 5510).toString());
-        setStagePort((validatedShowPorts.stage ?? 5511).toString());
-        setControlPort((validatedShowPorts.control ?? 5512).toString());
-        setOutputPort((validatedShowPorts.output ?? 5513).toString());
-        setApiPort((validatedShowPorts.api ?? 5505).toString());
+        setRemotePort(String(validatedShowPorts.remote));
+        setStagePort(String(validatedShowPorts.stage));
+        setControlPort(String(validatedShowPorts.control));
+        setOutputPort(String(validatedShowPorts.output));
+        setApiPort(String(validatedShowPorts.api));
       }
       
+      // Ping host to check if it's reachable
+      setIsPingingInterfaces(true);
+      try {
+        const pingResult = await interfacePingService.pingHost(sanitizedHost);
+        
+        if (!pingResult.isReachable) {
+          setErrorModal({
+            visible: true,
+            title: 'Host Not Reachable',
+            message: `Cannot reach ${sanitizedHost}. Please check that the host is online and accessible from your network.`
+          });
+          return;
+        }
+      } finally {
+        setIsPingingInterfaces(false);
+      }
+
       ErrorLogger.info('Attempting connection from history with validated inputs', 'ConnectScreen', 
         new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(validatedShowPorts)}`)
       );
@@ -320,7 +354,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       
       if (connected) {
         // Update show ports after successful connection
-        updateShowPorts(validatedShowPorts);
+        await updateShowPorts(validatedShowPorts);
         // Navigate to Interface screen, handling both sidebar and bottom tab layouts
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Interface');
@@ -362,11 +396,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     
     try {
       // Use discovered ports if available, otherwise fall back to current form values
+      // Treat missing ports as disabled (0)
       const showPorts = {
-        remote: service.ports?.remote || parseInt(remotePort),
-        stage: service.ports?.stage || parseInt(stagePort),
-        control: service.ports?.control || parseInt(controlPort),
-        output: service.ports?.output || parseInt(outputPort),
+        remote: service.ports?.remote || 0,
+        stage: service.ports?.stage || 0,
+        control: service.ports?.control || 0,
+        output: service.ports?.output || 0,
         api: apiPort,
       };
       
@@ -377,7 +412,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       const connected = await connect(ip, apiPort, nameToUse);
       if (connected) {
         // Update show ports after successful connection and save to history with capabilities
-        updateShowPorts(showPorts);
+        await updateShowPorts(showPorts);
         
         // Update capabilities based on discovered services
         if (service.capabilities && service.capabilities.length > 0) {
@@ -387,7 +422,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           updateCapabilities(['api']);
         }
         
-        // Save connection with discovered capabilities
+        // Save connection with discovered capabilities and show ports
         await settingsRepository.addToConnectionHistory(
           ip,
           apiPort,
@@ -461,6 +496,47 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const cancelClearAllHistory = () => {
     setShowClearAllConfirm(false);
   };
+
+  // Handle navigation parameter for history item connection
+  useEffect(() => {
+    // Only add listener if navigation has addListener method (not available in sidebar layout)
+    if (typeof navigation?.addListener === 'function') {
+      const unsubscribe = navigation.addListener('focus', () => {
+        const historyItem = navigation.getParam?.('historyItem');
+        if (historyItem && !processedHistoryItemRef.current) {
+          // Mark as processed to prevent multiple triggers
+          processedHistoryItemRef.current = true;
+          // Remove the parameter so it doesn't trigger again
+          navigation.setParams?.({ historyItem: undefined });
+          // Connect using the history item
+          handleHistoryConnect(historyItem);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        // Reset the ref when the effect is cleaned up
+        processedHistoryItemRef.current = false;
+      };
+    }
+    
+    // For sidebar layout, check for historyItem on initial render
+    const historyItem = navigation?.getParam?.('historyItem');
+    if (historyItem && !processedHistoryItemRef.current) {
+      // Mark as processed to prevent multiple triggers
+      processedHistoryItemRef.current = true;
+      // Remove the parameter so it doesn't trigger again
+      navigation.setParams?.({ historyItem: undefined });
+      // Connect using the history item
+      handleHistoryConnect(historyItem);
+    }
+    
+    // Return a cleanup function
+    return () => {
+      // Reset the ref when the effect is cleaned up
+      processedHistoryItemRef.current = false;
+    };
+  }, [navigation, handleHistoryConnect]);
 
   // Update: Scan button clears results and rescans, or cancels if already scanning
   const handleScanPress = () => {
@@ -584,7 +660,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
         if (connected) {
           // Update show ports after successful connection
-          updateShowPorts(sanitizedShowPorts);
+          await updateShowPorts(sanitizedShowPorts);
           navigation.navigate('Interface');
         }
       } catch (connectionError) {
@@ -664,7 +740,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
             showAdvanced={showAdvanced}
             setShowAdvanced={setShowAdvanced}
             isConnected={isConnected}
-            isConnecting={isConnecting}
+            isConnecting={isConnecting || isPingingInterfaces}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onCancelConnection={cancelConnection}
