@@ -122,7 +122,7 @@ class AutoDiscoveryService {
   private pendingServices: Map<string, PendingService[]> = new Map(); // Group services by IP
   private isScanning: boolean = false;
   private scanTimeout: NodeJS.Timeout | null = null;
-  private readonly SCAN_TIMEOUT_MS = 15000; // 15 seconds timeout
+  private readonly SCAN_TIMEOUT_MS = 5000; // 5 seconds timeout for snappier rescans
   
   // Throttling for performance optimization
   private updateThrottleTimeout: NodeJS.Timeout | null = null;
@@ -311,7 +311,9 @@ class AutoDiscoveryService {
     }
 
     if (this.isScanning) {
-      ErrorLogger.warn('⚠️ AutoDiscovery: Already scanning', 'AutoDiscoveryService');
+      // If a new scan is requested while one is active, restart immediately
+      ErrorLogger.info('🔄 AutoDiscovery: Restarting scan on new request', 'AutoDiscoveryService');
+      this.restartDiscovery();
       return;
     }
 

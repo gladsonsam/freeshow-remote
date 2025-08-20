@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { DiscoveredFreeShowInstance } from '../../services/AutoDiscoveryService';
 import { ConnectionHistory } from '../../repositories';
-import AnimatedGlowButton from '../../components/AnimatedGlowButton';
 
 interface QuickConnectSectionProps {
   history: ConnectionHistory[];
@@ -61,27 +60,51 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                 <Ionicons name="scan" size={16} color={FreeShowTheme.colors.secondary} />
                 <Text style={styles.discoveryTitle}>Network Scan</Text>
               </View>
-              <AnimatedGlowButton
+              <TouchableOpacity
                 onPress={onScanPress}
-                isActive={isScanActive}
-                style={styles.glowButton}
+                style={[
+                  styles.discoveryToggle,
+                  isScanActive && styles.discoveryToggleActive,
+                  { overflow: 'hidden', position: 'relative' },
+                ]}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {/* Progress fill overlay */}
+                {isScanActive && (
+                  <Animated.View
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: animatedScanProgress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                      backgroundColor: FreeShowTheme.colors.secondary,
+                      opacity: 0.3,
+                      borderRadius: 20,
+                      zIndex: 1,
+                    }}
+                  />
+                )}
+                {/* Icon and label */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 2 }}>
                   <Ionicons
                     name={isScanActive ? 'stop' : 'search'}
                     size={16}
-                    color="white"
+                    color={isScanActive ? 'white' : FreeShowTheme.colors.secondary}
                   />
                   <Text
                     style={[
-                      styles.glowButtonText,
+                      styles.discoveryToggleText,
+                      isScanActive && styles.discoveryToggleTextActive,
                       { marginLeft: 6 },
                     ]}
                   >
-                    {isScanActive ? 'Scanning...' : 'Scan'}
+                    {isScanActive ? 'Scanning…' : 'Scan'}
                   </Text>
                 </View>
-              </AnimatedGlowButton>
+              </TouchableOpacity>
             </View>
             {discoveredServices.length > 0 ? (
               <View style={styles.discoveredDevices}>
@@ -126,16 +149,16 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                             <Text style={styles.capabilityBadgeDisabled}>No Services</Text>
                           ) : (
                             <>
-                              {!!(service.ports?.remote) && (
+                              {service.ports?.remote && (
                                 <Text style={styles.capabilityBadge}>Remote:{service.ports.remote}</Text>
                               )}
-                              {!!(service.ports?.stage) && (
+                              {service.ports?.stage && (
                                 <Text style={styles.capabilityBadge}>Stage:{service.ports.stage}</Text>
                               )}
-                              {!!(service.ports?.control) && (
+                              {service.ports?.control && (
                                 <Text style={styles.capabilityBadge}>Control:{service.ports.control}</Text>
                               )}
-                              {!!(service.ports?.output) && (
+                              {service.ports?.output && (
                                 <Text style={styles.capabilityBadge}>Output:{service.ports.output}</Text>
                               )}
                             </>
@@ -312,14 +335,6 @@ const styles = StyleSheet.create({
     marginLeft: FreeShowTheme.spacing.xs,
   },
   discoveryToggleTextActive: {
-    color: 'white',
-  },
-  glowButton: {
-    // Additional styling if needed
-  },
-  glowButtonText: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    fontWeight: '600',
     color: 'white',
   },
   discoveredDevices: {

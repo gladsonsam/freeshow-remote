@@ -179,11 +179,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
               </View>
               
               <View style={styles.logoContainer}>
-                <Image 
-                  source={require('../../assets/icon.png')}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                />
+                <View style={styles.logoCircle}>
+                  <Image 
+                    source={require('../../assets/icon.png')}
+                    style={styles.logoImage}
+                    resizeMode="cover"
+                  />
+                </View>
               </View>
             </View>
 
@@ -308,6 +310,13 @@ const styles = StyleSheet.create({
     marginLeft: FreeShowTheme.spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
   },
   logoImage: {
     width: 28,
@@ -500,11 +509,13 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
               </View>
               
               <View style={traditionalStyles.logoContainer}>
-                <Image 
-                  source={require('../../assets/icon.png')}
-                  style={traditionalStyles.logoImage}
-                  resizeMode="contain"
-                />
+                <View style={traditionalStyles.logoCircle}>
+                  <Image 
+                    source={require('../../assets/icon.png')}
+                    style={traditionalStyles.logoImage}
+                    resizeMode="cover"
+                  />
+                </View>
               </View>
             </>
           )}
@@ -617,6 +628,13 @@ const traditionalStyles = StyleSheet.create({
     marginLeft: FreeShowTheme.spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
   },
   logoImage: {
     width: 26,

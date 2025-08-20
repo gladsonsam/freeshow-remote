@@ -51,10 +51,7 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
-      },
+      "icon": "./assets/icon.png",
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
@@ -107,7 +104,8 @@
             }
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

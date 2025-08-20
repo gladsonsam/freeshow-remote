@@ -216,9 +216,12 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
     }
 
     try {
+      // Mark discovering immediately for snappier UI feedback
+      setState(prev => ({ ...prev, isDiscovering: true }));
       autoDiscoveryService.startDiscovery();
     } catch (error) {
       ErrorLogger.error('Failed to start discovery', logContext, error instanceof Error ? error : new Error(String(error)));
+      setState(prev => ({ ...prev, isDiscovering: false }));
     }
   }, [state.isDiscoveryAvailable, state.isDiscovering, logContext]);
 
@@ -229,6 +232,8 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
     }
 
     try {
+      // Mark not discovering immediately for snappier UI feedback
+      setState(prev => ({ ...prev, isDiscovering: false }));
       autoDiscoveryService.stopDiscovery();
     } catch (error) {
       ErrorLogger.error('Failed to stop discovery', logContext, error instanceof Error ? error : new Error(String(error)));

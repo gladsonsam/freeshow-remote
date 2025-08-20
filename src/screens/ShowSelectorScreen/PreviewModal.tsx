@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { WebView } from 'react-native-webview';
@@ -26,13 +26,13 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
       transparent={true}
     >
       <View style={styles.previewBackdrop}>
         <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={onClose} />
-        <View style={styles.previewCard}>
+        <AnimatedPreviewCard visible={visible}>
           <View style={styles.previewHandle} />
           <View style={styles.previewHeader}>
             <Text style={styles.previewTitle}>{title}</Text>
@@ -67,9 +67,42 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               )}
             />
           </View>
-        </View>
+        </AnimatedPreviewCard>
       </View>
     </Modal>
+  );
+};
+
+// Bottom sheet card that subtly slides up while the backdrop fades
+const AnimatedPreviewCard: React.FC<{ visible: boolean; children: React.ReactNode }> = ({ visible, children }) => {
+  const translateY = useRef(new Animated.Value(20)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(20);
+      opacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, translateY, opacity]);
+
+  return (
+    <Animated.View style={[styles.previewCard, { transform: [{ translateY }], opacity }]}> 
+      {children}
+    </Animated.View>
   );
 };
 

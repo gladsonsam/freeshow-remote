@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({
             <Image 
               source={require('../../../assets/icon.png')} 
               style={styles.logoImage}
-              resizeMode="contain"
+              resizeMode="cover"
             />
           </View>
         </View>
@@ -102,8 +102,8 @@ const styles = StyleSheet.create({
     borderColor: FreeShowTheme.colors.connected,
   },
   logoImage: {
-    width: 40,
-    height: 40,
+    width: 60,
+    height: 60,
     backgroundColor: 'transparent',
   },
   appTitle: {

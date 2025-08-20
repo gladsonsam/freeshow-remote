@@ -91,7 +91,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const { startDiscovery, stopDiscovery, clearDiscoveredServices } = discoveryActions;
 
   // Progress state for scan
-  const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
+  // Use shorter timeout for UI progress to match snappier discovery
+  const discoveryTimeout = 5000;
   const [scanProgress, setScanProgress] = useState(0);
   const [scanComplete, setScanComplete] = useState(false);
   const [isScanActive, setIsScanActive] = useState(false);
