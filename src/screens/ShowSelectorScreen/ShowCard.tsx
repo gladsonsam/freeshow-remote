@@ -24,9 +24,35 @@ const ShowCard: React.FC<ShowCardProps> = ({
   isGrid,
   index,
 }) => {
-  // Check if interface is disabled (port is 0 or falsy)
   const isDisabled = !show.port || show.port === 0;
-  
+
+  // Gradient tuning per device form-factor
+  let gradientColors: [any, any, ...any[]];
+  let gradientLocations: [number, number, ...number[]];
+  if (isDisabled) {
+    gradientColors = ['#1E1E22', '#1A1A1F'] as [any, any, ...any[]];
+    gradientLocations = [0, 1] as [number, number, ...number[]];
+  } else if (isTablet) {
+    // Tablet: normal two-stop gradient but using the same colors as phone
+    gradientColors = [
+      FreeShowTheme.colors.primaryDarker,
+      (show.color as string) + '24',
+    ] as [any, any, ...any[]];
+    gradientLocations = [0, 1] as [number, number, ...number[]];
+  } else {
+    // Phone: sharp but narrow central band
+    gradientColors = [
+      FreeShowTheme.colors.primaryDarker,
+      (show.color as string) + '24',
+      (show.color as string) + '24',
+      FreeShowTheme.colors.primaryDarker,
+    ] as [any, any, ...any[]];
+    gradientLocations = [0, 0.47, 0.53, 1] as [number, number, ...number[]];
+  }
+
+  const gradientStart = { x: 0, y: 0 } as const;
+  const gradientEnd = { x: 1, y: 0 } as const; // Always horizontal to avoid tablet bands
+
   return (
     <View
       style={[
@@ -51,20 +77,17 @@ const ShowCard: React.FC<ShowCardProps> = ({
         android_ripple={{ color: show.color + '22' }}
         accessibilityRole="button"
         accessibilityLabel={`${show.title}. ${show.description}`}
-        style={({ pressed }) => ([
+        style={({ pressed }) => [
           styles.pressableCard,
-          pressed && { transform: [{ scale: 0.98 }], opacity: 0.98 },
+          pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
           isDisabled && styles.disabledCard,
-        ])}
+        ]}
       >
         <LinearGradient
-          colors={[
-            FreeShowTheme.colors.primaryDarker,
-            FreeShowTheme.colors.primaryDarker + 'F2',
-            isDisabled ? '#66666618' : show.color + '18',
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          colors={gradientColors}
+          locations={gradientLocations}
+          start={gradientStart}
+          end={gradientEnd}
           style={[
             styles.showCard,
             styles.cardShadow,
@@ -79,14 +102,16 @@ const ShowCard: React.FC<ShowCardProps> = ({
             },
           ]}
         >
-          <View style={[
-            styles.iconContainer,
-            {
-              backgroundColor: isDisabled ? '#66666620' : show.color + '20',
-              width: isTablet ? 72 : 56,
-              height: isTablet ? 72 : 56,
-            }
-          ]}>
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: isDisabled ? '#404040' : show.color + '25',
+                width: isTablet ? 72 : 56,
+                height: isTablet ? 72 : 56,
+              },
+            ]}
+          >
             <Ionicons
               name={show.icon as any}
               size={isTablet ? 40 : 32}
@@ -95,29 +120,39 @@ const ShowCard: React.FC<ShowCardProps> = ({
           </View>
 
           <View style={styles.showInfo}>
-            <Text style={[
-              styles.showTitle,
-              isDisabled && styles.disabledText,
-              {
-                fontSize: isTablet
-                  ? FreeShowTheme.fontSize.xl
-                  : (isSmallScreen ? FreeShowTheme.fontSize.md : FreeShowTheme.fontSize.lg),
-                marginBottom: isTablet ? 8 : 6,
-              }
-            ]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.showTitle,
+                isDisabled && styles.disabledText,
+                {
+                  fontSize: isTablet
+                    ? FreeShowTheme.fontSize.xl
+                    : isSmallScreen
+                    ? FreeShowTheme.fontSize.md
+                    : FreeShowTheme.fontSize.lg,
+                  marginBottom: isTablet ? 8 : 6,
+                },
+              ]}
+              numberOfLines={1}
+            >
               {show.title}
             </Text>
-            <Text style={[
-              styles.showDescription,
-              isDisabled && styles.disabledText,
-              {
-                fontSize: isTablet
-                  ? FreeShowTheme.fontSize.md
-                  : (isSmallScreen ? FreeShowTheme.fontSize.xs : FreeShowTheme.fontSize.sm),
-                lineHeight: isTablet ? 20 : 16,
-                marginBottom: isTablet ? 6 : 4,
-              }
-            ]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.showDescription,
+                isDisabled && styles.disabledText,
+                {
+                  fontSize: isTablet
+                    ? FreeShowTheme.fontSize.md
+                    : isSmallScreen
+                    ? FreeShowTheme.fontSize.xs
+                    : FreeShowTheme.fontSize.sm,
+                  lineHeight: isTablet ? 20 : 16,
+                  marginBottom: isTablet ? 6 : 4,
+                },
+              ]}
+              numberOfLines={1}
+            >
               {show.description}
             </Text>
           </View>
@@ -130,28 +165,29 @@ const ShowCard: React.FC<ShowCardProps> = ({
 const styles = StyleSheet.create({
   cardWrapper: {
     width: '100%',
+    marginBottom: FreeShowTheme.spacing.md,
   },
   showCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    borderLeftWidth: 4,
-    gap: FreeShowTheme.spacing.md,
-    overflow: 'hidden', // Ensure gradient fills the entire card
+    borderRadius: FreeShowTheme.borderRadius.xl, // Increased radius for modern feel
+    borderLeftWidth: 6, // Thicker border for modern design
+    gap: FreeShowTheme.spacing.lg, // Larger gap for spacing
+    overflow: 'hidden',
   },
   pressableCard: {
-    borderRadius: FreeShowTheme.borderRadius.lg,
+    borderRadius: FreeShowTheme.borderRadius.xl, // Larger radius for smoother look
     overflow: 'hidden',
   },
   cardShadow: {
     shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   iconContainer: {
-    borderRadius: FreeShowTheme.borderRadius.md,
+    borderRadius: FreeShowTheme.borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -162,10 +198,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
+    letterSpacing: 0.5, // Slightly increased letter spacing for modern typography
   },
   showDescription: {
     color: FreeShowTheme.colors.text + 'BB',
     fontFamily: FreeShowTheme.fonts.system,
+    letterSpacing: 0.2, // Slightly adjusted for a cleaner look
   },
   disabledCard: {
     opacity: 0.6,

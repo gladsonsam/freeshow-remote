@@ -65,7 +65,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
     try {
       ErrorLogger.debug('QR code scanned', 'QRScannerModal', new Error(`Type: ${type}, Data: ${data}`));
       
-      // Validate QR content first
+      // Validate QR content first (supports JSON payload with host, nickname, and ports)
       const qrValidation = ValidationService.validateQRContent(data);
       if (!qrValidation.isValid) {
         setErrorModal({
@@ -76,9 +76,14 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
         return;
       }
 
-      // Use the already validated content from QR validation
-      // The QR validation service handles URL parsing and host extraction
-      onScan(qrValidation.sanitizedValue as string);
+      const value = qrValidation.sanitizedValue;
+      if (value && typeof value === 'object' && value.type === 'freeshow-remote-connection') {
+        // Pass the full structured value upstream (host, nickname, ports)
+        onScan(JSON.stringify(value));
+      } else {
+        // Use the already validated content from QR validation (URL/host)
+        onScan(String(value));
+      }
       onClose();
       
     } catch (error) {

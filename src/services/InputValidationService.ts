@@ -314,6 +314,43 @@ export class InputValidationService {
         }
       }
 
+      // Try to parse as structured JSON payload first
+      try {
+        const obj = JSON.parse(sanitized);
+        if (obj && typeof obj === 'object') {
+          // Expect our structured payload
+          if (obj.type === 'freeshow-remote-connection') {
+            // Validate host
+            const hostResult = this.validateHost(String(obj.host || ''));
+            if (!hostResult.isValid) {
+              return { isValid: false, error: `Invalid host in QR payload: ${hostResult.error}` };
+            }
+
+            // Validate ports object
+            const portsResult = this.validateShowPorts(obj.ports);
+            if (!portsResult.isValid) {
+              return { isValid: false, error: `Invalid ports in QR payload: ${portsResult.error}` };
+            }
+
+            // Sanitize nickname (optional)
+            const nickname = obj.nickname ? this.sanitizeString(String(obj.nickname)) : undefined;
+
+            return {
+              isValid: true,
+              sanitizedValue: {
+                type: 'freeshow-remote-connection',
+                version: Number(obj.version) || 1,
+                host: hostResult.sanitizedValue,
+                nickname,
+                ports: portsResult.sanitizedValue,
+              },
+            };
+          }
+        }
+      } catch {
+        // Not JSON – continue
+      }
+
       // Try to parse as URL or IP
       try {
         // Check if it's a URL

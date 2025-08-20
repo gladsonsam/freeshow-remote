@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    marginBottom: FreeShowTheme.spacing.xs,
+    marginBottom: FreeShowTheme.spacing.md,
   },
   connectionPill: {
     alignSelf: 'flex-start',

@@ -10,12 +10,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { useSettings } from '../contexts';
+import { configService } from '../config/AppConfig';
 
 interface ShareQRModalProps {
   visible: boolean;
   onClose: () => void;
   host: string;
-  port: string;
+  port?: string; // optional fallback
 }
 
 // Responsive sizing utility
@@ -49,7 +51,23 @@ const getResponsiveDimensions = () => {
 };
 
 const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, port }) => {
-  const connectionUrl = `http://${host}:${port}`;
+  const { history } = useSettings();
+  const defaultPorts = configService.getDefaultShowPorts();
+  const connection = history.find(h => h.host === host);
+
+  const payload = {
+    type: 'freeshow-remote-connection',
+    version: 1,
+    host,
+    nickname: connection?.nickname,
+    ports: {
+      remote: connection?.showPorts?.remote ?? defaultPorts.remote,
+      stage: connection?.showPorts?.stage ?? defaultPorts.stage,
+      control: connection?.showPorts?.control ?? defaultPorts.control,
+      output: connection?.showPorts?.output ?? defaultPorts.output,
+      api: connection?.showPorts?.api ?? Number(port ?? defaultPorts.api),
+    },
+  };
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
 
   // Update dimensions when orientation changes
@@ -105,7 +123,7 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
             }
           ]}>
             <QRCode
-              value={connectionUrl}
+              value={JSON.stringify(payload)}
               size={qrSize}
               backgroundColor="white"
               color="black"
@@ -123,7 +141,7 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
                 marginBottom: isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
               }
             ]}>
-              {connectionUrl}
+              {`Sharing details of ${connection?.nickname || host}`}
             </Text>
             <Text style={[
               styles.instructionText,
@@ -132,7 +150,7 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
                 lineHeight: isTablet ? 24 : 20,
               }
             ]}>
-              Scan this QR code with another device to connect to the same FreeShow server
+              Scan to import this connection (nickname, host, and all ports)
             </Text>
           </View>
 
