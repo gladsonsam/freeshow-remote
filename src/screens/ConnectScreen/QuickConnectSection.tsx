@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { DiscoveredFreeShowInstance } from '../../services/AutoDiscoveryService';
 import { ConnectionHistory } from '../../repositories';
+import AnimatedGlowButton from '../../components/AnimatedGlowButton';
 
 interface QuickConnectSectionProps {
   history: ConnectionHistory[];
@@ -60,51 +61,27 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                 <Ionicons name="scan" size={16} color={FreeShowTheme.colors.secondary} />
                 <Text style={styles.discoveryTitle}>Network Scan</Text>
               </View>
-              <TouchableOpacity
+              <AnimatedGlowButton
                 onPress={onScanPress}
-                style={[
-                  styles.discoveryToggle,
-                  isScanActive && styles.discoveryToggleActive,
-                  { overflow: 'hidden', position: 'relative' },
-                ]}
+                isActive={isScanActive}
+                style={styles.glowButton}
               >
-                {/* Progress fill overlay */}
-                {isScanActive && (
-                  <Animated.View
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: animatedScanProgress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                      backgroundColor: FreeShowTheme.colors.secondary,
-                      opacity: 0.3,
-                      borderRadius: 20,
-                      zIndex: 1,
-                    }}
-                  />
-                )}
-                {/* Icon and label */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons
                     name={isScanActive ? 'stop' : 'search'}
                     size={16}
-                    color={isScanActive ? 'white' : FreeShowTheme.colors.secondary}
+                    color="white"
                   />
                   <Text
                     style={[
-                      styles.discoveryToggleText,
-                      isScanActive && styles.discoveryToggleTextActive,
+                      styles.glowButtonText,
                       { marginLeft: 6 },
                     ]}
                   >
                     {isScanActive ? 'Scanning...' : 'Scan'}
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </AnimatedGlowButton>
             </View>
             {discoveredServices.length > 0 ? (
               <View style={styles.discoveredDevices}>
@@ -335,6 +312,14 @@ const styles = StyleSheet.create({
     marginLeft: FreeShowTheme.spacing.xs,
   },
   discoveryToggleTextActive: {
+    color: 'white',
+  },
+  glowButton: {
+    // Additional styling if needed
+  },
+  glowButtonText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    fontWeight: '600',
     color: 'white',
   },
   discoveredDevices: {
