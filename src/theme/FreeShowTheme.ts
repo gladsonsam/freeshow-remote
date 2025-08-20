@@ -45,6 +45,8 @@ export const FreeShowTheme = {
     teal: 'linear-gradient(120deg, #39CCCC 0%, #2CA0A0 60%, #1E7575 100%)',
     blue: 'linear-gradient(120deg, #0074D9 0%, #0051A3 60%, #00346C 100%)',
     purple: 'linear-gradient(120deg, #B10DC9 0%, #8A0AA4 60%, #5F0578 100%)',
+    
+    dark: ['#363945', '#292c36', '#191923'],
   },
   
   spacing: {

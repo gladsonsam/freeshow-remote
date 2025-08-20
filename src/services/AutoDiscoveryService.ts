@@ -317,6 +317,16 @@ class AutoDiscoveryService {
 
     try {
       ErrorLogger.info(`🔍 AutoDiscovery: Starting scan for FreeShow services (${this.SCAN_TIMEOUT_MS / 1000}s timeout)...`, 'AutoDiscoveryService');
+      
+      // Force stop any previous scan to ensure clean state
+      try {
+        this.zeroconf.stop();
+      } catch {
+        // Ignore stop errors as the service might not be running
+        ErrorLogger.debug('Previous scan stop attempt (expected if not running)', 'AutoDiscoveryService');
+      }
+      
+      // Clear all state for fresh scan
       this.discoveredServices.clear();
       this.pendingServices.clear();
       this.isScanning = true;
@@ -324,8 +334,18 @@ class AutoDiscoveryService {
       // Set a timeout to automatically stop scanning
       this.setScanTimeout();
       
-      // Scan for FreeShow services
-      this.zeroconf.scan('freeshow', 'udp');
+      // Small delay to ensure zeroconf is properly stopped before starting
+      setTimeout(() => {
+        try {
+          // Scan for FreeShow services
+          this.zeroconf?.scan('freeshow', 'udp');
+        } catch (scanError) {
+          ErrorLogger.error('❌ AutoDiscovery: Failed to start scan after delay', 'AutoDiscoveryService', scanError instanceof Error ? scanError : new Error(String(scanError)));
+          this.isScanning = false;
+          this.notifyError(`Failed to start discovery: ${scanError}. Try using manual connection instead.`);
+        }
+      }, 100); // 100ms delay to ensure clean state
+      
     } catch (error) {
       ErrorLogger.error('❌ AutoDiscovery: Failed to start scanning', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
       this.isScanning = false;
@@ -340,12 +360,14 @@ class AutoDiscoveryService {
     }
 
     if (!this.isScanning) {
+      ErrorLogger.debug('🛑 AutoDiscovery: Not currently scanning', 'AutoDiscoveryService');
       return;
     }
 
     try {
       ErrorLogger.info('🛑 AutoDiscovery: Stopping scan...', 'AutoDiscoveryService');
       this.clearScanTimeout();
+      this.clearUpdateThrottle();
       this.isScanning = false;
       this.zeroconf.stop();
     } catch (error) {
@@ -391,6 +413,21 @@ class AutoDiscoveryService {
   removeAllListeners(): void {
     this.listeners.onServicesUpdated = [];
     this.listeners.onError = [];
+  }
+
+  /**
+   * Force restart discovery - ensures clean state reset
+   */
+  restartDiscovery(): void {
+    ErrorLogger.info('🔄 AutoDiscovery: Force restarting discovery...', 'AutoDiscoveryService');
+    
+    // Force stop and clear all state
+    this.stopDiscovery();
+    
+    // Wait a bit longer for complete cleanup
+    setTimeout(() => {
+      this.startDiscovery();
+    }, 200);
   }
 
   destroy(): void {

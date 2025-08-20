@@ -58,7 +58,7 @@ const CompactPopup: React.FC<CompactPopupProps> = ({
           </View>
 
           {/* IP Address with status dot - only show for enabled interfaces */}
-          {!isDisabled && show?.port && (
+          {!isDisabled && !!(show?.port) && (
             <View style={styles.compactIpContainer}>
               <View style={styles.compactIpRow}>
                 <View style={styles.compactStatusDot} />

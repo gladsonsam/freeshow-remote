@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { ShowOption } from '../../types';
@@ -52,7 +52,10 @@ const EnableInterfaceModal: React.FC<EnableInterfaceModalProps> = ({
       onRequestClose={onClose}
       transparent={true}
     >
-      <View style={styles.enableBackdrop}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.enableBackdrop}
+      >
         <TouchableOpacity style={styles.enableBackdropTouchable} activeOpacity={1} onPress={onClose} />
         <View style={styles.enablePopupContainer}>
           <View style={styles.enableHandle} />
@@ -108,7 +111,7 @@ const EnableInterfaceModal: React.FC<EnableInterfaceModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

@@ -149,16 +149,16 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                             <Text style={styles.capabilityBadgeDisabled}>No Services</Text>
                           ) : (
                             <>
-                              {service.ports?.remote && (
+                              {!!(service.ports?.remote) && (
                                 <Text style={styles.capabilityBadge}>Remote:{service.ports.remote}</Text>
                               )}
-                              {service.ports?.stage && (
+                              {!!(service.ports?.stage) && (
                                 <Text style={styles.capabilityBadge}>Stage:{service.ports.stage}</Text>
                               )}
-                              {service.ports?.control && (
+                              {!!(service.ports?.control) && (
                                 <Text style={styles.capabilityBadge}>Control:{service.ports.control}</Text>
                               )}
-                              {service.ports?.output && (
+                              {!!(service.ports?.output) && (
                                 <Text style={styles.capabilityBadge}>Output:{service.ports.output}</Text>
                               )}
                             </>

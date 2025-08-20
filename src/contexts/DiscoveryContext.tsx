@@ -1,9 +1,10 @@
 // Discovery Context - Handles auto-discovery of FreeShow instances
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { autoDiscoveryService, DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 import { ErrorLogger } from '../services/ErrorLogger';
-import { connectionRepository } from '../repositories';
+import { connectionRepository, settingsRepository } from '../repositories';
 
 export interface DiscoveryState {
   discoveredServices: DiscoveredFreeShowInstance[];
@@ -97,7 +98,7 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
     };
   }, [logContext]);
 
-  // Load cached discovery results on mount
+  // Load cached discovery results on mount and run auto-discovery if storage is blank and no connection history
   useEffect(() => {
     const loadCachedResults = async () => {
       try {
@@ -120,9 +121,40 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
           }));
 
           ErrorLogger.debug(`Loaded ${cachedResults.length} cached discovery results`, logContext);
+        } else {
+          // Discovery cache is blank, check connection history before running auto-discovery
+          const connectionHistory = await settingsRepository.getConnectionHistory();
+          
+          if (connectionHistory.length === 0) {
+            // Both discovery cache and connection history are empty, run auto-discovery scan if available
+            if (autoDiscoveryService.isAvailable() && !autoDiscoveryService.isActive()) {
+              ErrorLogger.info('No cached discovery results and no connection history found, starting auto-discovery scan', logContext);
+              try {
+                autoDiscoveryService.startDiscovery();
+              } catch (error) {
+                ErrorLogger.error('Failed to start discovery on blank storage', logContext, error instanceof Error ? error : new Error(String(error)));
+              }
+            }
+          } else {
+            ErrorLogger.debug(`Skipping auto-discovery: found ${connectionHistory.length} connection history entries`, logContext);
+          }
         }
       } catch (error) {
         ErrorLogger.warn('Failed to load cached discovery results', logContext, error instanceof Error ? error : new Error(String(error)));
+        // If error loading cache, check connection history before trying auto-discovery
+        try {
+          const connectionHistory = await settingsRepository.getConnectionHistory();
+          if (connectionHistory.length === 0 && autoDiscoveryService.isAvailable() && !autoDiscoveryService.isActive()) {
+            ErrorLogger.info('Error loading cached results but no connection history, starting auto-discovery scan', logContext);
+            try {
+              autoDiscoveryService.startDiscovery();
+            } catch (error) {
+              ErrorLogger.error('Failed to start discovery after cache error', logContext, error instanceof Error ? error : new Error(String(error)));
+            }
+          }
+        } catch (historyError) {
+          ErrorLogger.warn('Failed to check connection history after cache error', logContext, historyError instanceof Error ? historyError : new Error(String(historyError)));
+        }
       }
     };
 
@@ -135,6 +167,42 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
       startDiscovery();
     }
   }, [autoStartDiscovery, state.isDiscoveryAvailable, state.isDiscovering]);
+
+  // App state listener to clear discovery results when app goes to background
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      // Clear discovery results when app goes to background or inactive
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        try {
+          // Clear in-memory discovery results
+          setState(prev => ({
+            ...prev,
+            discoveredServices: [],
+            lastDiscoveryTime: null,
+            discoveryError: null,
+          }));
+
+          // Clear cached discovery results
+          await connectionRepository.clearDiscoveryCache();
+          
+          // Stop any ongoing discovery
+          if (state.isDiscovering) {
+            autoDiscoveryService.stopDiscovery();
+          }
+
+          ErrorLogger.debug('Cleared discovery results on app background', logContext);
+        } catch (error) {
+          ErrorLogger.warn('Failed to clear discovery results on app background', logContext, error instanceof Error ? error : new Error(String(error)));
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [logContext, state.isDiscovering]);
 
   const startDiscovery = useCallback(() => {
     if (!state.isDiscoveryAvailable) {
@@ -168,22 +236,31 @@ export const DiscoveryProvider: React.FC<DiscoveryProviderProps> = ({
   }, [state.isDiscovering, logContext]);
 
   const refreshDiscovery = useCallback(() => {
-    if (state.isDiscovering) {
-      stopDiscovery();
-    }
-    
-    // Clear current results
+    // Always clear current results first
     setState(prev => ({
       ...prev,
       discoveredServices: [],
       discoveryError: null,
     }));
 
-    // Start discovery after a short delay
-    setTimeout(() => {
-      startDiscovery();
-    }, 500);
-  }, [state.isDiscovering, startDiscovery, stopDiscovery]);
+    try {
+      // Use the service's restart method for more reliable refresh
+      autoDiscoveryService.restartDiscovery();
+    } catch (error) {
+      ErrorLogger.error('Failed to restart discovery', logContext, error instanceof Error ? error : new Error(String(error)));
+      // Fallback to manual restart
+      if (state.isDiscovering) {
+        stopDiscovery();
+        setTimeout(() => {
+          startDiscovery();
+        }, 750);
+      } else {
+        setTimeout(() => {
+          startDiscovery();
+        }, 100);
+      }
+    }
+  }, [state.isDiscovering, startDiscovery, stopDiscovery, logContext]);
 
   const clearDiscoveredServices = useCallback(() => {
     setState(prev => ({

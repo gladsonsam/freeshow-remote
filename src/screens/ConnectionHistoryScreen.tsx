@@ -222,7 +222,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                 </View>
               </View>
               
-              {item.showPorts && (
+              {!!(item.showPorts) && (
                 <View style={styles.portsContainer}>
                   <Text style={styles.portsLabel}>Port Configuration:</Text>
                   <View style={styles.portsGrid}>

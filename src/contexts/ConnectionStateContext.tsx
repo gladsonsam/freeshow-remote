@@ -5,7 +5,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { getDefaultFreeShowService } from '../services/DIContainer';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
-import { settingsRepository, AppSettings } from '../repositories';
+import { settingsRepository } from '../repositories';
 import { configService } from '../config/AppConfig';
 
 export interface ConnectionState {
@@ -195,9 +195,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
           setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout' }));
         }, timeoutMs);
         
+        // Use API port for connection (default 5505 if not specified)
+        const apiPort = lastConnection.showPorts?.api || 5505;
+        
         const success = await service.connect(
           lastConnection.host,
-          lastConnection.showPorts?.remote || 5505,
+          apiPort,
           lastConnection.nickname
         ).then(() => true).catch(() => false);
         
@@ -210,18 +213,49 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
             isConnected: true, 
             connectionHost: lastConnection.host, 
             connectionName: lastConnection.nickname || lastConnection.host, 
-            connectionStatus: 'connected' 
+            connectionStatus: 'connected',
+            connectionPort: apiPort,
           }));
+          
+          // Update show ports with the saved configuration (respects disabled interfaces with port=0)
+          if (lastConnection.showPorts) {
+            const showPorts = {
+              remote: lastConnection.showPorts.remote,
+              stage: lastConnection.showPorts.stage,
+              control: lastConnection.showPorts.control,
+              output: lastConnection.showPorts.output,
+              api: lastConnection.showPorts.api,
+            };
+            
+            // Update the show ports state to reflect saved configuration
+            setState(prev => ({ 
+              ...prev, 
+              currentShowPorts: showPorts,
+            }));
+            
+            ErrorLogger.info('[AutoReconnect] Applied saved show ports configuration', 'ConnectionStateContext', {
+              host: lastConnection.host,
+              showPorts
+            });
+          }
+          
+          ErrorLogger.info('[AutoReconnect] Successfully reconnected with saved configuration', 'ConnectionStateContext', {
+            host: lastConnection.host,
+            nickname: lastConnection.nickname,
+            apiPort,
+            showPorts: lastConnection.showPorts
+          });
           
           setTimeout(() => triggerAutoLaunch(), 500);
         } else {
-          // Navigate to Connect tab only for bottom tab layout
-          setTimeout(async () => {
-            const settings = await settingsRepository.getAppSettings();
-            if (settings.navigationLayout !== 'sidebar' && navigationRef.current?.navigate) {
+          // Navigate to Connect screen on auto-reconnect failure (regardless of navigation layout)
+          setTimeout(() => {
+            if (navigationRef.current?.navigate) {
               navigationRef.current.navigate('Main', { screen: 'Connect' });
             }
           }, 100);
+          
+          ErrorLogger.warn(`[AutoReconnect] Failed to reconnect to last connection: ${lastConnection.host}:${apiPort}`, 'ConnectionStateContext');
         }
         
         setState(prev => ({ ...prev, autoConnectAttempted: true }));
@@ -453,10 +487,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       saveTimeoutRef.current = setTimeout(async () => {
         try {
           await settingsRepository.updateConnectionPorts(state.connectionHost!, ports);
-          ErrorLogger.debug('Auto-saved connection ports to history', logContext, { 
-            host: state.connectionHost, 
-            ports 
-          });
           
           // Immediately refresh connection history in the UI
           if (onConnectionHistoryUpdate) {

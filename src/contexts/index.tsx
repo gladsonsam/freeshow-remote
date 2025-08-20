@@ -5,6 +5,7 @@ import { ConnectionProvider } from './ConnectionStateContext';
 import { DiscoveryProvider } from './DiscoveryContext';
 import { SettingsProvider, useSettings } from './SettingsContext';
 
+
 // Inner component that has access to the settings context
 const ConnectionProviderWithSettings: React.FC<{
   children: ReactNode;
@@ -41,3 +42,4 @@ export const AppContextProvider: React.FC<{
 export * from './ConnectionStateContext';
 export * from './DiscoveryContext';
 export * from './SettingsContext';
+

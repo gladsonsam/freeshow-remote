@@ -49,7 +49,7 @@ export class InterfacePingService {
             responseTime
           };
           
-        } catch (portError) {
+        } catch {
           // Continue to next port quickly
           continue;
         }

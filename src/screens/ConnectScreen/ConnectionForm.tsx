@@ -69,10 +69,12 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
     api: apiPort.trim() === '' ? 0 : (parseInt(apiPort) || 0),
   }), [remotePort, stagePort, controlPort, outputPort, apiPort]);
 
-  // Update show ports when connected and ports change
+  // Update show ports from form fields only when not connected (during connection setup)
+  // When connected, ShowSelector controls interface states
   const prevPortsRef = useRef<string>('');
+  
   useEffect(() => {
-    if (isConnected) {
+    if (!isConnected) {
       const currentPortsKey = `${remotePort}-${stagePort}-${controlPort}-${outputPort}-${apiPort}`;
       if (currentPortsKey !== prevPortsRef.current) {
         updateShowPorts(getShowPorts());

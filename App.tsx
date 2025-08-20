@@ -190,7 +190,7 @@ const SIDEBAR_ROUTES = ['Interface', 'Connect', 'Settings'];
 // EXTERNAL_ROUTES: Routes that should use the main navigation stack
 // These are typically modal screens, overlays, or screens that exist outside the main app flow
 // When adding new screens, add them here if they should be accessible from sidebar layout
-const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'ConnectionHistory', 'About'];
+const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'ConnectionHistory', 'About', 'Main'];
 
 // Sidebar Layout with content area
 function SidebarLayout() {

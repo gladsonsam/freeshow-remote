@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
   ScrollView,
   Dimensions,
@@ -58,6 +56,7 @@ interface ShowSelectorScreenProps {
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
   const { state, actions } = useConnection();
   const { settings } = useSettings();
+
   const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
   const { disconnect, updateShowPorts } = actions;
   
@@ -70,7 +69,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   });
   const [compactPopup, setCompactPopup] = useState<{ visible: boolean; show: ShowOption | null }>({ visible: false, show: null });
   const [previewModal, setPreviewModal] = useState<{ visible: boolean; url: string; title: string; description?: string; showId?: string; port?: number }>({ visible: false, url: '', title: '', description: '', showId: undefined, port: undefined });
-  const [toast, setToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   
   // State for enable interface modal
   const [enableInterfaceModal, setEnableInterfaceModal] = useState<{ 
@@ -278,7 +276,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     setShowDisconnectConfirm(false);
     try {
       if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Main', { screen: 'Connect' });
+        // Try direct navigation first (works for sidebar layout)
+        navigation.navigate('Connect');
       } else {
         console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
       }
@@ -322,21 +321,12 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     
     // Update show ports in connection context
     updateShowPorts(updatedPorts); // Fire and forget - auto-save will handle persistence
-    
-    // Show confirmation toast
-    showToast(`${show.title} disabled`);
+
   };
 
   // Handle canceling the enable interface modal
   const handleCancelEnableInterface = () => {
     setEnableInterfaceModal({ visible: false, show: null, port: '' });
-  };
-
-  const showToast = (message: string) => {
-    setToast({ visible: true, message });
-    setTimeout(() => {
-      setToast({ visible: false, message: '' });
-    }, 3000); // Hide toast after 3 seconds
   };
 
   const copyToClipboard = async (show: ShowOption) => {
@@ -348,7 +338,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     try {
       const url = `http://${connectionHost}:${show.port}`;
       await Clipboard.setStringAsync(url);
-      showToast('URL copied to clipboard');
+
       closeCompactPopup();
     } catch {
       setErrorModal({ visible: true, title: 'Error', message: 'Failed to copy URL to clipboard' });
@@ -420,7 +410,8 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   const navigateToConnect = () => {
     try {
       if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Main', { screen: 'Connect' });
+        // Try direct navigation first (works for sidebar layout)
+        navigation.navigate('Connect');
       } else {
         console.warn('[ShowSelectorScreen] No valid navigation available for Connect');
       }
@@ -501,7 +492,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           
           // Close modal and show confirmation
           setEnableInterfaceModal({ visible: false, show: null, port: '' });
-          showToast(`${show.title} enabled on port ${portNumber}`);
+
         }}
         onCancel={handleCancelEnableInterface}
       />
@@ -536,15 +527,6 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
         message={errorModal.message}
         onClose={() => setErrorModal({visible: false, title: '', message: ''})}
       />
-
-      {/* Toast Notification */}
-      {toast.visible && (
-        <SafeAreaView style={styles.toastContainer}>
-          <View style={styles.toast}>
-            <Text style={styles.toastText}>{toast.message}</Text>
-          </View>
-        </SafeAreaView>
-      )}
     </SafeAreaView>
   );
 };
@@ -556,30 +538,6 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     flexGrow: 1,
-  },
-  toastContainer: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 9999,
-  },
-  toast: {
-    backgroundColor: FreeShowTheme.colors.secondary,
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  toastText: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: '600',
   },
 });
 

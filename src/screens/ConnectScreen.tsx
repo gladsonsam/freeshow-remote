@@ -72,6 +72,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     connectionName,
     currentShowPorts,
   } = state;
+  
+
   const {
     connect,
     disconnect,
@@ -148,32 +150,16 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     }
   }, [isDiscovering]);
 
-  // Initialize port values when component mounts and when connection changes
-  // Use a ref to track previous values to avoid infinite loops
-  const prevShowPortsRef = useRef(currentShowPorts);
-
+  // Sync port fields with currentShowPorts (interface states from ShowSelector)
   useEffect(() => {
-    // Only update port fields if show ports have actually changed
-    if (currentShowPorts && 
-        (prevShowPortsRef.current?.remote !== currentShowPorts.remote ||
-         prevShowPortsRef.current?.stage !== currentShowPorts.stage ||
-         prevShowPortsRef.current?.control !== currentShowPorts.control ||
-         prevShowPortsRef.current?.output !== currentShowPorts.output ||
-         prevShowPortsRef.current?.api !== currentShowPorts.api)) {
-      
-      // Update port fields based on current show ports
-      setRemotePort(currentShowPorts.remote ? String(currentShowPorts.remote) : '');
-      setStagePort(currentShowPorts.stage ? String(currentShowPorts.stage) : '');
-      setControlPort(currentShowPorts.control ? String(currentShowPorts.control) : '');
-      setOutputPort(currentShowPorts.output ? String(currentShowPorts.output) : '');
-      setApiPort(currentShowPorts.api ? String(currentShowPorts.api) : '');
-      
-      // Update the ref with current values
-      prevShowPortsRef.current = currentShowPorts;
-    }
+    if (!currentShowPorts) return;
+    
+    setRemotePort(currentShowPorts.remote > 0 ? String(currentShowPorts.remote) : '');
+    setStagePort(currentShowPorts.stage > 0 ? String(currentShowPorts.stage) : '');
+    setControlPort(currentShowPorts.control > 0 ? String(currentShowPorts.control) : '');
+    setOutputPort(currentShowPorts.output > 0 ? String(currentShowPorts.output) : '');
+    setApiPort(currentShowPorts.api > 0 ? String(currentShowPorts.api) : '');
   }, [currentShowPorts]);
-
-  // Remove this useEffect as the animation is now handled in the scan progress effect above
 
   const handleConnect = async () => {
     try {
@@ -355,13 +341,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       if (connected) {
         // Update show ports after successful connection
         await updateShowPorts(validatedShowPorts);
-        // Navigate to Interface screen, handling both sidebar and bottom tab layouts
+        // Navigate to Interface screen (works for both sidebar and bottom tab layouts)
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Interface');
         } else {
-          // For sidebar layout, we might not need to navigate since we're already on the Connect screen
-          // The interface should update automatically based on the connection state
-          ErrorLogger.debug('Connected successfully, but no navigation function available (likely in sidebar layout)', 'ConnectScreen');
+          ErrorLogger.warn('Connected successfully, but no navigation function available', 'ConnectScreen');
         }
       }
     } catch (error) {
@@ -430,13 +414,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           showPorts
         );
         
-        // Navigate to Interface screen, handling both sidebar and bottom tab layouts
+        // Navigate to Interface screen (works for both sidebar and bottom tab layouts)
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Interface');
         } else {
-          // For sidebar layout, we might not need to navigate since we're already on the Connect screen
-          // The interface should update automatically based on the connection state
-          ErrorLogger.debug('Connected successfully, but no navigation function available (likely in sidebar layout)', 'ConnectScreen');
+          ErrorLogger.warn('Connected successfully, but no navigation function available', 'ConnectScreen');
         }
       }
     } catch (error) {

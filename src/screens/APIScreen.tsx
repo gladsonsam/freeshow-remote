@@ -279,7 +279,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           <Text style={styles.errorText}>Not connected to FreeShow</Text>
           <TouchableOpacity 
             style={styles.connectButton}
-            onPress={() => navigation.navigate('Main', { screen: 'Connect' })}
+            onPress={() => navigation.navigate('Connect')}
           >
             <Text style={styles.connectButtonText}>Go to Connect</Text>
           </TouchableOpacity>
