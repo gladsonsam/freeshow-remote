@@ -31,7 +31,7 @@ A mobile remote app for [FreeShow](https://freeshow.app) presentation software, 
 - Node.js (v16 or higher)
 - Expo CLI (`npm install -g @expo/cli`)
 - EAS CLI (`npm install -g @expo/eas-cli`) for building APK/IPA
-- FreeShow installed on your computer with API enabled
+- FreeShow installed on your computer
 - Both devices on the same WiFi network
 
 ### Installation
