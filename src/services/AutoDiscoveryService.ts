@@ -43,7 +43,6 @@ function parseServiceCapability(serviceName: string): {
   const name = (serviceName || '').trim();
   
   // Handle new format: HOSTNAME-CONNECTION-RANDOMHEX
-  // Examples: "Gladson-Laptop-REMOTE-d00a5b", "My-PC-With-Hyphens-STAGE-d00a5b"
   const parts = name.split('-');
   if (parts.length >= 3) {
     // New format detected - the connection type is the second-to-last part

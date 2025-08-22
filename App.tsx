@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -80,12 +80,120 @@ const SettingsScreenWrapped = (props: any) => (
   </ErrorBoundary>
 );
 
+// Helper function to get tab icon and color based on route and state
+function getTabIcon(routeName: string, isFocused: boolean, isConnected: boolean, connectionStatus: string) {
+  let iconName: keyof typeof Ionicons.glyphMap;
+  let iconColor = isFocused ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.text + '80';
+
+  if (routeName === 'Interface') {
+    iconName = isFocused ? 'apps' : 'apps-outline';
+  } else if (routeName === 'Connect') {
+    iconName = isFocused ? 'wifi' : 'wifi-outline';
+    // Dynamic color for Connect tab based on connection status
+    if (isFocused) {
+      iconColor = FreeShowTheme.colors.secondary; // Purple when focused (on Connect page)
+    } else if (isConnected) {
+      iconColor = '#4CAF50'; // Green when connected but not focused
+    } else if (connectionStatus === 'connecting') {
+      iconColor = '#FF9800'; // Orange when connecting
+    } else {
+      iconColor = FreeShowTheme.colors.text + '80'; // Gray when not focused and not connected
+    }
+  } else if (routeName === 'Settings') {
+    iconName = isFocused ? 'settings' : 'settings-outline';
+  } else {
+    iconName = 'help-circle-outline';
+  }
+
+  return { iconName, iconColor };
+}
+
+// TypeScript interfaces for better type safety
+interface TabBarProps {
+  state: any;
+  descriptors: any;
+  navigation: any;
+}
+
+// Custom Tab Bar Component that handles safe area insets
+function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
+  const insets = useSafeAreaInsets();
+  const { state: connectionState } = useConnection();
+  const { isConnected, connectionStatus } = connectionState;
+
+  return (
+    <View style={{
+      backgroundColor: FreeShowTheme.colors.primaryDarkest,
+      borderTopColor: FreeShowTheme.colors.primaryLighter,
+      borderTopWidth: 2,
+      paddingBottom: Math.max(insets.bottom, 12), // Use system navigation bar height or minimum 12
+      paddingTop: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 75,
+    }}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel !== undefined ? options.tabBarLabel : options.title !== undefined ? options.title : route.name;
+        const isFocused = state.index === index;
+        const { iconName, iconColor } = getTabIcon(route.name, isFocused, isConnected, connectionStatus);
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name, route.params);
+          }
+        };
+
+        const onLongPress = () => {
+          navigation.emit({
+            type: 'tabLongPress',
+            target: route.key,
+          });
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.name}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            testID={options.tabBarTestID}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingVertical: 8,
+            }}
+          >
+            <Ionicons name={iconName} size={24} color={iconColor} />
+            <Text style={{
+              color: iconColor,
+              fontSize: 12,
+              fontWeight: '600',
+              fontFamily: FreeShowTheme.fonts.system,
+              marginTop: 2,
+            }}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 // Bottom Tab Navigator
 function BottomTabsLayout() {
-  const { state } = useConnection();
-  const { isConnected, connectionStatus } = state;
   const autoConnectExpected = useAutoConnectExpected();
-  
+
   // Always call all hooks first
   const initialRouteName = React.useMemo(() => {
     return autoConnectExpected ? "Interface" : "Connect";
@@ -112,67 +220,22 @@ function BottomTabsLayout() {
   return (
     <Tab.Navigator
       initialRouteName={initialRouteName}
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
-          let iconColor = color;
-
-          if (route.name === 'Interface') {
-            iconName = focused ? 'apps' : 'apps-outline';
-          } else if (route.name === 'Connect') {
-            iconName = focused ? 'wifi' : 'wifi-outline';
-            // Dynamic color for Connect tab based on connection status
-            if (focused) {
-              iconColor = FreeShowTheme.colors.secondary; // Purple when focused (on Connect page)
-            } else if (isConnected) {
-              iconColor = '#4CAF50'; // Green when connected but not focused
-            } else if (connectionStatus === 'connecting') {
-              iconColor = '#FF9800'; // Orange when connecting  
-            } else {
-              iconColor = FreeShowTheme.colors.text + '80'; // Gray when not focused and not connected
-            }
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
-          } else {
-            iconName = 'help-circle-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={iconColor} />;
-        },
-        tabBarActiveTintColor: FreeShowTheme.colors.secondary,
-        tabBarInactiveTintColor: FreeShowTheme.colors.text + '80', // 50% opacity
-        tabBarStyle: {
-          backgroundColor: FreeShowTheme.colors.primaryDarkest,
-          borderTopColor: FreeShowTheme.colors.primaryLighter,
-          borderTopWidth: 2,
-          height: 75,
-          paddingBottom: 12, // Increased bottom padding to push content up
-          paddingTop: 4, // Reduced top padding
-        },
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
         headerShown: false,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          fontFamily: FreeShowTheme.fonts.system,
-          marginTop: 2, // Reduced space between icon and label
-          marginBottom: 0,
-        },
-        tabBarIconStyle: {
-          marginBottom: 0,
-        },
-      })}
+      }}
     >
-      <Tab.Screen 
+      <Tab.Screen
         name="Interface"
         component={InterfaceScreen}
         options={{ tabBarLabel: 'Interface' }}
       />
-      <Tab.Screen 
+      <Tab.Screen
         name="Connect"
         component={ConnectScreenWrapped}
         options={{ tabBarLabel: 'Connect' }}
       />
-      <Tab.Screen 
+      <Tab.Screen
         name="Settings"
         component={SettingsScreenWrapped}
         options={{ tabBarLabel: 'Settings' }}
