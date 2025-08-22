@@ -82,7 +82,7 @@ export class FreeShowService implements IFreeShowService {
   }
 
   // Connection management
-  async connect(host: string, port: number = 5505, nickname?: string): Promise<void> {
+  async connect(host: string, port?: number, nickname?: string): Promise<void> {
     try {
       // Validate inputs
       const hostValidation = this.dependencies.validationService.validateHost(host);
@@ -93,7 +93,9 @@ export class FreeShowService implements IFreeShowService {
         );
       }
 
-      const portValidation = this.dependencies.validationService.validatePort(port);
+      // Use default port if not provided
+      const finalPort = port ?? this.dependencies.configService.getNetworkConfig().defaultPort;
+      const portValidation = this.dependencies.validationService.validatePort(finalPort);
       if (!portValidation.isValid) {
         throw new FreeShowConnectionError(
           portValidation.error || 'Invalid port',
@@ -107,7 +109,7 @@ export class FreeShowService implements IFreeShowService {
       }
 
       this.currentHost = hostValidation.sanitizedValue || host;
-      this.currentPort = portValidation.sanitizedValue || port;
+      this.currentPort = portValidation.sanitizedValue || finalPort;
 
       const url = `ws://${this.currentHost}:${this.currentPort}`;
       const networkConfig = this.dependencies.configService.getNetworkConfig();

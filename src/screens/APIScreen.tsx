@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { ErrorLogger } from '../services/ErrorLogger';
 import { useConnection } from '../contexts';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { ShowOption } from '../types';
@@ -78,7 +79,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
 
     try {
       hasShownErrorRef.current = false;
-      console.log('Connecting to FreeShow WebSocket API...');
+      ErrorLogger.info('Connecting to FreeShow WebSocket API', 'APIScreen');
       
       if (connectionErrorTimeoutRef.current) {
         clearTimeout(connectionErrorTimeoutRef.current);
@@ -98,7 +99,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       });
 
       socketRef.current.on('connect', () => {
-        console.log('FreeShow Remote connected successfully');
+        ErrorLogger.info('FreeShow Remote connected successfully', 'APIScreen');
         setSocketConnected(true);
         
         if (connectionErrorTimeoutRef.current) {
@@ -108,12 +109,12 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       });
 
       socketRef.current.on('disconnect', (reason) => {
-        console.log('FreeShow Remote disconnected:', reason);
+        ErrorLogger.info('FreeShow Remote disconnected', 'APIScreen', { reason });
         setSocketConnected(false);
       });
 
       socketRef.current.on('connect_error', (error) => {
-        console.error('Connection error:', error);
+        ErrorLogger.error('WebSocket connection error', 'APIScreen', error);
         
         if (!hasShownErrorRef.current) {
           connectionErrorTimeoutRef.current = setTimeout(() => {
@@ -139,7 +140,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       });
 
     } catch (error) {
-      console.error('Failed to setup WebSocket connection:', error);
+      ErrorLogger.error('Failed to setup WebSocket connection', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
       if (!hasShownErrorRef.current) {
         hasShownErrorRef.current = true;
         setErrorModal({
@@ -177,7 +178,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         data = response;
       }
 
-      console.log('API Response:', data);
+      ErrorLogger.debug('API Response received', 'APIScreen', { data });
       setApiResponse(JSON.stringify(data, null, 2));
 
       // Handle shows data for advanced mode
@@ -194,7 +195,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         setShows(showsList);
       }
     } catch (error) {
-      console.error('Error parsing API response:', error);
+              ErrorLogger.error('Error parsing API response', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
       setApiResponse(`Parse error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -226,10 +227,10 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     try {
       setIsConnecting(true);
       const command = { action, ...data };
-      console.log('Sending command:', command);
+      ErrorLogger.debug('Sending API command', 'APIScreen', { command });
       socketRef.current.emit('data', JSON.stringify(command));
     } catch (error) {
-      console.error('Command failed:', error);
+      ErrorLogger.error('API command failed', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
       if (showAlert) {
         setErrorModal({
           visible: true,

@@ -144,7 +144,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                   // Validate host from history
                   const hostValidation = ValidationService.validateHost(item.host);
                   if (!hostValidation.isValid) {
-                    console.error('Invalid host in history item:', hostValidation.error);
+                    ErrorLogger.warn('Invalid host in history item', 'ConnectionHistoryScreen', new Error(hostValidation.error || 'Unknown validation error'));
                     return;
                   }
 

@@ -386,7 +386,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   }, [service, state.connectionHost, state.connectionPort, state.connectionName, triggerAutoLaunch]);
 
   const connect = useCallback(async (host: string, port?: number, name?: string): Promise<boolean> => {
-    setState(prev => ({ ...prev, connectionStatus: 'connecting', lastError: null }));
+    setState(prev => ({
+      ...prev,
+      connectionStatus: 'connecting',
+      lastError: null,
+      autoConnectAttempted: false  // Reset for manual connection
+    }));
     cancelConnectionRef.current = false;
     try {
       const connectPromise = service.connect(host, port, name);
@@ -509,9 +514,25 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   }, []);
 
   const cancelConnection = useCallback(() => {
+    // Set cancellation flag to prevent connection attempt from completing
     cancelConnectionRef.current = true;
+
+    // Set a flag to prevent auto-reconnect from triggering
+    setState(prev => ({
+      ...prev,
+      connectionStatus: 'disconnected',
+      lastError: 'Connection cancelled',
+      autoConnectAttempted: true  // Prevent auto-reconnect
+    }));
+
+    // Disconnect from the service
     service.disconnect();
-    setState(prev => ({ ...prev, connectionStatus: 'disconnected', lastError: 'Connection cancelled' }));
+
+    // Clear any pending timeouts or auto-reconnect attempts
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
   }, [service]);
 
   const setAutoConnectAttempted = useCallback((attempted: boolean) => {

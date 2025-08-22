@@ -92,7 +92,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   // Progress state for scan
   // Use shorter timeout for UI progress to match snappier discovery
-  const discoveryTimeout = 5000;
+  const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
   const [scanProgress, setScanProgress] = useState(0);
   const [scanComplete, setScanComplete] = useState(false);
   const [isScanActive, setIsScanActive] = useState(false);
@@ -373,9 +373,9 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const proceedWithConnection = async (service: any) => {
-    // Use the IP address and default API port (5505) since API port is not broadcasted
+    // Use the IP address and default API port since API port is not broadcasted
     const ip = service.ip || service.host;
-    const apiPort = 5505; // FreeShow API always uses default port 5505
+    const apiPort = configService.getNetworkConfig().defaultPort; // Use config service for consistency
     setHost(ip);
     stopDiscovery();
     
@@ -823,7 +823,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           visible={showShareQR}
           onClose={() => setShowShareQR(false)}
           host={host}
-          port="5505"
+          port={String(configService.getNetworkConfig().defaultPort)}
         />
 
         {/* Clear All History Confirmation Modal */}

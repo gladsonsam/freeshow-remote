@@ -1,4 +1,5 @@
 import { ErrorLogger } from './ErrorLogger';
+import { configService } from '../config/AppConfig';
 
 export interface PingResult {
   isReachable: boolean;
@@ -11,7 +12,7 @@ export interface PingResult {
  */
 export class InterfacePingService {
   private readonly logContext = 'InterfacePingService';
-  private readonly timeout = 1500; // 1.5 second timeout for faster response
+  private readonly timeout = configService.getNetworkConfig().connectionTimeout; // Use config for consistency
 
   /**
    * Fast ping test - just check if the host responds quickly

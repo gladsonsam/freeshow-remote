@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { useConnection } from '../../contexts';
 import { ValidationService } from '../../services/InputValidationService';
@@ -176,13 +177,14 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             autoCorrect={false}
             editable={!isConnected}
           />
-          <TouchableOpacity 
-            style={styles.inputAction} 
-            onPress={onShowQRScanner}
-            disabled={isConnected}
-          >
-            <Ionicons name="qr-code-outline" size={22} color={FreeShowTheme.colors.secondary} />
-          </TouchableOpacity>
+          {!isConnected && (
+            <TouchableOpacity
+              style={styles.inputAction}
+              onPress={onShowQRScanner}
+            >
+              <Ionicons name="qr-code-outline" size={22} color={FreeShowTheme.colors.secondary} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -341,50 +343,67 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
       <View style={styles.actionContainer}>
         {isConnected ? (
           <View style={styles.connectedActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.shareButton]}
-              onPress={onShowShareQR}
-            >
-              <Ionicons name="share-outline" size={20} color="white" />
-              <Text style={styles.buttonText}>Share</Text>
+            <TouchableOpacity style={styles.secondaryActionButton}>
+              <LinearGradient
+                colors={['#4CAF50', '#388E3C']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.secondaryButtonContent}>
+                <Ionicons name="share-outline" size={20} color="white" />
+                <Text style={styles.secondaryButtonText}>Share</Text>
+              </View>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.actionButton, styles.disconnectButton]}
+              style={styles.secondaryActionButton}
               onPress={onDisconnect}
             >
-              <Ionicons name="log-out-outline" size={20} color="white" />
-              <Text style={styles.buttonText}>Disconnect</Text>
+              <LinearGradient
+                colors={['#F44336', '#D32F2F']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.secondaryButtonContent}>
+                <Ionicons name="log-out-outline" size={20} color="white" />
+                <Text style={styles.secondaryButtonText}>Disconnect</Text>
+              </View>
             </TouchableOpacity>
           </View>
         ) : (
           isConnecting ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.connectingButton]}
-                disabled
-              >
+            <TouchableOpacity
+              style={[styles.actionButton, styles.connectingButton]}
+              onPress={onCancelConnection}
+            >
+              <LinearGradient
+                colors={['#F0008C', '#E0007A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.buttonContent}>
                 <View style={styles.spinner} />
-                <Text style={styles.buttonText}>
-                  {/* Show different text based on what's happening */}
-                  Connecting...
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={onCancelConnection}
-              >
-                <Ionicons name="close-circle-outline" size={20} color="white" />
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.buttonText}>Connecting...</Text>
+              </View>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={[styles.actionButton, styles.connectButton]}
               onPress={handleConnect}
             >
-              <Ionicons name="wifi" size={20} color="white" />
-              <Text style={styles.buttonText}>Connect</Text>
+              <LinearGradient
+                colors={['#F0008C', '#E0007A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.buttonContent}>
+                <Ionicons name="wifi" size={24} color="white" />
+                <Text style={styles.buttonText}>Connect</Text>
+              </View>
             </TouchableOpacity>
           )
         )}
@@ -437,14 +456,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: FreeShowTheme.colors.primaryLighter,
     paddingHorizontal: FreeShowTheme.spacing.md,
-    paddingRight: 50,
     fontSize: FreeShowTheme.fontSize.md,
     color: FreeShowTheme.colors.text,
   },
   inputAction: {
-    position: 'absolute',
-    right: FreeShowTheme.spacing.sm,
     padding: FreeShowTheme.spacing.sm,
+    marginLeft: FreeShowTheme.spacing.sm,
   },
   
   // Advanced Settings
@@ -529,7 +546,28 @@ const styles = StyleSheet.create({
   },
   connectedActions: {
     flexDirection: 'row',
-    gap: FreeShowTheme.spacing.md,
+    gap: FreeShowTheme.spacing.sm,
+    flex: 1,
+  },
+  secondaryActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    gap: FreeShowTheme.spacing.sm,
+    minHeight: 44,
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
   },
   actionButton: {
     flexDirection: 'row',
@@ -539,22 +577,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: FreeShowTheme.spacing.lg,
     borderRadius: FreeShowTheme.borderRadius.md,
     gap: FreeShowTheme.spacing.sm,
-    minHeight: 48,
-    flex: 1,
+    minHeight: 44,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: FreeShowTheme.spacing.md,
+    zIndex: 1,
+  },
+  secondaryButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: FreeShowTheme.spacing.sm,
+    zIndex: 1,
   },
   connectButton: {
-    backgroundColor: FreeShowTheme.colors.secondary,
+    shadowColor: '#F0008C',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   connectingButton: {
-    backgroundColor: '#FF9800',
+    // Uses the same shadows as actionButton
   },
   shareButton: {
-    backgroundColor: FreeShowTheme.colors.secondary + 'CC',
+    shadowColor: '#F0008C',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   disconnectButton: {
-    backgroundColor: FreeShowTheme.colors.disconnected,
+    shadowColor: '#F0008C',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   buttonText: {
+    color: 'white',
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
+  },
+  secondaryButtonText: {
     color: 'white',
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
@@ -568,7 +654,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   cancelButton: {
-    backgroundColor: FreeShowTheme.colors.disconnected,
+    backgroundColor: '#2f3542',
     marginLeft: FreeShowTheme.spacing.md,
   },
 });

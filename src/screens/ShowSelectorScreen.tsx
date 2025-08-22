@@ -303,11 +303,11 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
     setEnableInterfaceModal({ 
       visible: true, 
       show,
-      port: show.id === 'api' ? '5505' : 
-             show.id === 'remote' ? '5510' : 
-             show.id === 'stage' ? '5511' : 
-             show.id === 'control' ? '5512' : 
-             show.id === 'output' ? '5513' : ''
+      port: show.id === 'api' ? String(configService.getDefaultShowPorts().api) :
+             show.id === 'remote' ? String(configService.getDefaultShowPorts().remote) :
+             show.id === 'stage' ? String(configService.getDefaultShowPorts().stage) :
+             show.id === 'control' ? String(configService.getDefaultShowPorts().control) :
+             show.id === 'output' ? String(configService.getDefaultShowPorts().output) : ''
     });
   };
 

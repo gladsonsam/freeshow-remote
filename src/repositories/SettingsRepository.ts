@@ -113,7 +113,7 @@ export class SettingsRepository {
 
   async addToConnectionHistory(
     host: string,
-    port: number = 5505,
+    port: number = configService.getNetworkConfig().defaultPort,
     nickname?: string,
     showPorts?: { remote: number; stage: number; control: number; output: number; api: number }
   ): Promise<void> {

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { DiscoveredFreeShowInstance } from '../../services/AutoDiscoveryService';
 import { ConnectionHistory } from '../../repositories';
+import { configService } from '../../config/AppConfig';
 
 interface QuickConnectSectionProps {
   history: ConnectionHistory[];
@@ -38,7 +39,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
   onEditNickname,
   onClearAllHistory,
 }) => {
-  // const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
+  const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
   const isIpAddress = (str: string) => /^(\d{1,3}\.){3}\d{1,3}$/.test(str);
 
   return (

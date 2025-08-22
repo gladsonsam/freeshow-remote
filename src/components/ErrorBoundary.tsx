@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { ErrorLogger } from '../services/ErrorLogger';
 import ErrorModal from './ErrorModal';
 
 interface Props {
@@ -136,7 +137,7 @@ export class ErrorBoundary extends Component<Props, State> {
       timestamp: new Date().toISOString(),
       userAgent: 'React Native App',
     };
-    console.log('Error Report:', JSON.stringify(errorReport, null, 2));
+    ErrorLogger.error('ErrorBoundary error report', 'ErrorBoundary', new Error(JSON.stringify(errorReport)));
   };
 
   handleCloseErrorModal = () => {
