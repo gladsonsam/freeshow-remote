@@ -39,7 +39,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
   onEditNickname,
   onClearAllHistory,
 }) => {
-  const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
+  const _discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
   const isIpAddress = (str: string) => /^(\d{1,3}\.){3}\d{1,3}$/.test(str);
 
   return (

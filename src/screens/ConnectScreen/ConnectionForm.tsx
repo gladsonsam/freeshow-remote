@@ -343,7 +343,7 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
       <View style={styles.actionContainer}>
         {isConnected ? (
           <View style={styles.connectedActions}>
-            <TouchableOpacity style={styles.secondaryActionButton}>
+            <TouchableOpacity style={styles.secondaryActionButton} onPress={onShowShareQR}>
               <LinearGradient
                 colors={['#4CAF50', '#388E3C']}
                 start={{ x: 0, y: 0 }}
