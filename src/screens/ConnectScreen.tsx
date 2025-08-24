@@ -35,8 +35,10 @@ interface ConnectScreenProps {
 }
 
 const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
+
+
   const defaultPorts = configService.getDefaultShowPorts();
-  
+
   const [host, setHost] = useState('192.168.1.100');
   const [remotePort, setRemotePort] = useState(String(defaultPorts?.remote ?? 5510));
   const [stagePort, setStagePort] = useState(String(defaultPorts?.stage ?? 5511));
@@ -111,6 +113,8 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       setHost(connectionHost);
     }
   }, [isConnected, connectionHost]);
+
+
 
   // Handle scan progress
   useEffect(() => {
@@ -744,12 +748,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Header 
+            <Header 
             isConnected={isConnected}
             connectionName={connectionName}
             connectionHost={connectionHost}
@@ -801,7 +805,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
             navigation={navigation}
           />
 
-          <HelpSection isConnected={isConnected} />
+            <HelpSection isConnected={isConnected} />
         </ScrollView>
 
         <EditNicknameModal

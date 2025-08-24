@@ -39,9 +39,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [keepAwake, setKeepAwake] = useState(settings?.keepAwake || false);
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
 
-  // Animation values for smooth transitions
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const scaleAnim = useState(new Animated.Value(0.95))[0];
+
 
 
   const showOptions: ShowOption[] = [
@@ -99,21 +97,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     }
   }, [settings]);
 
-  // Entrance animation
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, scaleAnim]);
+
 
   useEffect(() => {
     if (keepAwake) {
@@ -122,7 +106,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       deactivateKeepAwake();
     }
   }, [keepAwake]);
-  const handleKeepAwakeToggle = async (value: boolean) => {
+const handleKeepAwakeToggle = async (value: boolean) => {
     setKeepAwake(value);
     await actions.updateSettings({ keepAwake: value });
   };
@@ -194,16 +178,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         colors={[FreeShowTheme.colors.primary, FreeShowTheme.colors.primaryDarker]}
         style={styles.container}
       >
-      <SafeAreaView style={styles.safeAreaContainer}>
-        <Animated.View
-          style={[
-            styles.animatedContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
+      <SafeAreaView style={[styles.safeAreaContainer, { backgroundColor: FreeShowTheme.colors.primary }]}>
+        <View style={styles.animatedContainer}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -456,7 +432,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </Animated.View>
+        </View>
       </SafeAreaView>
     </LinearGradient>
 

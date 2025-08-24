@@ -108,9 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
   };
 
   const getConnectionColor = () => {
-    if (currentRoute === 'Connect') {
-      return FreeShowTheme.colors.secondary; // Purple when on Connect page
-    } else if (isConnected) {
+    if (isConnected) {
       return '#4CAF50'; // Green when connected
     } else if (connectionStatus === 'connecting') {
       return '#FF9800'; // Orange when connecting
@@ -120,10 +118,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
   };
 
   const getItemColor = (item: NavigationItem) => {
-    if (item.key === 'Connect') {
-      return getConnectionColor();
+    // Always highlight the current page with purple, regardless of connection status
+    if (currentRoute === item.route) {
+      return FreeShowTheme.colors.secondary;
     }
-    return currentRoute === item.route ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary;
+    return FreeShowTheme.colors.textSecondary;
   };
 
   const getItemBackgroundColor = (item: NavigationItem) => {
@@ -462,22 +461,21 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
   };
 
   const getConnectionColor = () => {
-    if (currentRoute === 'Connect') {
-      return FreeShowTheme.colors.secondary;
-    } else if (isConnected) {
-      return '#4CAF50';
+    if (isConnected) {
+      return '#4CAF50'; // Green when connected
     } else if (connectionStatus === 'connecting') {
-      return '#FF9800';
+      return '#FF9800'; // Orange when connecting
     } else {
-      return FreeShowTheme.colors.textSecondary;
+      return FreeShowTheme.colors.textSecondary; // Gray when disconnected
     }
   };
 
   const getItemColor = (item: NavigationItem) => {
-    if (item.key === 'Connect') {
-      return getConnectionColor();
+    // Always highlight the current page with purple, regardless of connection status
+    if (currentRoute === item.route) {
+      return FreeShowTheme.colors.secondary;
     }
-    return currentRoute === item.route ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.textSecondary;
+    return FreeShowTheme.colors.textSecondary;
   };
 
   const getItemBackgroundColor = (item: NavigationItem) => {

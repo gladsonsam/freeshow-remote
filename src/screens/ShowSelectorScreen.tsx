@@ -6,6 +6,7 @@ import {
   AppState,
   AppStateStatus,
   Linking,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -54,12 +55,16 @@ interface ShowSelectorScreenProps {
 }
 
 const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) => {
+  // Animation values for smooth transitions
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const scaleAnim = useState(new Animated.Value(0.95))[0];
+
   const { state, actions } = useConnection();
   const { settings } = useSettings();
 
   const { isConnected, connectionHost, connectionName, currentShowPorts } = state;
   const { disconnect, updateShowPorts } = actions;
-  
+
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
@@ -94,6 +99,22 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
 
     return () => subscription?.remove();
   }, []);
+
+  // Entrance animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, scaleAnim]);
 
   // Refresh dimensions when app comes to foreground (fixes tablet layout on soft launch)
   useEffect(() => {
@@ -431,7 +452,15 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <Header
+        <Animated.View
+          style={[
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <Header
           isTablet={dimensions.isTablet}
           connectionName={connectionName}
           connectionHost={connectionHost}
@@ -446,6 +475,7 @@ const ShowSelectorScreen: React.FC<ShowSelectorScreenProps> = ({ navigation }) =
           onShowSelect={handleShowSelect}
           onLongPress={openCompactPopup}
         />
+        </Animated.View>
       </ScrollView>
 
       {/* Compact Popup Modal (long-press) */}

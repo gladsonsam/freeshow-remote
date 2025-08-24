@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { DiscoveredFreeShowInstance } from '../../services/AutoDiscoveryService';
 import { ConnectionHistory } from '../../repositories';
 import { configService } from '../../config/AppConfig';
+import ErrorModal from '../../components/ErrorModal';
 
 interface QuickConnectSectionProps {
   history: ConnectionHistory[];
@@ -42,6 +44,21 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
   const _discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
   const isIpAddress = (str: string) => /^(\d{1,3}\.){3}\d{1,3}$/.test(str);
 
+  // Check if running in Expo Go
+  const isExpoGo = Constants.executionEnvironment === 'storeClient';
+
+  // Modal state
+  const [showExpoGoWarning, setShowExpoGoWarning] = useState(false);
+
+  // Handle scan press with Expo Go check
+  const handleScanPress = () => {
+    if (isExpoGo) {
+      setShowExpoGoWarning(true);
+      return;
+    }
+    onScanPress();
+  };
+
   return (
     <View style={styles.quickConnectCard}>
       <View style={styles.quickConnectHeader}>
@@ -62,7 +79,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                 <Text style={styles.discoveryTitle}>Network Scan</Text>
               </View>
               <TouchableOpacity
-                onPress={onScanPress}
+                onPress={handleScanPress}
                 style={[
                   styles.discoveryToggle,
                   isScanActive && styles.discoveryToggleActive,
@@ -250,6 +267,16 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
           </View>
         )}
       </View>
+
+      {/* Expo Go Warning Modal */}
+      <ErrorModal
+        visible={showExpoGoWarning}
+        title="Network Discovery Not Available"
+        message="Network scanning (Bonjour/Zeroconf) doesn't work in Expo Go."
+        buttonText="Got it"
+        onClose={() => setShowExpoGoWarning(false)}
+        icon="information-circle"
+      />
     </View>
   );
 };
@@ -260,17 +287,17 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
     marginBottom: FreeShowTheme.spacing.lg,
-    borderWidth: 2,
-    borderColor: FreeShowTheme.colors.secondary + '30',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.secondary + '40',
     shadowColor: FreeShowTheme.colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     overflow: 'hidden',
   },
   quickConnectHeader: {
-    backgroundColor: FreeShowTheme.colors.secondary + '15',
+    backgroundColor: FreeShowTheme.colors.secondary + '10',
     padding: FreeShowTheme.spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.secondary + '20',
@@ -282,9 +309,12 @@ const styles = StyleSheet.create({
   },
   quickConnectTitle: {
     fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '700',
-    color: FreeShowTheme.colors.text,
+    fontWeight: '800',
+    color: FreeShowTheme.colors.secondary,
     marginLeft: FreeShowTheme.spacing.sm,
+    textShadowColor: FreeShowTheme.colors.secondary + '20',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   quickConnectSubtitle: {
     fontSize: FreeShowTheme.fontSize.sm,
@@ -318,17 +348,23 @@ const styles = StyleSheet.create({
   discoveryToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primary,
-    borderRadius: FreeShowTheme.borderRadius.xl,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    borderRadius: FreeShowTheme.borderRadius.lg,
     paddingHorizontal: FreeShowTheme.spacing.md,
     paddingVertical: FreeShowTheme.spacing.sm,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary,
+    borderColor: FreeShowTheme.colors.secondary + '30',
+    shadowColor: FreeShowTheme.colors.secondary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   discoveryToggleActive: {
     backgroundColor: FreeShowTheme.colors.secondary,
     borderColor: FreeShowTheme.colors.secondary,
   },
+
   discoveryToggleText: {
     fontSize: FreeShowTheme.fontSize.sm,
     fontWeight: '600',
@@ -344,25 +380,27 @@ const styles = StyleSheet.create({
   discoveredDevice: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primary,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
     borderRadius: FreeShowTheme.borderRadius.md,
     padding: FreeShowTheme.spacing.md,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
+    borderColor: FreeShowTheme.colors.secondary + '15',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   discoveredDeviceIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: FreeShowTheme.colors.secondary + '20',
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: FreeShowTheme.spacing.md,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
   },
   discoveredDeviceInfo: {
     flex: 1,
@@ -395,19 +433,23 @@ const styles = StyleSheet.create({
   capabilityBadge: {
     fontSize: 10,
     color: FreeShowTheme.colors.secondary,
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    paddingHorizontal: 4,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
     overflow: 'hidden',
   },
   capabilityBadgeDisabled: {
     fontSize: 10,
     color: FreeShowTheme.colors.textSecondary,
     backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
     overflow: 'hidden',
   },
   emptyDiscovery: {
@@ -449,7 +491,7 @@ const styles = StyleSheet.create({
   clearAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primary,
+    backgroundColor: 'transparent',
     borderRadius: FreeShowTheme.borderRadius.sm,
     paddingHorizontal: FreeShowTheme.spacing.sm,
     paddingVertical: FreeShowTheme.spacing.xs,
@@ -468,11 +510,16 @@ const styles = StyleSheet.create({
   recentDevice: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primary + '80',
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
     borderRadius: FreeShowTheme.borderRadius.md,
     padding: FreeShowTheme.spacing.md,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter + '60',
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
   recentDeviceActions: {
     flexDirection: 'row',

@@ -103,7 +103,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: FreeShowTheme.colors.primary }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity

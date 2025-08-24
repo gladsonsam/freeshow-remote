@@ -499,7 +499,44 @@ export default function App() {
             <Stack.Navigator
               screenOptions={{
                 headerShown: false,
-                cardStyle: { backgroundColor: FreeShowTheme.colors.primary },
+                cardStyle: {
+                  backgroundColor: FreeShowTheme.colors.primary,
+                },
+                cardStyleInterpolator: ({ current, layouts }) => ({
+                  cardStyle: {
+                    transform: [
+                      {
+                        translateX: current.progress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [layouts.screen.width, 0],
+                        }),
+                      },
+                    ],
+                    opacity: current.progress.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0, 0.8, 1],
+                    }),
+                  },
+                  overlayStyle: {
+                    backgroundColor: 'transparent',
+                  },
+                }),
+                transitionSpec: {
+                  open: {
+                    animation: 'timing',
+                    config: {
+                      duration: 200,
+                      easing: require('react-native').Easing.out(require('react-native').Easing.exp),
+                    },
+                  },
+                  close: {
+                    animation: 'timing',
+                    config: {
+                      duration: 180,
+                      easing: require('react-native').Easing.in(require('react-native').Easing.exp),
+                    },
+                  },
+                },
               }}
             >
               <Stack.Screen name="Main" component={MainLayout} />
@@ -562,10 +599,45 @@ export default function App() {
                 )}
               </Stack.Screen>
 
-              <Stack.Screen 
+              <Stack.Screen
                 name="ConnectionHistory"
                 options={{
-                  headerShown: false,
+                  presentation: 'card',
+                  cardStyleInterpolator: ({ current, layouts }) => ({
+                    cardStyle: {
+                      transform: [
+                        {
+                          translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                          }),
+                        },
+                      ],
+                      opacity: current.progress.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 0.8, 1],
+                      }),
+                    },
+                    overlayStyle: {
+                      backgroundColor: 'transparent',
+                    },
+                  }),
+                  transitionSpec: {
+                    open: {
+                      animation: 'timing',
+                      config: {
+                        duration: 100,
+                        easing: require('react-native').Easing.inOut(require('react-native').Easing.linear),
+                      },
+                    },
+                    close: {
+                      animation: 'timing',
+                      config: {
+                        duration: 100,
+                        easing: require('react-native').Easing.inOut(require('react-native').Easing.linear),
+                      },
+                    },
+                  },
                 }}
               >
                 {(props) => (
@@ -575,10 +647,45 @@ export default function App() {
                 )}
               </Stack.Screen>
 
-              <Stack.Screen 
+              <Stack.Screen
                 name="About"
                 options={{
-                  headerShown: false,
+                  presentation: 'card',
+                  cardStyleInterpolator: ({ current, layouts }) => ({
+                    cardStyle: {
+                      transform: [
+                        {
+                          translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                          }),
+                        },
+                      ],
+                      opacity: current.progress.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 0.8, 1],
+                      }),
+                    },
+                    overlayStyle: {
+                      backgroundColor: 'transparent',
+                    },
+                  }),
+                  transitionSpec: {
+                    open: {
+                      animation: 'timing',
+                      config: {
+                        duration: 100,
+                        easing: require('react-native').Easing.inOut(require('react-native').Easing.linear),
+                      },
+                    },
+                    close: {
+                      animation: 'timing',
+                      config: {
+                        duration: 100,
+                        easing: require('react-native').Easing.inOut(require('react-native').Easing.linear),
+                      },
+                    },
+                  },
                 }}
               >
                 {(props) => (

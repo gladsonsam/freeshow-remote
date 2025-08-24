@@ -8,6 +8,8 @@ interface NotConnectedViewProps {
 }
 
 const NotConnectedView: React.FC<NotConnectedViewProps> = ({ onNavigateToConnect }) => {
+
+
   return (
     <View style={styles.notConnectedContainer}>
       <Ionicons name="cloud-offline" size={64} color={FreeShowTheme.colors.text + '66'} />
