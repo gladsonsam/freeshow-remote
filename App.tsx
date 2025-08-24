@@ -439,19 +439,10 @@ function SidebarLayout() {
 // Main layout component that chooses between sidebar and bottom tabs
 function MainLayout() {
   const { settings } = useSettings();
-  const [previousLayout, setPreviousLayout] = useState<string | null>(null);
-  
+
   // Default to bottom bar if settings not loaded yet
   const navigationLayout = settings?.navigationLayout || 'bottomBar';
-  
-  // Track layout changes for smooth transitions
-  React.useEffect(() => {
-    if (previousLayout && previousLayout !== navigationLayout) {
-      ErrorLogger.info(`[MainLayout] Navigation layout changed from ${previousLayout} to ${navigationLayout}`, 'App');
-    }
-    setPreviousLayout(navigationLayout);
-  }, [navigationLayout, previousLayout]);
-  
+
   return navigationLayout === 'sidebar' ? <SidebarLayout /> : <BottomTabsLayout />;
 }
 

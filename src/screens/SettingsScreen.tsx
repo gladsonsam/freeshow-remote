@@ -99,6 +99,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
 
 
+
+
   useEffect(() => {
     if (keepAwake) {
       activateKeepAwakeAsync();
@@ -151,10 +153,9 @@ const handleKeepAwakeToggle = async (value: boolean) => {
     await actions.updateSettings({ autoLaunchFullscreen: value });
   };
 
-  const handleNavigationLayoutToggle = async (value: boolean) => {
-    const newLayout = value ? 'sidebar' : 'bottomBar';
-    setNavigationLayout(newLayout);
-    await actions.updateSettings({ navigationLayout: newLayout });
+  const handleNavigationLayoutSelect = async (layout: 'bottomBar' | 'sidebar') => {
+    setNavigationLayout(layout);
+    await actions.updateSettings({ navigationLayout: layout });
   };
 
   const getSelectedShow = () => {
@@ -230,10 +231,11 @@ const handleKeepAwakeToggle = async (value: boolean) => {
 
               <View style={styles.settingDivider} />
 
-              {/* Navigation Layout Toggle */}
+              {/* Navigation Layout Selection */}
               <TouchableOpacity
                 style={styles.settingItem}
                 activeOpacity={0.7}
+                onPress={() => {}} // No action needed for the container
               >
                 <View style={styles.settingInfo}>
                   <View style={styles.settingTitleRow}>
@@ -242,21 +244,52 @@ const handleKeepAwakeToggle = async (value: boolean) => {
                     </View>
                     <Text style={styles.settingTitle}>Navigation Layout</Text>
                   </View>
-                  <Text style={styles.settingDescription}>
-                    Choose between bottom bar navigation or a collapsible sidebar
-                  </Text>
+
+                  <View style={styles.pillContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.pillHalf,
+                        styles.pillLeft,
+                        navigationLayout === 'bottomBar' && styles.pillActive
+                      ]}
+                      onPress={() => handleNavigationLayoutSelect('bottomBar')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="list"
+                        size={16}
+                        color={navigationLayout === 'bottomBar' ? 'white' : FreeShowTheme.colors.secondary}
+                      />
+                      <Text style={[
+                        styles.pillText,
+                        navigationLayout === 'bottomBar' && styles.pillTextActive
+                      ]}>
+                        Bottom
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.pillHalf,
+                        styles.pillRight,
+                        navigationLayout === 'sidebar' && styles.pillActive
+                      ]}
+                      onPress={() => handleNavigationLayoutSelect('sidebar')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="menu"
+                        size={16}
+                        color={navigationLayout === 'sidebar' ? 'white' : FreeShowTheme.colors.secondary}
+                      />
+                      <Text style={[
+                        styles.pillText,
+                        navigationLayout === 'sidebar' && styles.pillTextActive
+                      ]}>
+                        Sidebar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <Switch
-                  value={navigationLayout === 'sidebar'}
-                  onValueChange={handleNavigationLayoutToggle}
-                  trackColor={{
-                    false: FreeShowTheme.colors.primaryLighter,
-                    true: FreeShowTheme.colors.secondary + '60'
-                  }}
-                  thumbColor={navigationLayout === 'sidebar' ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.text}
-                  ios_backgroundColor={FreeShowTheme.colors.primaryLighter}
-                  style={styles.switch}
-                />
               </TouchableOpacity>
             </View>
 
@@ -660,6 +693,44 @@ const styles = StyleSheet.create({
   },
   switch: {
     transform: [{ scale: 0.9 }],
+  },
+  pillContainer: {
+    flexDirection: 'row',
+    marginTop: FreeShowTheme.spacing.md,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    backgroundColor: FreeShowTheme.colors.primary,
+    overflow: 'hidden',
+    minHeight: 48,
+    width: '100%',
+  },
+  pillHalf: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: FreeShowTheme.spacing.sm,
+    paddingHorizontal: FreeShowTheme.spacing.sm,
+    gap: FreeShowTheme.spacing.xs,
+  },
+  pillLeft: {
+    borderRightWidth: 1,
+    borderRightColor: FreeShowTheme.colors.primaryLighter,
+  },
+  pillRight: {
+    // No additional border needed for right side
+  },
+  pillActive: {
+    backgroundColor: FreeShowTheme.colors.secondary,
+  },
+  pillText: {
+    fontSize: FreeShowTheme.fontSize.md,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.secondary,
+  },
+  pillTextActive: {
+    color: 'white',
   },
   settingDivider: {
     height: 1,
