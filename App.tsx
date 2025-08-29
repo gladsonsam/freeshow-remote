@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import ConnectScreen from './src/screens/ConnectScreen';
-import ShowSelectorScreen from './src/screens/ShowSelectorScreen';
+import InterfaceScreen from './src/screens/InterfaceScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import APIScreen from './src/screens/APIScreen';
 
@@ -26,6 +28,9 @@ import { settingsRepository } from './src/repositories';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+// Create navigation ref at module level for use in layout components
+const navigationRef = createNavigationContainerRef();
 
 // Hook to check if auto-connect should be attempted
 const useAutoConnectExpected = () => {
@@ -62,9 +67,9 @@ const useAutoConnectExpected = () => {
 };
 
 // Screen components wrapped with error boundaries
-const InterfaceScreen = (props: any) => (
-  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ShowSelectorScreen Error', 'App', error, { errorInfo })}>
-    <ShowSelectorScreen {...props} />
+const InterfaceScreenComponent = (props: any) => (
+  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('InterfaceScreen Error', 'App', error, { errorInfo })}>
+    <InterfaceScreen {...props} />
   </ErrorBoundary>
 );
 
@@ -196,7 +201,7 @@ function BottomTabsLayout() {
 
   // Always call all hooks first
   const initialRouteName = React.useMemo(() => {
-    return autoConnectExpected ? "Interface" : "Connect";
+    return "Interface";
   }, [autoConnectExpected]);
 
   React.useEffect(() => {
@@ -227,7 +232,7 @@ function BottomTabsLayout() {
     >
       <Tab.Screen
         name="Interface"
-        component={InterfaceScreen}
+        component={InterfaceScreenComponent}
         options={{ tabBarLabel: 'Interface' }}
       />
       <Tab.Screen
@@ -257,12 +262,11 @@ const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'ConnectionHistory', 'About', '
 
 // Sidebar Layout with content area
 function SidebarLayout() {
-  const { navigation: mainNavigation } = useConnection();
   const autoConnectExpected = useAutoConnectExpected();
   
   // Always call all hooks first
   const initialRoute = React.useMemo(() => {
-    return autoConnectExpected ? "Interface" : "Connect";
+    return "Interface";
   }, [autoConnectExpected]);
   
   const [currentRoute, setCurrentRoute] = useState(initialRoute);
@@ -309,46 +313,48 @@ function SidebarLayout() {
     setSidebarVisible(false);
   }, []);
 
+  // Helper function for type-safe navigation
+  const navigateSafely = (routeName: string, params?: Record<string, any>) => {
+    if (navigationRef.current?.navigate) {
+      // Use type assertion to bypass strict typing for dynamic navigation
+      (navigationRef.current.navigate as (routeName: string, params?: Record<string, any>) => void)(routeName, params);
+    } else {
+      console.warn(`[SidebarLayout] No valid main navigation available for: ${routeName}`);
+    }
+  };
+
   // Create a navigation object for sidebar screens
   const sidebarNavigation = React.useMemo(() => ({
-    navigate: (routeName: string, params?: any) => {
+    navigate: (routeName: string, params?: Record<string, any>) => {
       if (EXTERNAL_ROUTES.includes(routeName)) {
         // Use the main navigation for modal screens and external screens
-        if (mainNavigation && typeof mainNavigation.navigate === 'function') {
-          mainNavigation.navigate(routeName, params);
-        } else {
-          console.warn(`[SidebarLayout] No valid main navigation available for external screen: ${routeName}`);
-        }
+        navigateSafely(routeName, params);
       } else if (SIDEBAR_ROUTES.includes(routeName)) {
         // Use sidebar navigation for main routes
         handleNavigate(routeName);
       } else {
         // Handle unknown routes gracefully
         console.warn(`[SidebarLayout] Unknown route: ${routeName}. Attempting to use main navigation.`);
-        if (mainNavigation && typeof mainNavigation.navigate === 'function') {
-          mainNavigation.navigate(routeName, params);
-        }
+        navigateSafely(routeName, params);
       }
     },
-    addListener: (_event: string, callback: () => void) => {
-      // Mock implementation for sidebar layout
-      // In sidebar layout, we handle focus events differently
-      callback();
-      return () => {}; // Return no-op unsubscribe function
+    addListener: (_event: string, _callback: () => void) => {
+      // No-op listener in sidebar layout; screens remain mounted and manage their own state
+      return () => {};
     },
-    getParent: () => mainNavigation || null,
-  }), [handleNavigate, mainNavigation]);
+    getParent: () => navigationRef.current || null,
+  }), [handleNavigate]);
 
   const renderContent = React.useCallback(() => {
     switch (currentRoute) {
       case 'Interface':
-        return <InterfaceScreen navigation={sidebarNavigation} />;
+        return <InterfaceScreenComponent navigation={sidebarNavigation} />;
       case 'Connect':
         return <ConnectScreenWrapped navigation={sidebarNavigation} />;
       case 'Settings':
         return <SettingsScreenWrapped navigation={sidebarNavigation} />;
       default:
-        return <InterfaceScreen navigation={sidebarNavigation} />;
+        return <InterfaceScreenComponent navigation={sidebarNavigation} />;
     }
   }, [currentRoute, sidebarNavigation]);
 
@@ -430,20 +436,232 @@ function SidebarLayout() {
         onNavigate={handleNavigate} 
       />
       <View style={{ flex: 1 }}>
-        {renderContent()}
+        {/* Keep all main screens mounted to avoid header flicker when switching */}
+        <View style={{ flex: 1, display: currentRoute === 'Interface' ? 'flex' : 'none' }}>
+          <InterfaceScreenComponent navigation={sidebarNavigation} />
+        </View>
+        <View style={{ flex: 1, display: currentRoute === 'Connect' ? 'flex' : 'none' }}>
+          <ConnectScreenWrapped navigation={sidebarNavigation} />
+        </View>
+        <View style={{ flex: 1, display: currentRoute === 'Settings' ? 'flex' : 'none' }}>
+          <SettingsScreenWrapped navigation={sidebarNavigation} />
+        </View>
       </View>
     </View>
   );
 }
 
-// Main layout component that chooses between sidebar and bottom tabs
+// Floating Navigation Layout
+function FloatingNavLayout() {
+  const autoConnectExpected = useAutoConnectExpected();
+  const insets = useSafeAreaInsets();
+  
+  const initialRoute = React.useMemo(() => {
+    return "Interface";
+  }, [autoConnectExpected]);
+  
+  const [currentRoute, setCurrentRoute] = useState(initialRoute);
+  
+  React.useEffect(() => {
+    if (autoConnectExpected !== null) {
+      const newInitialRoute = autoConnectExpected ? "Interface" : "Connect";
+      setCurrentRoute(newInitialRoute);
+    }
+  }, [autoConnectExpected]);
+
+  const handleNavigate = React.useCallback((route: string) => {
+    setCurrentRoute(route);
+  }, []);
+
+  // Helper function for type-safe navigation (local to FloatingNavLayout)
+  const navigateSafelyFloating = (routeName: string, params?: Record<string, any>) => {
+    if (navigationRef.current?.navigate) {
+      // Use type assertion to bypass strict typing for dynamic navigation
+      (navigationRef.current.navigate as (routeName: string, params?: Record<string, any>) => void)(routeName, params);
+    } else {
+      console.warn(`[FloatingNavLayout] No valid main navigation available for: ${routeName}`);
+    }
+  };
+
+  // Create a navigation object for floating nav screens
+  const floatingNavigation = React.useMemo(() => ({
+    navigate: (routeName: string, params?: Record<string, any>) => {
+      if (['Interface', 'Connect', 'Settings'].includes(routeName)) {
+        handleNavigate(routeName);
+      } else if (EXTERNAL_ROUTES.includes(routeName)) {
+        // Handle external routes using main navigation
+        navigateSafelyFloating(routeName, params);
+      } else {
+        // Handle other routes using main navigation
+        navigateSafelyFloating(routeName, params);
+      }
+    },
+    addListener: (_event: string, _callback: () => void) => {
+      // No-op listener in floating layout; screens remain mounted and manage their own state
+      return () => {};
+    },
+    getParent: () => navigationRef.current || null,
+  }), [handleNavigate]);
+
+  const renderContent = () => {
+    // Keep all screens mounted; toggle visibility for smooth header/content
+    return (
+      <>
+        <View style={{ flex: 1, display: currentRoute === 'Interface' ? 'flex' : 'none' }}>
+          <InterfaceScreenComponent navigation={floatingNavigation} />
+        </View>
+        <View style={{ flex: 1, display: currentRoute === 'Connect' ? 'flex' : 'none' }}>
+          <ConnectScreenWrapped navigation={floatingNavigation} />
+        </View>
+        <View style={{ flex: 1, display: currentRoute === 'Settings' ? 'flex' : 'none' }}>
+          <SettingsScreenWrapped navigation={floatingNavigation} />
+        </View>
+      </>
+    );
+  };
+
+  const getTabIcon = (routeName: string, isFocused: boolean) => {
+    let iconName: keyof typeof Ionicons.glyphMap;
+    const iconColor = isFocused ? '#A855F7' : 'rgba(255,255,255,0.7)';
+
+    if (routeName === 'Interface') {
+      iconName = isFocused ? 'apps' : 'apps-outline';
+    } else if (routeName === 'Connect') {
+      iconName = isFocused ? 'wifi' : 'wifi-outline';
+    } else if (routeName === 'Settings') {
+      iconName = isFocused ? 'settings' : 'settings-outline';
+    } else {
+      iconName = 'help-circle-outline';
+    }
+
+    return { iconName, iconColor };
+  };
+
+  if (autoConnectExpected === null) {
+    return (
+      <LinearGradient
+        colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+      >
+        <Text style={{ color: FreeShowTheme.colors.text }}>Loading...</Text>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <LinearGradient
+      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top', 'left', 'right']}>
+        <View style={{ flex: 1 }}>
+          {renderContent()}
+        </View>
+        
+        {/* Universal Floating Navigation */}
+        <View style={{
+          position: 'absolute',
+          left: 24,
+          right: 24,
+          bottom: insets.bottom + 24,
+          height: 56,
+          borderRadius: 28,
+          overflow: 'hidden',
+          // Enhanced shadow for better depth
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.3,
+          shadowRadius: 16,
+          elevation: 12,
+        }}>
+          {/* Background with blur effect */}
+          <LinearGradient
+            colors={['rgba(20, 20, 30, 0.95)', 'rgba(10, 10, 20, 0.98)']}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 6,
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+              // Inner glow effect
+              shadowColor: '#A855F7',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+            }}
+          >
+            {['Interface', 'Connect', 'Settings'].map((route) => {
+              const isFocused = currentRoute === route;
+              const { iconName, iconColor } = getTabIcon(route, isFocused);
+              
+              return (
+                <TouchableOpacity
+                  key={route}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginHorizontal: 2,
+                    borderRadius: 22,
+                    gap: 6,
+                    backgroundColor: isFocused 
+                      ? 'rgba(168, 85, 247, 0.2)' 
+                      : 'transparent',
+                    // Active state styling
+                    ...(isFocused && {
+                      shadowColor: '#A855F7',
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 6,
+                    }),
+                  }}
+                  onPress={() => handleNavigate(route)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons 
+                    name={iconName} 
+                    size={isFocused ? 22 : 20} 
+                    color={iconColor}
+                    style={{
+                      // remove glow on active icon
+                    }}
+                  />
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: iconColor,
+                    letterSpacing: -0.2,
+                  }}>
+                    {route}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </LinearGradient>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+// Main layout component that chooses between sidebar, bottom tabs, or floating nav
 function MainLayout() {
   const { settings } = useSettings();
 
   // Default to bottom bar if settings not loaded yet
-  const navigationLayout = settings?.navigationLayout || 'bottomBar';
+  const navigationLayout: 'bottomBar' | 'sidebar' | 'floating' = settings?.navigationLayout || 'bottomBar';
 
-  return navigationLayout === 'sidebar' ? <SidebarLayout /> : <BottomTabsLayout />;
+  if (navigationLayout === 'sidebar') {
+    return <SidebarLayout />;
+  } else if (navigationLayout === 'floating') {
+    return <FloatingNavLayout />;
+  } else {
+    return <BottomTabsLayout />;
+  }
 }
 
 // FreeShow-themed navigation theme
@@ -461,7 +679,6 @@ const FreeShowNavigationTheme = {
 };
 
 export default function App() {
-  const navigationRef = useNavigationContainerRef();
   
   // Initialize configuration on app startup
   useEffect(() => {

@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 
@@ -24,7 +25,11 @@ const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: FreeShowTheme.colors.primary }]}>
+    <LinearGradient
+      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      style={styles.container}
+    >
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -153,14 +158,17 @@ const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
           <Text style={styles.madeByText}>Made by Gladson Sam</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

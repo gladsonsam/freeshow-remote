@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Animated } from 'react-native';
 import {
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import {
   useConnection,
@@ -24,6 +25,7 @@ import { interfacePingService } from '../services/InterfacePingService';
 import { configService } from '../config/AppConfig';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
+import { useAppLaunch } from '../hooks/useAppLaunch';
 import Header from './ConnectScreen/Header';
 import QuickConnectSection from './ConnectScreen/QuickConnectSection';
 import ConnectionForm from './ConnectScreen/ConnectionForm';
@@ -35,8 +37,7 @@ interface ConnectScreenProps {
 }
 
 const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
-
-
+  const appLaunch = useAppLaunch();
   const defaultPorts = configService.getDefaultShowPorts();
 
   const [host, setHost] = useState('192.168.1.100');
@@ -128,7 +129,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         setScanProgress(progress);
         Animated.timing(animatedScanProgress, {
           toValue: progress,
-          duration: 50,
+          duration: appLaunch.isLoading() ? 0 : (appLaunch.shouldAnimate() ? 50 : 0),
           useNativeDriver: false,
         }).start();
         if (progress >= 1) {
@@ -272,7 +273,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleHistoryConnect = async (historyItem: any) => {
+  const handleHistoryConnect = useCallback(async (historyItem: any) => {
     try {
       // Validate host from history
       const hostValidation = ValidationService.validateHost(historyItem.host);
@@ -356,7 +357,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     } catch (error) {
       ErrorLogger.error('History connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
     }
-  };
+  }, [history, connect, updateShowPorts, navigation]);
 
   const handleDisconnect = () => {
     disconnect();
@@ -743,22 +744,28 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const isConnecting = connectionStatus === 'connecting';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
+    <LinearGradient
+      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-            <Header 
-            isConnected={isConnected}
-            connectionName={connectionName}
-            connectionHost={connectionHost}
-            connectionPulse={connectionPulse}
-          />
+            <Header
+              isConnected={isConnected}
+              connectionName={connectionName}
+              connectionHost={connectionHost}
+              connectionPulse={connectionPulse}
+              shouldAnimate={appLaunch.isLoading() ? false : appLaunch.shouldAnimate()}
+              connectionStatus={connectionStatus}
+            />
 
           {/* Quick Connect Section - Premium placement */}
           {(history.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
@@ -850,15 +857,19 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           message={errorModal.message}
           onClose={() => setErrorModal({visible: false, title: '', message: ''})}
         />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   keyboardView: {
     flex: 1,

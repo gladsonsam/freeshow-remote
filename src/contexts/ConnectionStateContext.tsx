@@ -248,13 +248,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
           
           setTimeout(() => triggerAutoLaunch(), 500);
         } else {
-          // Navigate to Connect screen on auto-reconnect failure (regardless of navigation layout)
-          setTimeout(() => {
-            if (navigationRef.current?.navigate) {
-              navigationRef.current.navigate('Main', { screen: 'Connect' });
-            }
-          }, 100);
-          
+          // Stay on Interface; show not-connected state handled by UI
           ErrorLogger.warn(`[AutoReconnect] Failed to reconnect to last connection: ${lastConnection.host}:${apiPort}`, 'ConnectionStateContext');
         }
         

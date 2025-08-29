@@ -11,7 +11,7 @@ export interface AppSettings {
   autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
   autoLaunchFullscreen: boolean;
   connectionTimeout: number; // in seconds
-  navigationLayout: 'bottomBar' | 'sidebar';
+  navigationLayout: 'bottomBar' | 'sidebar' | 'floating';
   keepAwake: boolean;
 }
 

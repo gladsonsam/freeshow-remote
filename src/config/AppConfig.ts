@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { ShowOption } from '../types';
 
 /**
  * Application Configuration
@@ -41,10 +42,22 @@ export interface StorageConfig {
 export interface AppConfig {
   network: NetworkConfig;
   defaultShowPorts: ShowPortsConfig;
+  interfaceConfigs: InterfaceConfig[];
   validation: ValidationConfig;
   storage: StorageConfig;
   isDevelopment: boolean;
   platform: 'ios' | 'android' | 'web';
+}
+
+/**
+ * Interface configuration for UI components
+ */
+export interface InterfaceConfig {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
 }
 
 /**
@@ -68,6 +81,43 @@ const DEFAULT_CONFIG: AppConfig = {
     output: 5513,
     api: 5505,
   },
+  interfaceConfigs: [
+    {
+      id: 'remote',
+      title: 'RemoteShow',
+      description: 'Control slides and presentations',
+      icon: 'play-circle',
+      color: '#8B5CF6',
+    },
+    {
+      id: 'stage',
+      title: 'StageShow',
+      description: 'Display for people on stage',
+      icon: 'desktop',
+      color: '#06D6A0',
+    },
+    {
+      id: 'control',
+      title: 'ControlShow',
+      description: 'Control interface for operators',
+      icon: 'settings',
+      color: '#118AB2',
+    },
+    {
+      id: 'output',
+      title: 'OutputShow',
+      description: 'Output display for screens',
+      icon: 'tv',
+      color: '#FFD166',
+    },
+    {
+      id: 'api',
+      title: 'API Controls',
+      description: 'Native API controls',
+      icon: 'code-slash',
+      color: '#F72585',
+    },
+  ],
   validation: {
     maxHostLength: 253, // RFC compliant max domain length
     maxPortLength: 5,
@@ -129,6 +179,52 @@ class ConfigService {
   }
 
   /**
+   * Get interface configurations
+   */
+  getInterfaceConfigs(): InterfaceConfig[] {
+    return [...this.config.interfaceConfigs];
+  }
+
+  /**
+   * Get interface configuration by ID
+   */
+  getInterfaceConfig(id: string): InterfaceConfig | undefined {
+    return this.config.interfaceConfigs.find(config => config.id === id);
+  }
+
+  /**
+   * Create ShowOption array with current port values
+   */
+  createShowOptions(ports: Record<string, number> = {}): ShowOption[] {
+    return this.config.interfaceConfigs.map(config => ({
+      ...config,
+      port: ports[config.id] ?? this.config.defaultShowPorts[config.id as keyof ShowPortsConfig] ?? 0,
+    }));
+  }
+
+  /**
+   * Separate enabled and disabled interfaces
+   */
+  separateInterfaceOptions(options: ShowOption[]) {
+    const enabledOptions: ShowOption[] = [];
+    const disabledOptions: ShowOption[] = [];
+
+    options.forEach(option => {
+      if (option.port && option.port > 0) {
+        enabledOptions.push(option);
+      } else {
+        disabledOptions.push({ ...option, port: 0 });
+      }
+    });
+
+    return {
+      enabledOptions,
+      disabledOptions,
+      allOptions: [...enabledOptions, ...disabledOptions],
+    };
+  }
+
+  /**
    * Update configuration (for testing or runtime changes)
    */
   updateConfig(updates: Partial<AppConfig>): void {
@@ -137,6 +233,7 @@ class ConfigService {
       ...updates,
       network: { ...this.config.network, ...updates.network },
       defaultShowPorts: { ...this.config.defaultShowPorts, ...updates.defaultShowPorts },
+      interfaceConfigs: updates.interfaceConfigs ?? this.config.interfaceConfigs,
       validation: { ...this.config.validation, ...updates.validation },
       storage: { ...this.config.storage, ...updates.storage },
     };

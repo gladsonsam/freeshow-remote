@@ -6,9 +6,9 @@ import {
   Modal,
   StyleSheet,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
 import { ErrorLogger } from '../services/ErrorLogger';
@@ -179,6 +179,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
               maxWidth: dimensions.isTablet ? 500 : 400,
               minHeight: dimensions.isTablet ? 480 : 400,
               borderRadius: dimensions.isTablet ? FreeShowTheme.borderRadius.xl * 1.5 : FreeShowTheme.borderRadius.xl,
+              overflow: 'hidden',
             }
           ]}>
             <View style={[
@@ -220,17 +221,10 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                 ]}>
                   Current
                 </Text>
-                <LinearGradient
-                  colors={[
-                    FreeShowTheme.colors.primaryDarker, // Start with the same background as ShowSelectorScreen
-                    FreeShowTheme.colors.primaryDarker + 'F0', // Slightly transparent
-                    currentShow.color + '15', // Subtle theme color blend
-                    FreeShowTheme.colors.primaryDarker + 'E0' // Back to original with slight transparency
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                <View
                   style={[
                     styles.showItem,
+                    styles.showItemSurface,
                     {
                       borderLeftColor: currentShow.color,
                       padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
@@ -243,7 +237,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                   <View style={[
                     styles.iconContainer,
                     {
-                      backgroundColor: currentShow.color + '20',
+                      backgroundColor: currentShow.color + '15',
                       width: dimensions.isTablet ? 48 : 40,
                       height: dimensions.isTablet ? 48 : 40,
                     }
@@ -268,12 +262,20 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                       {currentShow.description}
                     </Text>
                   </View>
+                  {currentShow.port > 0 && (
+                    <View style={[
+                      styles.portBadge,
+                      { marginRight: FreeShowTheme.spacing.sm }
+                    ]}>
+                      <Text style={styles.portText}>{currentShow.port}</Text>
+                    </View>
+                  )}
                   <Ionicons
                     name="checkmark-circle"
                     size={dimensions.isTablet ? 24 : 20}
                     color={currentShow.color}
                   />
-                </LinearGradient>
+                </View>
               </View>
             )}
 
@@ -304,17 +306,10 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                         marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
                       }}
                     >
-                      <LinearGradient
-                        colors={[
-                          FreeShowTheme.colors.primaryDarker, // Start with the same background as ShowSelectorScreen
-                          FreeShowTheme.colors.primaryDarker + 'F0', // Slightly transparent
-                          show.color + '15', // Subtle theme color blend
-                          FreeShowTheme.colors.primaryDarker + 'E0' // Back to original with slight transparency
-                        ]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
+                      <View
                         style={[
                           styles.showItem,
+                          styles.showItemSurface,
                           {
                             borderLeftColor: show.color,
                             padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
@@ -326,7 +321,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                         <View style={[
                           styles.iconContainer,
                           {
-                            backgroundColor: show.color + '20',
+                            backgroundColor: show.color + '15',
                             width: dimensions.isTablet ? 48 : 40,
                             height: dimensions.isTablet ? 48 : 40,
                           }
@@ -351,12 +346,20 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                             {show.description}
                           </Text>
                         </View>
+                        {show.port > 0 && (
+                          <View style={[
+                            styles.portBadge,
+                            { marginRight: FreeShowTheme.spacing.sm }
+                          ]}>
+                            <Text style={styles.portText}>{show.port}</Text>
+                          </View>
+                        )}
                         <Ionicons
                           name="chevron-forward"
                           size={dimensions.isTablet ? 20 : 16}
                           color={FreeShowTheme.colors.text + '66'}
                         />
-                      </LinearGradient>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -445,6 +448,33 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     overflow: 'hidden', // Ensure gradient fills the entire item
     // padding, marginBottom, gap, minHeight now handled dynamically
+  },
+  showItemSurface: {
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  portBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  portText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
   iconContainer: {
     borderRadius: FreeShowTheme.borderRadius.sm,

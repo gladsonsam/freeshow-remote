@@ -7,8 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  ActivityIndicator,
-  Animated,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,7 +33,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [autoReconnect, setAutoReconnect] = useState(settings?.autoReconnect || false);
   const [autoLaunchInterface, setAutoLaunchInterface] = useState(settings?.autoLaunchInterface || 'none');
   const [autoLaunchFullscreen, setAutoLaunchFullscreen] = useState(settings?.autoLaunchFullscreen || false);
-  const [navigationLayout, setNavigationLayout] = useState(settings?.navigationLayout || 'bottomBar');
+  const [navigationLayout, setNavigationLayout] = useState<'bottomBar' | 'sidebar' | 'floating'>(settings?.navigationLayout || 'bottomBar');
   const [keepAwake, setKeepAwake] = useState(settings?.keepAwake || false);
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
 
@@ -153,7 +151,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
     await actions.updateSettings({ autoLaunchFullscreen: value });
   };
 
-  const handleNavigationLayoutSelect = async (layout: 'bottomBar' | 'sidebar') => {
+  const handleNavigationLayoutSelect = async (layout: 'bottomBar' | 'sidebar' | 'floating') => {
     setNavigationLayout(layout);
     await actions.updateSettings({ navigationLayout: layout });
   };
@@ -164,22 +162,14 @@ const handleKeepAwakeToggle = async (value: boolean) => {
 
   const selectedShow = getSelectedShow();
 
-  if (!settings) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={FreeShowTheme.colors.secondary} />
-      </View>
-    );
-  }
-
 
   return (
     <>
       <LinearGradient
-        colors={[FreeShowTheme.colors.primary, FreeShowTheme.colors.primaryDarker]}
+        colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
         style={styles.container}
       >
-      <SafeAreaView style={[styles.safeAreaContainer, { backgroundColor: FreeShowTheme.colors.primary }]}>
+      <SafeAreaView style={[styles.safeAreaContainer, { backgroundColor: 'transparent' }]}>
         <View style={styles.animatedContainer}>
           <ScrollView
             style={styles.scrollView}
@@ -188,15 +178,22 @@ const handleKeepAwakeToggle = async (value: boolean) => {
             bounces={false}
           >
             {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerIcon}>
-                <Ionicons name="settings" size={24} color={FreeShowTheme.colors.secondary} />
+            <LinearGradient
+              colors={['rgba(20,20,30,0.95)', 'rgba(15,15,24,0.98)']}
+              style={styles.headerCard}
+            >
+              <View style={styles.headerLeft}>
+                <View style={styles.headerLeftIcon}>
+                  <Ionicons name="settings" size={22} color={FreeShowTheme.colors.secondary} />
+                </View>
               </View>
-              <View style={styles.headerText}>
-                <Text style={styles.title}>Settings</Text>
-                <Text style={styles.subtitle}>Configure your FreeShow Remote preferences</Text>
+              <View style={styles.headerCenter}>
+                <Text style={styles.headerTitle}>Settings</Text>
+                <Text style={styles.headerSubtitle}>
+                  Configure your FreeShow Remote preferences
+                </Text>
               </View>
-            </View>
+            </LinearGradient>
 
             {/* Settings Card */}
             <View style={styles.settingsCard}>
@@ -248,7 +245,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
                   <View style={styles.pillContainer}>
                     <TouchableOpacity
                       style={[
-                        styles.pillHalf,
+                        styles.pillThird,
                         styles.pillLeft,
                         navigationLayout === 'bottomBar' && styles.pillActive
                       ]}
@@ -257,7 +254,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
                     >
                       <Ionicons
                         name="list"
-                        size={16}
+                        size={14}
                         color={navigationLayout === 'bottomBar' ? 'white' : FreeShowTheme.colors.secondary}
                       />
                       <Text style={[
@@ -269,7 +266,28 @@ const handleKeepAwakeToggle = async (value: boolean) => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[
-                        styles.pillHalf,
+                        styles.pillThird,
+                        styles.pillMiddle,
+                        navigationLayout === 'floating' && styles.pillActive
+                      ]}
+                      onPress={() => handleNavigationLayoutSelect('floating')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="ellipse"
+                        size={14}
+                        color={navigationLayout === 'floating' ? 'white' : FreeShowTheme.colors.secondary}
+                      />
+                      <Text style={[
+                        styles.pillText,
+                        navigationLayout === 'floating' && styles.pillTextActive
+                      ]}>
+                        Float
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.pillThird,
                         styles.pillRight,
                         navigationLayout === 'sidebar' && styles.pillActive
                       ]}
@@ -278,14 +296,14 @@ const handleKeepAwakeToggle = async (value: boolean) => {
                     >
                       <Ionicons
                         name="menu"
-                        size={16}
+                        size={14}
                         color={navigationLayout === 'sidebar' ? 'white' : FreeShowTheme.colors.secondary}
                       />
                       <Text style={[
                         styles.pillText,
                         navigationLayout === 'sidebar' && styles.pillTextActive
                       ]}>
-                        Sidebar
+                        Side
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -549,48 +567,43 @@ const styles = StyleSheet.create({
     paddingTop: FreeShowTheme.spacing.md,
     flexGrow: 1,
   },
-  header: {
+  headerCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingVertical: FreeShowTheme.spacing.md,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     marginBottom: FreeShowTheme.spacing.lg,
-    paddingTop: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.md,
   },
-  headerIcon: {
+  headerLeft: {
+    marginRight: FreeShowTheme.spacing.md,
+  },
+  headerLeftIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: FreeShowTheme.colors.secondary + '20',
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: FreeShowTheme.spacing.md,
-    ...Platform.select({
-      ios: {
-        shadowColor: FreeShowTheme.colors.secondary,
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
   },
-  headerText: {
+  headerCenter: {
     flex: 1,
+    minWidth: 0,
   },
-  title: {
-    fontSize: FreeShowTheme.fontSize.lg * 1.1,
+  headerTitle: {
+    fontSize: FreeShowTheme.fontSize.lg,
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
-    marginBottom: FreeShowTheme.spacing.xs,
-    letterSpacing: -0.3,
+    letterSpacing: 0.2,
   },
-  subtitle: {
+  headerSubtitle: {
+    marginTop: 2,
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
-    lineHeight: 18,
-    opacity: 0.8,
   },
   settingsCard: {
     backgroundColor: FreeShowTheme.colors.primaryDarker,
@@ -714,7 +727,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: FreeShowTheme.spacing.sm,
     gap: FreeShowTheme.spacing.xs,
   },
+  pillThird: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: FreeShowTheme.spacing.sm,
+    paddingHorizontal: FreeShowTheme.spacing.xs,
+    gap: 4,
+  },
   pillLeft: {
+    borderRightWidth: 1,
+    borderRightColor: FreeShowTheme.colors.primaryLighter,
+  },
+  pillMiddle: {
     borderRightWidth: 1,
     borderRightColor: FreeShowTheme.colors.primaryLighter,
   },
@@ -725,7 +751,7 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.secondary,
   },
   pillText: {
-    fontSize: FreeShowTheme.fontSize.md,
+    fontSize: FreeShowTheme.fontSize.sm,
     fontWeight: '600',
     color: FreeShowTheme.colors.secondary,
   },

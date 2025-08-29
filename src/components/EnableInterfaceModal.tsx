@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { FreeShowTheme } from '../../theme/FreeShowTheme';
-import { ShowOption } from '../../types';
-import { configService } from '../../config/AppConfig';
+import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { ShowOption } from '../types';
+import { configService } from '../config/AppConfig';
 
 interface EnableInterfaceModalProps {
   visible: boolean;
@@ -21,24 +22,24 @@ const EnableInterfaceModal: React.FC<EnableInterfaceModalProps> = ({
   onCancel,
 }) => {
   const defaultPorts = configService.getDefaultShowPorts();
-  
-  const [port, setPort] = useState(
-    show?.id === 'api' ? String(defaultPorts.api) : 
-    show?.id === 'remote' ? String(defaultPorts.remote) : 
-    show?.id === 'stage' ? String(defaultPorts.stage) : 
-    show?.id === 'control' ? String(defaultPorts.control) : 
-    show?.id === 'output' ? String(defaultPorts.output) : ''
-  );
+
+  // Helper function to get default port for interface
+  const getDefaultPortForInterface = (interfaceId: string): string => {
+    const portMap: Record<string, number> = {
+      'api': defaultPorts?.api ?? 5505,
+      'remote': defaultPorts?.remote ?? 5510,
+      'stage': defaultPorts?.stage ?? 5511,
+      'control': defaultPorts?.control ?? 5512,
+      'output': defaultPorts?.output ?? 5513,
+    };
+    return String(portMap[interfaceId] ?? 5505);
+  };
+
+  const [port, setPort] = useState(() => getDefaultPortForInterface(show?.id || ''));
 
   // Reset port when modal is opened/closed or show changes
   React.useEffect(() => {
-    setPort(
-      show?.id === 'api' ? String(defaultPorts.api) : 
-      show?.id === 'remote' ? String(defaultPorts.remote) : 
-      show?.id === 'stage' ? String(defaultPorts.stage) : 
-      show?.id === 'control' ? String(defaultPorts.control) : 
-      show?.id === 'output' ? String(defaultPorts.output) : ''
-    );
+    setPort(getDefaultPortForInterface(show?.id || ''));
   }, [show, visible, defaultPorts]);
 
   const handleSave = () => {
@@ -100,14 +101,19 @@ const EnableInterfaceModal: React.FC<EnableInterfaceModalProps> = ({
             >
               <Text style={[styles.enableActionButtonText, styles.enableCancelButtonText]}>Cancel</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity 
-              style={[styles.enableActionButton, styles.enableSaveButton]}
+              style={styles.enableActionButton}
               onPress={handleSave}
               accessibilityRole="button"
               activeOpacity={0.8}
             >
-              <Text style={styles.enableActionButtonText}>Save</Text>
+              <LinearGradient
+                colors={['#8B5CF6', '#A855F7']}
+                style={styles.enableSaveGradient}
+              >
+                <Text style={styles.enableActionButtonText}>Save</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -208,11 +214,8 @@ const styles = StyleSheet.create({
   },
   enableActionButton: {
     flex: 1,
-    paddingVertical: FreeShowTheme.spacing.lg,
-    paddingHorizontal: FreeShowTheme.spacing.lg,
     borderRadius: FreeShowTheme.borderRadius.lg,
     alignItems: 'center',
-    flexDirection: 'row',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
@@ -222,6 +225,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  enableSaveGradient: {
+    width: '100%',
+    paddingVertical: FreeShowTheme.spacing.lg,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    alignItems: 'center',
   },
   enableSaveButton: {
     backgroundColor: FreeShowTheme.colors.secondary,
