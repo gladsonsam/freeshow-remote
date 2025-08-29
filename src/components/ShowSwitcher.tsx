@@ -134,16 +134,16 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
 
   return (
     <>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.titleContainer,
           {
             marginHorizontal: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
             gap: dimensions.isTablet ? FreeShowTheme.spacing.sm : FreeShowTheme.spacing.xs,
           }
-        ]} 
+        ]}
         onPress={handleOpenModal}
-        activeOpacity={0.7}
+        activeOpacity={1.0}
       >
         <Text style={[
           styles.title,
@@ -159,7 +159,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
       </TouchableOpacity>
 
       <Modal
-        animationType="fade"
+        animationType="none"
         transparent={true}
         visible={modalVisible}
         onRequestClose={handleCloseModal}
@@ -170,7 +170,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         ]}>
           <TouchableOpacity
             style={styles.backgroundTouchable}
-            activeOpacity={1}
+            activeOpacity={1.0}
             onPress={handleCloseModal}
           />
           <View style={[
@@ -301,7 +301,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                     <TouchableOpacity
                       key={show.id}
                       onPress={() => handleShowSelect(show)}
-                      activeOpacity={0.7}
+                      activeOpacity={1.0}
                       style={{
                         marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
                       }}
