@@ -173,7 +173,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
         <View style={styles.animatedContainer}>
           <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={navigationLayout === 'floating' ? styles.scrollContentWithFloatingNav : styles.scrollContent}
             showsVerticalScrollIndicator={false}
             bounces={false}
           >
@@ -565,6 +565,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: FreeShowTheme.spacing.md,
     paddingTop: FreeShowTheme.spacing.md,
+    flexGrow: 1,
+  },
+  scrollContentWithFloatingNav: {
+    padding: FreeShowTheme.spacing.md,
+    paddingTop: FreeShowTheme.spacing.md,
+    paddingBottom: FreeShowTheme.spacing.xxxl * 3, // Extra space for floating nav
     flexGrow: 1,
   },
   headerCard: {

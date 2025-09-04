@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { getDefaultFreeShowService } from '../services/DIContainer';
+import { FreeShowService } from '../services/FreeShowService';
 import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { settingsRepository } from '../repositories';
@@ -84,7 +84,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   });
 
   const navigationRef = useRef<any>(null);
-  const service = injectedService || getDefaultFreeShowService();
+  const service = injectedService || new FreeShowService();
   const logContext = 'ConnectionProvider';
   const cancelConnectionRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);

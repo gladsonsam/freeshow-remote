@@ -85,7 +85,10 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     cancelConnection
   } = actions;
   
-  const { history, actions: historyActions } = useSettings();
+  const { history, actions: historyActions, settings } = useSettings();
+  
+  // Check if we're using floating navigation layout
+  const isFloatingNav = settings?.navigationLayout === 'floating';
   
   const discovery = useDiscovery();
   const discoveryActions = useDiscoveryActions();
@@ -755,7 +758,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={isFloatingNav ? styles.scrollContentWithFloatingNav : styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
             <Header
@@ -880,6 +883,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: FreeShowTheme.spacing.lg,
     paddingBottom: FreeShowTheme.spacing.xxxl,
+  },
+  scrollContentWithFloatingNav: {
+    padding: FreeShowTheme.spacing.lg,
+    paddingBottom: FreeShowTheme.spacing.xxxl * 3, // Extra space for floating nav
   },
 });
 

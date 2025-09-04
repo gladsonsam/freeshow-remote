@@ -47,7 +47,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
   const isFloatingNav = settings?.navigationLayout === 'floating';
 
   const { isConnected, connectionHost, connectionName, currentShowPorts, autoConnectAttempted, connectionStatus } = state;
-  const { disconnect, updateShowPorts } = actions;
+  const { disconnect, updateShowPorts, cancelConnection } = actions;
 
   // Separate animation values for main content to avoid being consumed by placeholder
   const contentFade = React.useRef(new Animated.Value(0)).current;
@@ -235,6 +235,12 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
           }}
         >
           <Text style={styles.loadingText}>Connecting…</Text>
+          <Pressable
+            style={styles.cancelButton}
+            onPress={cancelConnection}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </Pressable>
         </Animated.View>
       </LinearGradient>
     );
@@ -589,6 +595,20 @@ const styles = StyleSheet.create({
   connectButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: 'white',
+  },
+  cancelButton: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
     color: 'white',
   },
 });

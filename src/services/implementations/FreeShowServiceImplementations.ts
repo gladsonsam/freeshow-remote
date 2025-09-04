@@ -1,10 +1,7 @@
-// Concrete implementations for FreeShow service dependency injection
+// Concrete implementations for FreeShow service
 
 import { io, Socket } from 'socket.io-client';
 import { 
-  ISocketFactory, 
-  IConnectionStateManager, 
-  IEventManager,
   IFreeShowServiceConfig 
 } from '../interfaces/IFreeShowService';
 import { ErrorLogger } from '../ErrorLogger';
@@ -12,7 +9,7 @@ import { ErrorLogger } from '../ErrorLogger';
 /**
  * Default socket factory implementation
  */
-export class SocketFactory implements ISocketFactory {
+export class SocketFactory {
   createSocket(url: string, options?: any): Socket {
     return io(url, {
       transports: ['websocket'],
@@ -27,7 +24,7 @@ export class SocketFactory implements ISocketFactory {
 /**
  * Connection state manager implementation
  */
-export class ConnectionStateManager implements IConnectionStateManager {
+export class ConnectionStateManager {
   private connected: boolean = false;
   private connectionInfo: {
     host?: string;
@@ -80,7 +77,7 @@ export class ConnectionStateManager implements IConnectionStateManager {
 /**
  * Event manager implementation
  */
-export class EventManager implements IEventManager {
+export class EventManager {
   private listeners: { [key: string]: ((data: any) => void)[] } = {};
   private readonly logContext = 'EventManager';
 

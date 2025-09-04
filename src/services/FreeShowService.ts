@@ -1,15 +1,21 @@
-// Refactored FreeShowService with dependency injection
+// Refactored FreeShowService without dependency injection
 
 import { Socket } from 'socket.io-client';
 import { 
   IFreeShowService, 
-  IFreeShowServiceDependencies, 
   IFreeShowServiceConfig 
 } from './interfaces/IFreeShowService';
 import { 
   RequestQueueManager,
-  defaultFreeShowServiceConfig 
+  defaultFreeShowServiceConfig,
+  ConnectionStateManager,
+  EventManager,
+  SocketFactory
 } from './implementations/FreeShowServiceImplementations';
+import { configService } from '../config/AppConfig';
+import { InputValidationService } from './InputValidationService';
+import { ErrorLogger } from './ErrorLogger';
+import { settingsRepository, connectionRepository } from '../repositories';
 
 // Error types
 export class FreeShowConnectionError extends Error {
@@ -34,8 +40,7 @@ export class FreeShowNetworkError extends Error {
 }
 
 /**
- * FreeShow service with dependency injection
- * No longer a singleton - instances can be created with different dependencies
+ * FreeShow service without dependency injection
  */
 export class FreeShowService implements IFreeShowService {
   private socket: Socket | null = null;
@@ -46,15 +51,21 @@ export class FreeShowService implements IFreeShowService {
   private requestQueue: RequestQueueManager;
   private readonly logContext = 'FreeShowService';
 
-  // Dependencies
-  private readonly dependencies: IFreeShowServiceDependencies;
+  // Direct service instances
+  private readonly configService = configService;
+  private readonly validationService = InputValidationService;
+  private readonly errorLogger = ErrorLogger;
+  private readonly socketFactory = new SocketFactory();
+  private readonly connectionStateManager = new ConnectionStateManager();
+  private readonly eventManager = new EventManager();
+  private readonly settingsRepository = settingsRepository;
+  private readonly connectionRepository = connectionRepository;
+
   private readonly config: IFreeShowServiceConfig;
 
   constructor(
-    dependencies: IFreeShowServiceDependencies,
     config: IFreeShowServiceConfig = defaultFreeShowServiceConfig
   ) {
-    this.dependencies = dependencies;
     this.config = config;
     this.requestQueue = new RequestQueueManager(
       config.maxConcurrentRequests,
@@ -67,13 +78,13 @@ export class FreeShowService implements IFreeShowService {
 
   private async initializeConfiguration(): Promise<void> {
     try {
-      await this.dependencies.configService.loadConfiguration();
-      this.dependencies.errorLogger.debug(
+      await this.configService.loadConfiguration();
+      this.errorLogger.debug(
         'FreeShowService configuration loaded', 
         this.logContext
       );
     } catch (error) {
-      this.dependencies.errorLogger.error(
+      this.errorLogger.error(
         'Failed to load FreeShowService configuration', 
         this.logContext,
         error instanceof Error ? error : new Error(String(error))
@@ -85,7 +96,7 @@ export class FreeShowService implements IFreeShowService {
   async connect(host: string, port?: number, nickname?: string): Promise<void> {
     try {
       // Validate inputs
-      const hostValidation = this.dependencies.validationService.validateHost(host);
+      const hostValidation = this.validationService.validateHost(host);
       if (!hostValidation.isValid) {
         throw new FreeShowConnectionError(
           hostValidation.error || 'Invalid host',
@@ -94,8 +105,8 @@ export class FreeShowService implements IFreeShowService {
       }
 
       // Use default port if not provided
-      const finalPort = port ?? this.dependencies.configService.getNetworkConfig().defaultPort;
-      const portValidation = this.dependencies.validationService.validatePort(finalPort);
+      const finalPort = port ?? this.configService.getNetworkConfig().defaultPort;
+      const portValidation = this.validationService.validatePort(finalPort);
       if (!portValidation.isValid) {
         throw new FreeShowConnectionError(
           portValidation.error || 'Invalid port',
@@ -112,15 +123,15 @@ export class FreeShowService implements IFreeShowService {
       this.currentPort = portValidation.sanitizedValue || finalPort;
 
       const url = `ws://${this.currentHost}:${this.currentPort}`;
-      const networkConfig = this.dependencies.configService.getNetworkConfig();
+      const networkConfig = this.configService.getNetworkConfig();
       
-      this.dependencies.errorLogger.info(
+      this.errorLogger.info(
         `Attempting to connect to FreeShow`, 
         this.logContext,
         { host: this.currentHost, port: this.currentPort }
       );
 
-      this.socket = this.dependencies.socketFactory.createSocket(url, {
+      this.socket = this.socketFactory.createSocket(url, {
         timeout: networkConfig.connectionTimeout,
       });
 
@@ -129,9 +140,9 @@ export class FreeShowService implements IFreeShowService {
 
       // Save successful connection
       if (this.config.enableConnectionPersistence) {
-        await this.dependencies.settingsRepository.addToConnectionHistory(
-          this.currentHost,
-          this.currentPort,
+        await this.settingsRepository.addToConnectionHistory(
+          this.currentHost!,
+          this.currentPort!,
           nickname // Only pass nickname if explicitly provided, otherwise preserve existing
         );
       }
@@ -142,7 +153,7 @@ export class FreeShowService implements IFreeShowService {
       }
 
     } catch (error) {
-      this.dependencies.errorLogger.error(
+      this.errorLogger.error(
         'Failed to connect to FreeShow',
         this.logContext,
         error instanceof Error ? error : new Error(String(error))
@@ -162,7 +173,7 @@ export class FreeShowService implements IFreeShowService {
 
   async disconnect(): Promise<void> {
     try {
-      this.dependencies.errorLogger.info('Disconnecting from FreeShow', this.logContext);
+      this.errorLogger.info('Disconnecting from FreeShow', this.logContext);
 
       // Stop heartbeat
       this.stopHeartbeat();
@@ -178,18 +189,18 @@ export class FreeShowService implements IFreeShowService {
       }
 
       // Update state
-      this.dependencies.connectionStateManager.setConnected(false);
+      this.connectionStateManager.setConnected(false);
       this.currentHost = null;
       this.currentPort = null;
       this.currentReconnectionAttempt = 0;
 
       // Emit disconnect event
-      this.dependencies.eventManager.emit('disconnect', {
+      this.eventManager.emit('disconnect', {
         timestamp: new Date().toISOString(),
       });
 
     } catch (error) {
-      this.dependencies.errorLogger.error(
+      this.errorLogger.error(
         'Error during disconnect',
         this.logContext,
         error instanceof Error ? error : new Error(String(error))
@@ -205,7 +216,7 @@ export class FreeShowService implements IFreeShowService {
       );
     }
 
-    const networkConfig = this.dependencies.configService.getNetworkConfig();
+    const networkConfig = this.configService.getNetworkConfig();
     
     if (this.currentReconnectionAttempt >= networkConfig.maxRetries) {
       throw new FreeShowConnectionError(
@@ -215,7 +226,7 @@ export class FreeShowService implements IFreeShowService {
     }
 
     this.currentReconnectionAttempt++;
-    this.dependencies.errorLogger.info(
+    this.errorLogger.info(
       `Reconnection attempt ${this.currentReconnectionAttempt}/${networkConfig.maxRetries}`,
       this.logContext
     );
@@ -234,7 +245,7 @@ export class FreeShowService implements IFreeShowService {
         return;
       }
 
-      const networkConfig = this.dependencies.configService.getNetworkConfig();
+      const networkConfig = this.configService.getNetworkConfig();
       const timeout = setTimeout(() => {
         reject(new FreeShowTimeoutError(
           'Connection timeout',
@@ -244,21 +255,21 @@ export class FreeShowService implements IFreeShowService {
 
       this.socket.once('connect', () => {
         clearTimeout(timeout);
-        this.dependencies.connectionStateManager.setConnected(true);
-        this.dependencies.connectionStateManager.setConnectionDetails(
+        this.connectionStateManager.setConnected(true);
+        this.connectionStateManager.setConnectionDetails(
           this.currentHost!,
           this.currentPort!
         );
         this.currentReconnectionAttempt = 0;
         
-        this.dependencies.errorLogger.info(
+        this.errorLogger.info(
           'Successfully connected to FreeShow',
           this.logContext,
           { host: this.currentHost, port: this.currentPort }
         );
 
         // Emit connect event
-        this.dependencies.eventManager.emit('connect', {
+        this.eventManager.emit('connect', {
           host: this.currentHost,
           port: this.currentPort,
           timestamp: new Date().toISOString(),
@@ -284,19 +295,19 @@ export class FreeShowService implements IFreeShowService {
 
     // Connection events
     this.socket.on('disconnect', (reason: string) => {
-      this.dependencies.errorLogger.warn(
+      this.errorLogger.warn(
         `Disconnected from FreeShow: ${reason}`,
         this.logContext
       );
 
-      this.dependencies.connectionStateManager.setConnected(false);
-      this.dependencies.eventManager.emit('disconnect', { reason, timestamp: new Date().toISOString() });
+      this.connectionStateManager.setConnected(false);
+      this.eventManager.emit('disconnect', { reason, timestamp: new Date().toISOString() });
 
       // Auto-reconnect if enabled and not manually disconnected
       if (this.config.enableAutoReconnect && reason !== 'io client disconnect') {
         setTimeout(() => {
           this.reconnect().catch(error => {
-            this.dependencies.errorLogger.error(
+            this.errorLogger.error(
               'Auto-reconnection failed',
               this.logContext,
               error instanceof Error ? error : new Error(String(error))
@@ -307,46 +318,46 @@ export class FreeShowService implements IFreeShowService {
     });
 
     this.socket.on('error', (error: any) => {
-      this.dependencies.errorLogger.error(
+      this.errorLogger.error(
         'Socket error',
         this.logContext,
         new Error(error.message || 'Unknown socket error')
       );
-      this.dependencies.eventManager.emit('error', { error, timestamp: new Date().toISOString() });
+      this.eventManager.emit('error', { error, timestamp: new Date().toISOString() });
     });
 
     // FreeShow-specific events
     this.socket.on('shows', (data: any) => {
-      this.dependencies.connectionStateManager.updateActivity();
+      this.connectionStateManager.updateActivity();
       if (this.config.enableEventLogging) {
-        this.dependencies.errorLogger.debug('Received shows data', this.logContext);
+        this.errorLogger.debug('Received shows data', this.logContext);
       }
-      this.dependencies.eventManager.emit('shows', data);
+      this.eventManager.emit('shows', data);
     });
 
     this.socket.on('slides', (data: any) => {
-      this.dependencies.connectionStateManager.updateActivity();
+      this.connectionStateManager.updateActivity();
       if (this.config.enableEventLogging) {
-        this.dependencies.errorLogger.debug('Received slides data', this.logContext);
+        this.errorLogger.debug('Received slides data', this.logContext);
       }
-      this.dependencies.eventManager.emit('slides', data);
+      this.eventManager.emit('slides', data);
     });
 
     this.socket.on('outputs', (data: any) => {
-      this.dependencies.connectionStateManager.updateActivity();
+      this.connectionStateManager.updateActivity();
       if (this.config.enableEventLogging) {
-        this.dependencies.errorLogger.debug('Received outputs data', this.logContext);
+        this.errorLogger.debug('Received outputs data', this.logContext);
       }
-      this.dependencies.eventManager.emit('outputs', data);
+      this.eventManager.emit('outputs', data);
     });
 
     // Generic message handler
     this.socket.onAny((event: string, data: any) => {
-      this.dependencies.connectionStateManager.updateActivity();
+      this.connectionStateManager.updateActivity();
       if (this.config.enableEventLogging) {
-        this.dependencies.errorLogger.debug(`Received event: ${event}`, this.logContext);
+        this.errorLogger.debug(`Received event: ${event}`, this.logContext);
       }
-      this.dependencies.eventManager.emit(event, data);
+      this.eventManager.emit(event, data);
     });
   }
 
@@ -355,9 +366,9 @@ export class FreeShowService implements IFreeShowService {
       clearInterval(this.heartbeatInterval);
     }
 
-    const networkConfig = this.dependencies.configService.getNetworkConfig();
+    const networkConfig = this.configService.getNetworkConfig();
     this.heartbeatInterval = setInterval(() => {
-      if (this.socket && this.dependencies.connectionStateManager.isConnected()) {
+      if (this.socket && this.connectionStateManager.isConnected()) {
         this.socket.emit('ping', { timestamp: Date.now() });
       }
     }, networkConfig.keepAliveInterval);
@@ -372,20 +383,20 @@ export class FreeShowService implements IFreeShowService {
 
   // State methods
   isConnected(): boolean {
-    return this.dependencies.connectionStateManager.isConnected();
+    return this.connectionStateManager.isConnected();
   }
 
   getConnectionInfo(): any {
-    return this.dependencies.connectionStateManager.getConnectionInfo();
+    return this.connectionStateManager.getConnectionInfo();
   }
 
   // Event management
   on(event: string, callback: (data: any) => void): void {
-    this.dependencies.eventManager.addListener(event, callback);
+    this.eventManager.addListener(event, callback);
   }
 
   off(event: string, callback: (data: any) => void): void {
-    this.dependencies.eventManager.removeListener(event, callback);
+    this.eventManager.removeListener(event, callback);
   }
 
   // Remote control methods
@@ -429,7 +440,7 @@ export class FreeShowService implements IFreeShowService {
 
   // Generic request handling with queue management
   async sendRequest(action: string, data?: any): Promise<any> {
-    if (!this.socket || !this.dependencies.connectionStateManager.isConnected()) {
+    if (!this.socket || !this.connectionStateManager.isConnected()) {
       throw new FreeShowConnectionError(
         'Not connected to FreeShow',
         'NOT_CONNECTED'
@@ -446,7 +457,7 @@ export class FreeShowService implements IFreeShowService {
         return;
       }
 
-      const networkConfig = this.dependencies.configService.getNetworkConfig();
+      const networkConfig = this.configService.getNetworkConfig();
       const timeout = setTimeout(() => {
         reject(new FreeShowTimeoutError(
           `Request timeout for action: ${action}`,
@@ -457,7 +468,7 @@ export class FreeShowService implements IFreeShowService {
       // Create response handler
       const responseHandler = (response: any) => {
         clearTimeout(timeout);
-        this.dependencies.connectionStateManager.updateActivity();
+        this.connectionStateManager.updateActivity();
         
         if (response.error) {
           reject(new Error(response.error));
@@ -472,7 +483,7 @@ export class FreeShowService implements IFreeShowService {
       // Send request
       this.socket.emit(action, data || {});
 
-      this.dependencies.errorLogger.debug(
+      this.errorLogger.debug(
         `Sent request: ${action}`,
         this.logContext
       );
