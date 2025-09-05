@@ -48,14 +48,14 @@ const InterfaceHeader: React.FC<InterfaceHeaderProps> = ({
       <View style={styles.connectionCard}>
         <LinearGradient
           colors={['rgba(139, 92, 246, 0.08)', 'rgba(168, 85, 247, 0.04)']}
-          style={styles.connectionCardGradient}
+          style={[styles.connectionCardGradient, isTablet && styles.connectionCardGradientTablet]}
         >
           <View style={styles.connectionInfo}>
             <View style={styles.connectionStatus}>
               <View style={styles.statusIndicator} />
               <Text style={[styles.connectionLabel, isTablet && styles.connectionLabelTablet]}>Connected to</Text>
             </View>
-            <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet]}>
+            <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet, isTablet && styles.connectionNameTabletLarge]}>
               {connectionName || connectionHost || 'Unknown'}
             </Text>
           </View>
@@ -121,6 +121,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.08)',
   },
+  connectionCardGradientTablet: {
+    padding: 18,
+  },
   connectionInfo: {
     flex: 1,
   },
@@ -151,6 +154,9 @@ const styles = StyleSheet.create({
   },
   connectionNameTablet: {
     fontSize: 22,
+  },
+  connectionNameTabletLarge: {
+    fontSize: 26,
   },
   connectionIcon: {
     marginLeft: 16,

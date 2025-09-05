@@ -5,6 +5,7 @@ import {
   IFreeShowServiceConfig 
 } from '../interfaces/IFreeShowService';
 import { ErrorLogger } from '../ErrorLogger';
+import { configService } from '../../config/AppConfig';
 
 /**
  * Default socket factory implementation
@@ -15,7 +16,7 @@ export class SocketFactory {
       transports: ['websocket'],
       autoConnect: false,
       reconnection: false, // We handle reconnection manually
-      timeout: 10000,
+      timeout: configService.getNetworkConfig().connectionTimeout,
       ...options,
     });
   }

@@ -172,7 +172,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const handleConnect = async () => {
     try {
-      // Validate host input
+      // 1. Validate host
       const hostValidation = ValidationService.validateHost(host.trim());
       if (!hostValidation.isValid) {
         setErrorModal({
@@ -183,90 +183,69 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         return;
       }
 
-      // Validate show ports
-      const portsToValidate = {
-        remote: remotePort,
-        stage: stagePort,
-        control: controlPort,
-        output: outputPort,
-        api: apiPort,
+      // 2. Get user's desired port configuration
+      const desiredPorts = {
+        remote: parseInt(remotePort) || 0,
+        stage: parseInt(stagePort) || 0,
+        control: parseInt(controlPort) || 0,
+        output: parseInt(outputPort) || 0,
+        api: parseInt(apiPort) || 0,
       };
 
-      const validatedPorts: any = {};
-      for (const [portName, portValue] of Object.entries(portsToValidate)) {
-        const portValidation = ValidationService.validatePort(portValue);
-        if (!portValidation.isValid) {
-          setErrorModal({
-            visible: true,
-            title: 'Invalid Port',
-            message: `${portName.charAt(0).toUpperCase() + portName.slice(1)} port: ${portValidation.error}`
-          });
-          return;
-        }
-        validatedPorts[portName] = portValidation.sanitizedValue;
-      }
-
-      // Additional validation for show ports as a group
-      const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
-      if (!showPortsValidation.isValid) {
+      // 3. Check if user wants at least one interface
+      const hasDesiredInterfaces = Object.values(desiredPorts).some(port => port > 0);
+      if (!hasDesiredInterfaces) {
         setErrorModal({
           visible: true,
-          title: 'Port Configuration Error',
-          message: showPortsValidation.error || 'Invalid port configuration'
+          title: 'No Interfaces Enabled',
+          message: 'Please enable at least one interface to connect to FreeShow.'
         });
         return;
       }
 
-      // Use sanitized values for connection
       const sanitizedHost = hostValidation.sanitizedValue as string;
-      const sanitizedShowPorts = showPortsValidation.sanitizedValue;
-      const defaultPort = configService.getNetworkConfig().defaultPort;
+      const nameToUse = history.find(h => h.host === sanitizedHost)?.nickname;
 
-      // Ping host to check if it's reachable
+      // 4. Start connection immediately with optimistic approach
       setIsPingingInterfaces(true);
-      try {
-        const pingResult = await interfacePingService.pingHost(sanitizedHost);
-        
-        if (!pingResult.isReachable) {
-          setErrorModal({
-            visible: true,
-            title: 'Host Not Reachable',
-            message: `Cannot reach ${sanitizedHost}. Please check that the host is online and accessible from your network.`
-          });
-          return;
-        }
+      
+      // Start interface validation in parallel (don't await yet)
+      const validationPromise = interfacePingService.validateInterfacePorts(sanitizedHost, desiredPorts);
+      
+      // 5. Connect immediately using API port if available, otherwise default
+      const apiPortToUse = desiredPorts.api > 0 ? desiredPorts.api : configService.getNetworkConfig().defaultPort;
+      
+      ErrorLogger.info('Starting fast connection with interface validation', 'ConnectScreen', 
+        new Error(`Host: ${sanitizedHost}, API Port: ${apiPortToUse}`)
+      );
 
-        ErrorLogger.info('Host ping successful', 'ConnectScreen', 
-          new Error(`Host ${sanitizedHost} is reachable (${pingResult.responseTime}ms)`)
-        );
-      } finally {
+      const connected = await connect(sanitizedHost, apiPortToUse, nameToUse);
+      
+      if (connected) {
+        // 6. Wait for validation to complete and update ports
+        const validation = await validationPromise;
+        setIsPingingInterfaces(false);
+        
+        // Update with validated ports
+        await updateShowPorts(validation);
+        await settingsRepository.addToConnectionHistory(sanitizedHost, apiPortToUse, nameToUse, validation);
+        
+        // Show user feedback about disabled interfaces
+        const disabledInterfaces = Object.entries(desiredPorts)
+          .filter(([name, port]) => port > 0 && validation[name as keyof typeof validation] === 0)
+          .map(([name]) => name);
+          
+        if (disabledInterfaces.length > 0) {
+          ErrorLogger.info(`Connected successfully. Disabled unresponsive interfaces: ${disabledInterfaces.join(', ')}`, 'ConnectScreen');
+        }
+        
+        navigation.navigate('Interface');
+      } else {
         setIsPingingInterfaces(false);
       }
 
-      // Find existing nickname before connecting
-      const historyMatch = history.find(h => h.host === sanitizedHost);
-      const nameToUse = historyMatch?.nickname;
-
-      ErrorLogger.info('Attempting manual connection with validated inputs', 'ConnectScreen', 
-        new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}`)
-      );
-
-      const connected = await connect(sanitizedHost, defaultPort, nameToUse);
-      if (connected) {
-        // Update show ports after successful connection
-        await updateShowPorts(sanitizedShowPorts);
-        
-        // Save connection to history with show ports
-        await settingsRepository.addToConnectionHistory(
-          sanitizedHost,
-          defaultPort,
-          nameToUse,
-          sanitizedShowPorts
-        );
-        
-        navigation.navigate('Interface');
-      }
     } catch (error) {
+      setIsPingingInterfaces(false);
       ErrorLogger.error('Manual connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
       setErrorModal({
         visible: true,
@@ -381,61 +360,52 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   };
 
   const proceedWithConnection = async (service: any) => {
-    // Use the IP address and default API port since API port is not broadcasted
-    const ip = service.ip || service.host;
-    const apiPort = configService.getNetworkConfig().defaultPort; // Use config service for consistency
-    setHost(ip);
+    const host = service.ip || service.host;
+    setHost(host);
     stopDiscovery();
     
     try {
-      // Use discovered ports if available, otherwise fall back to current form values
-      // Treat missing ports as disabled (0)
-      const showPorts = {
+      // 1. Start with discovered interfaces (treat missing as disabled)
+      const discoveredPorts = {
         remote: service.ports?.remote || 0,
         stage: service.ports?.stage || 0,
         control: service.ports?.control || 0,
         output: service.ports?.output || 0,
-        api: apiPort,
+        api: 0, // API not broadcasted, we'll test it separately
       };
+
+      // 2. Connect immediately for speed, then validate API in background
+      const defaultApiPort = configService.getNetworkConfig().defaultPort;
+      const nameToUse = history.find(h => h.host === host)?.nickname || service.name;
       
-      // Check for a stored nickname for the discovered service
-      const historyMatch = history.find(h => h.host === ip);
-      const nameToUse = historyMatch?.nickname || service.name;
+      // Start API validation in parallel (don't block connection)
+      const apiValidationPromise = interfacePingService.pingPort(host, defaultApiPort);
       
-      const connected = await connect(ip, apiPort, nameToUse);
+      // 3. Connect immediately
+      const connected = await connect(host, defaultApiPort, nameToUse);
+      
       if (connected) {
-        // Update show ports after successful connection and save to history with capabilities
-        await updateShowPorts(showPorts);
-        
-        // Update capabilities based on discovered services
-        if (service.capabilities && service.capabilities.length > 0) {
-          updateCapabilities(service.capabilities);
+        // 4. Wait for API validation and update ports accordingly
+        const apiResult = await apiValidationPromise;
+        if (apiResult.isReachable) {
+          discoveredPorts.api = defaultApiPort;
+          ErrorLogger.info(`API interface available on port ${defaultApiPort}`, 'ConnectScreen');
         } else {
-          // Default capabilities if none discovered (manual connection)
-          updateCapabilities(['api']);
+          ErrorLogger.info(`API interface not available on port ${defaultApiPort}`, 'ConnectScreen');
         }
         
-        // Save connection with discovered capabilities and show ports
-        await settingsRepository.addToConnectionHistory(
-          ip,
-          apiPort,
-          nameToUse,
-          showPorts
-        );
-        
-        // Navigate to Interface screen (works for both sidebar and bottom tab layouts)
-        if (navigation && typeof navigation.navigate === 'function') {
-          navigation.navigate('Interface');
-        } else {
-          ErrorLogger.warn('Connected successfully, but no navigation function available', 'ConnectScreen');
-        }
+        await updateShowPorts(discoveredPorts);
+        updateCapabilities(service.capabilities || ['api']);
+        await settingsRepository.addToConnectionHistory(host, defaultApiPort, nameToUse, discoveredPorts);
+        navigation.navigate('Interface');
       }
+
     } catch (error) {
-      ErrorLogger.error('Discovered service connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error('Auto discovery connection failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
       setErrorModal({
         visible: true,
         title: 'Connection Error',
-        message: `Failed to connect to "${service.name}". Please ensure FreeShow is running and the API is enabled.`
+        message: `Failed to connect to "${service.name}". Please ensure FreeShow is running.`
       });
     }
   };

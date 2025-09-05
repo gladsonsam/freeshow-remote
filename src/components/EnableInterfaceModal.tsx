@@ -37,10 +37,12 @@ const EnableInterfaceModal: React.FC<EnableInterfaceModalProps> = ({
 
   const [port, setPort] = useState(() => getDefaultPortForInterface(show?.id || ''));
 
-  // Reset port when modal is opened/closed or show changes
+  // Only reset port when the show (interface) changes, not when modal visibility changes
   React.useEffect(() => {
-    setPort(getDefaultPortForInterface(show?.id || ''));
-  }, [show, visible, defaultPorts]);
+    if (show) {
+      setPort(getDefaultPortForInterface(show.id));
+    }
+  }, [show?.id]); // Only depend on the interface ID, not visibility or defaultPorts
 
   const handleSave = () => {
     onSave(port);

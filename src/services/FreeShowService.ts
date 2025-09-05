@@ -122,21 +122,38 @@ export class FreeShowService implements IFreeShowService {
       this.currentHost = hostValidation.sanitizedValue || host;
       this.currentPort = portValidation.sanitizedValue || finalPort;
 
-      const url = `ws://${this.currentHost}:${this.currentPort}`;
-      const networkConfig = this.configService.getNetworkConfig();
-      
       this.errorLogger.info(
         `Attempting to connect to FreeShow`, 
         this.logContext,
         { host: this.currentHost, port: this.currentPort }
       );
 
-      this.socket = this.socketFactory.createSocket(url, {
-        timeout: networkConfig.connectionTimeout,
-      });
-
-      await this.setupSocketEventHandlers();
-      await this.performConnection();
+      // Test if API port is actually available
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
+      try {
+        const _response = await fetch(`http://${this.currentHost}:${this.currentPort}`, {
+          method: 'HEAD',
+          signal: controller.signal,
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        clearTimeout(timeoutId);
+        
+        // API is available, use WebSocket connection
+        await this.connectWithWebSocket();
+        
+      } catch {
+        clearTimeout(timeoutId);
+        
+        // API is not available, create mock connection
+        this.errorLogger.info(
+          `API not available on port ${this.currentPort}, creating interface-only connection`,
+          this.logContext
+        );
+        
+        await this.connectWithoutAPI();
+      }
 
       // Save successful connection
       if (this.config.enableConnectionPersistence) {
@@ -147,8 +164,8 @@ export class FreeShowService implements IFreeShowService {
         );
       }
 
-      // Start heartbeat if enabled
-      if (this.config.enableHeartbeat) {
+      // Start heartbeat if enabled and we have a socket
+      if (this.config.enableHeartbeat && this.socket) {
         this.startHeartbeat();
       }
 
@@ -171,6 +188,41 @@ export class FreeShowService implements IFreeShowService {
     }
   }
 
+  private async connectWithWebSocket(): Promise<void> {
+    const url = `ws://${this.currentHost}:${this.currentPort}`;
+    const networkConfig = this.configService.getNetworkConfig();
+    
+    this.socket = this.socketFactory.createSocket(url, {
+      timeout: networkConfig.connectionTimeout,
+    });
+
+    await this.setupSocketEventHandlers();
+    await this.performConnection();
+  }
+
+  private async connectWithoutAPI(): Promise<void> {
+    // Create a mock connection state without WebSocket
+    this.connectionStateManager.setConnected(true);
+    this.connectionStateManager.setConnectionDetails(
+      this.currentHost!,
+      this.currentPort!
+    );
+    
+    this.errorLogger.info(
+      'Successfully connected to FreeShow (interface-only mode)',
+      this.logContext,
+      { host: this.currentHost, port: this.currentPort }
+    );
+
+    // Emit connect event
+    this.eventManager.emit('connect', {
+      host: this.currentHost,
+      port: this.currentPort,
+      mode: 'interface-only',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   async disconnect(): Promise<void> {
     try {
       this.errorLogger.info('Disconnecting from FreeShow', this.logContext);
@@ -181,7 +233,7 @@ export class FreeShowService implements IFreeShowService {
       // Clear request queue
       this.requestQueue.clearQueue();
 
-      // Disconnect socket
+      // Disconnect socket if it exists
       if (this.socket) {
         this.socket.removeAllListeners();
         this.socket.disconnect();
@@ -366,6 +418,11 @@ export class FreeShowService implements IFreeShowService {
       clearInterval(this.heartbeatInterval);
     }
 
+    // Only start heartbeat if we have a socket connection
+    if (!this.socket) {
+      return;
+    }
+
     const networkConfig = this.configService.getNetworkConfig();
     this.heartbeatInterval = setInterval(() => {
       if (this.socket && this.connectionStateManager.isConnected()) {
@@ -440,10 +497,18 @@ export class FreeShowService implements IFreeShowService {
 
   // Generic request handling with queue management
   async sendRequest(action: string, data?: any): Promise<any> {
-    if (!this.socket || !this.connectionStateManager.isConnected()) {
+    if (!this.connectionStateManager.isConnected()) {
       throw new FreeShowConnectionError(
         'Not connected to FreeShow',
         'NOT_CONNECTED'
+      );
+    }
+
+    // If we don't have a socket (interface-only mode), reject API requests
+    if (!this.socket) {
+      throw new FreeShowConnectionError(
+        'API not available in interface-only mode',
+        'NO_API'
       );
     }
 

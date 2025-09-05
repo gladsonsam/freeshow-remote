@@ -397,6 +397,9 @@ export class InputValidationService {
   /**
    * Sanitize and validate show ports object
    */
+  /**
+   * Validate show ports - simplified version
+   */
   static validateShowPorts(ports: any): ValidationResult {
     try {
       if (!ports || typeof ports !== 'object') {
@@ -411,14 +414,12 @@ export class InputValidationService {
 
       for (const portName of requiredPorts) {
         if (!(portName in ports)) {
-          return {
-            isValid: false,
-            error: `Missing ${portName} port configuration`,
-          };
+          sanitizedPorts[portName] = 0; // Default to disabled
+          continue;
         }
 
         // Allow blank ports (treat as disabled)
-        if (ports[portName] === '' || ports[portName] === 0) {
+        if (ports[portName] === '' || ports[portName] === 0 || ports[portName] === null || ports[portName] === undefined) {
           sanitizedPorts[portName] = 0;
           continue;
         }
@@ -434,19 +435,15 @@ export class InputValidationService {
         sanitizedPorts[portName] = portResult.sanitizedValue;
       }
 
-      // Check for port conflicts (only among enabled ports)
-      const enabledPortValues = Object.values(sanitizedPorts).filter((port): port is number => typeof port === 'number' && port > 0);
+      // Simple check: if enabled ports exist, they must be unique
+      const enabledPorts = Object.values(sanitizedPorts).filter((port): port is number => typeof port === 'number' && port > 0);
+      const uniquePorts = new Set(enabledPorts);
       
-      // Allow all ports to be disabled (all ports = 0), but if any are enabled, they must be unique
-      if (enabledPortValues.length > 0) {
-        const uniquePorts = new Set(enabledPortValues);
-        
-        if (uniquePorts.size !== enabledPortValues.length) {
-          return {
-            isValid: false,
-            error: 'Port numbers must be unique',
-          };
-        }
+      if (enabledPorts.length !== uniquePorts.size) {
+        return {
+          isValid: false,
+          error: 'Port numbers must be unique',
+        };
       }
 
       return {

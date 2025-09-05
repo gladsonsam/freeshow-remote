@@ -118,29 +118,29 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardBlur: {
-    flex: 1,
-    padding: 10,
+  flex: 1,
+  padding: 10,
     borderRadius: 12,
     overflow: 'hidden',
   },
   cardBlurLarge: {
-    padding: 12,
+  padding: 12,
   },
   cardBlurXL: {
-    padding: 14,
+  padding: 14,
   },
   cardContent: {
     flex: 1,
-    padding: 10,
+  padding: 10,
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: 12,
     overflow: 'hidden',
   },
   cardContentLarge: {
-    padding: 12,
+  padding: 12,
   },
   cardContentXL: {
-    padding: 14,
+  padding: 14,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -149,19 +149,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  width: 36,
+  height: 36,
+  borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardIconLarge: {
-    width: 40,
-    height: 40,
+  width: 40,
+  height: 40,
   },
   cardIconXL: {
-    width: 48,
-    height: 48,
+  width: 48,
+  height: 48,
   },
   cardBody: {
     flex: 1,

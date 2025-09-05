@@ -26,6 +26,7 @@ export interface ConnectionState {
   } | null;
   capabilities: string[] | null;
   autoConnectAttempted: boolean;
+  autoLaunchTriggered: boolean; // Track if auto-launch has been triggered this session
 }
 
 export interface ConnectionActions {
@@ -44,7 +45,7 @@ export interface ConnectionActions {
   updateCapabilities: (capabilities: string[]) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
-  triggerAutoLaunch?: (navigation: any) => Promise<void>;
+  triggerAutoLaunch?: (connectionHost: string, connectionPort: number, navigation?: any) => Promise<void>;
 }
 
 export interface ConnectionContextType {
@@ -81,6 +82,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     currentShowPorts: null,
     capabilities: null,
     autoConnectAttempted: false,
+    autoLaunchTriggered: false,
   });
 
   const navigationRef = useRef<any>(null);
@@ -117,6 +119,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         isConnected: false,
         connectionStatus: 'disconnected',
         lastActivity: new Date(),
+        autoLaunchTriggered: false, // Reset for next auto-connect session
       }));
       ErrorLogger.info('Connection lost', logContext, data);
     };
@@ -195,8 +198,9 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
           setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout' }));
         }, timeoutMs);
         
-        // Use API port for connection (default 5505 if not specified)
-        const apiPort = lastConnection.showPorts?.api || 5505;
+        // Use saved API port if available and working, otherwise use default port
+        const savedApiPort = lastConnection.showPorts?.api || 0;
+        const apiPort = savedApiPort > 0 ? savedApiPort : configService.getNetworkConfig().defaultPort;
         
         const success = await service.connect(
           lastConnection.host,
@@ -246,7 +250,12 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
             showPorts: lastConnection.showPorts
           });
           
-          setTimeout(() => triggerAutoLaunch(), 500);
+          // Trigger auto-launch after a delay to ensure state is updated
+          setTimeout(() => {
+            ErrorLogger.info('[AutoLaunch] Triggering auto-launch after auto-reconnect', 'ConnectionStateContext');
+            // Call triggerAutoLaunch with the connection details directly
+            triggerAutoLaunch(lastConnection.host, apiPort);
+          }, 500);
         } else {
           // Stay on Interface; show not-connected state handled by UI
           ErrorLogger.warn(`[AutoReconnect] Failed to reconnect to last connection: ${lastConnection.host}:${apiPort}`, 'ConnectionStateContext');
@@ -262,15 +271,26 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   }, []);
 
   // Auto-launch functionality
-  const triggerAutoLaunch = useCallback(async (nav?: any) => {
+  // Auto-launch functionality
+  const triggerAutoLaunch = useCallback(async (connectionHost: string, connectionPort: number, nav?: any) => {
     try {
+      // Simple logic: only auto-launch if not triggered yet this session
+      if (state.autoLaunchTriggered) {
+        return;
+      }
+
       const navToUse = nav || navigationRef.current;
-      if (!navToUse?.navigate) return;
+      if (!navToUse?.navigate) {
+        return;
+      }
 
       const appSettings = await settingsRepository.getAppSettings();
       
       // Auto-launch interface only if conditions are met
-      if (appSettings.autoReconnect && appSettings.autoLaunchInterface !== 'none' && state.isConnected && state.connectionHost) {
+      if (appSettings.autoReconnect && appSettings.autoLaunchInterface !== 'none') {
+        // Mark auto-launch as triggered for this session
+        setState(prev => ({ ...prev, autoLaunchTriggered: true }));
+        
         const defaultPorts = configService.getDefaultShowPorts();
         const showOptions = [
           { id: 'remote', port: defaultPorts.remote },
@@ -282,33 +302,30 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         
         const selectedShow = showOptions.find(show => show.id === appSettings.autoLaunchInterface);
         if (selectedShow) {
-          try {
-            if (appSettings.autoLaunchInterface === 'api') {
-              navToUse.navigate('APIScreen', {
-                title: 'API Controls',
-                showId: appSettings.autoLaunchInterface,
-              });
-            } else {
-              const url = `http://${state.connectionHost}:${selectedShow.port}`;
-              const title = appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show';
-              
-              navToUse.navigate('WebView', {
-                url,
-                title,
-                showId: appSettings.autoLaunchInterface,
-                initialFullscreen: appSettings.autoLaunchFullscreen || false,
-              });
-            }
-          } catch (navigationError) {
-            ErrorLogger.error('[AutoLaunch] Navigation error', 'ConnectionStateContext', 
-              navigationError instanceof Error ? navigationError : new Error(String(navigationError)));
+          ErrorLogger.info(`[AutoLaunch] Launching ${appSettings.autoLaunchInterface} interface`, 'ConnectionStateContext');
+          
+          if (appSettings.autoLaunchInterface === 'api') {
+            navToUse.navigate('APIScreen', {
+              title: 'API Controls',
+              showId: appSettings.autoLaunchInterface,
+            });
+          } else {
+            const url = `http://${connectionHost}:${selectedShow.port}`;
+            const title = appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show';
+            
+            navToUse.navigate('WebView', {
+              url,
+              title,
+              showId: appSettings.autoLaunchInterface,
+              initialFullscreen: appSettings.autoLaunchFullscreen || false,
+            });
           }
         }
       }
     } catch (error) {
       ErrorLogger.error('[AutoLaunch] Error in auto-launch', 'ConnectionStateContext', error instanceof Error ? error : new Error(String(error)));
     }
-  }, [state.isConnected, state.connectionHost]);
+  }, [state.autoLaunchTriggered]);
 
   // App state listener for foreground reconnection
   useEffect(() => {
@@ -337,7 +354,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
             try {
               await service.connect(
                 state.connectionHost,
-                state.connectionPort || 5505,
+                state.connectionPort || configService.getNetworkConfig().defaultPort,
                 state.connectionName || state.connectionHost
               );
               
@@ -351,7 +368,10 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
                   lastError: null,
                 }));
 
-                setTimeout(() => triggerAutoLaunch(), 500);
+                setTimeout(() => {
+                  // Don't auto-launch on app foreground reconnect - this is not an initial auto-connect
+                  ErrorLogger.debug('[AppState] Foreground reconnection successful - skipping auto-launch', 'ConnectionStateContext');
+                }, 500);
               } else {
                 setState(prev => ({
                   ...prev,
@@ -535,18 +555,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       autoConnectAttempted: attempted,
     }));
   }, []);
-
-  // Trigger auto-launch when connection becomes connected (backup for auto-connect)
-  // Only run this backup auto-launch if the app's initial auto-connect attempt hasn't already been performed.
-  // This prevents manual connections from causing auto-launch/auto-fullscreen behavior.
-  useEffect(() => {
-    if (!state.autoConnectAttempted && state.isConnected && state.connectionHost && navigationRef.current) {
-      ErrorLogger.debug('[ConnectionProvider] Connection established during initial auto-connect flow, checking for auto-launch', 'ConnectionStateContext');
-      setTimeout(async () => {
-        await triggerAutoLaunch();
-      }, 500);
-    }
-  }, [state.isConnected, state.connectionHost, state.autoConnectAttempted, triggerAutoLaunch]);
 
   const actions: ConnectionActions = {
     connect,

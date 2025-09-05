@@ -18,6 +18,7 @@ import { useConnection } from '../contexts';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { ShowOption } from '../types';
 import ErrorModal from '../components/ErrorModal';
+import { configService } from '../config/AppConfig';
 
 interface APIScreenProps {
   route: {
@@ -74,8 +75,18 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     });
   };
 
+  // Check if API is available
+  const isApiAvailable = currentShowPorts?.api && currentShowPorts.api > 0;
+
   const connectWebSocket = async () => {
     if (!connectionHost) return;
+
+    // If API is not available, don't try to connect
+    if (!isApiAvailable) {
+      ErrorLogger.info('API not available - interface-only mode', 'APIScreen');
+      setSocketConnected(false);
+      return;
+    }
 
     try {
       hasShownErrorRef.current = false;
@@ -89,10 +100,10 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         socketRef.current.disconnect();
       }
 
-      const socketUrl = `http://${connectionHost}:5505`;
+      const socketUrl = `http://${connectionHost}:${currentShowPorts.api}`;
       socketRef.current = io(socketUrl, { 
         transports: ["websocket"],
-        timeout: 10000,
+        timeout: configService.getNetworkConfig().connectionTimeout,
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 2000,
@@ -123,7 +134,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
               setErrorModal({
                 visible: true,
                 title: 'Connection Failed',
-                message: `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port 5505 is accessible`,
+                message: `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port ${configService.getNetworkConfig().defaultPort} is accessible`,
                 onRetry: () => {
                   hasShownErrorRef.current = false;
                   setErrorModal({visible: false, title: '', message: ''});
@@ -283,6 +294,46 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             onPress={() => navigation.navigate('Connect')}
           >
             <Text style={styles.connectButtonText}>Go to Connect</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show API not available UI if connected but API is disabled
+  if (!isApiAvailable) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+          
+          <ShowSwitcher
+            currentTitle={title}
+            currentShowId="api"
+            connectionHost={connectionHost || ''}
+            showPorts={currentShowPorts || undefined}
+            onShowSelect={handleShowSelect}
+          />
+
+          <View style={styles.headerRight}>
+            {/* Connection dot removed as per request */}
+          </View>
+        </View>
+
+        <View style={styles.centerContainer}>
+          <Ionicons name="settings-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
+          <Text style={styles.errorText}>API Interface Not Available</Text>
+          <Text style={styles.errorSubtext}>
+            The API interface is disabled in your current connection. 
+            To use API features, enable the API port in FreeShow and reconnect.
+          </Text>
+          <TouchableOpacity 
+            style={styles.connectButton}
+            onPress={() => navigation.navigate('Connect')}
+          >
+            <Text style={styles.connectButtonText}>Reconnect with API</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -591,6 +642,13 @@ const styles = StyleSheet.create({
     color: FreeShowTheme.colors.textSecondary,
     marginTop: FreeShowTheme.spacing.lg,
     textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.textSecondary,
+    marginTop: FreeShowTheme.spacing.md,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   connectButton: {
     backgroundColor: FreeShowTheme.colors.secondary,

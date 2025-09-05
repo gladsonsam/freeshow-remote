@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
@@ -83,6 +83,46 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
       }
     }
   }, [isConnected, remotePort, stagePort, controlPort, outputPort, apiPort, updateShowPorts, getShowPorts]);
+
+  // Animated spinner for connecting state
+  const spinAnimRef = useRef(new Animated.Value(0));
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const spinInterpolation = spinAnimRef.current.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  useEffect(() => {
+    if (isConnecting) {
+      // Reset and start a continuous rotation
+      spinAnimRef.current.setValue(0);
+      animRef.current = Animated.loop(
+        Animated.timing(spinAnimRef.current, {
+          toValue: 1,
+          duration: 800,
+          easing: undefined as any,
+          useNativeDriver: true,
+        })
+      );
+      animRef.current.start();
+    } else {
+      // Stop animation and reset
+      if (animRef.current) {
+        animRef.current.stop();
+        animRef.current = null;
+      }
+      spinAnimRef.current.stopAnimation(() => {
+        spinAnimRef.current.setValue(0);
+      });
+    }
+    return () => {
+      if (animRef.current) {
+        animRef.current.stop();
+        animRef.current = null;
+      }
+    };
+  }, [isConnecting]);
 
   const handleConnect = async () => {
     try {
@@ -326,6 +366,14 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             </View>
           </View>
           
+          {/* Help text for ports */}
+          <View style={styles.portHelpContainer}>
+            <Text style={styles.portHelpText}>
+              <Ionicons name="information-circle-outline" size={14} color={FreeShowTheme.colors.textSecondary} />
+              {' '}Leave ports empty to disable. Each port will be tested before connecting.
+            </Text>
+          </View>
+          
           {/* Restore Defaults Button */}
           {!isConnected && (
             <TouchableOpacity 
@@ -385,8 +433,8 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 style={StyleSheet.absoluteFill}
               />
               <View style={styles.buttonContent}>
-                <View style={styles.spinner} />
-                <Text style={styles.buttonText}>Connecting...</Text>
+                <Animated.View style={[styles.spinner, { transform: [{ rotate: spinInterpolation }] }]} />
+                <Text style={styles.buttonText}>Connecting to interface</Text>
               </View>
             </TouchableOpacity>
           ) : (
@@ -656,6 +704,17 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: '#2f3542',
     marginLeft: FreeShowTheme.spacing.md,
+  },
+  portHelpContainer: {
+    marginTop: FreeShowTheme.spacing.md,
+    marginBottom: FreeShowTheme.spacing.sm,
+    paddingHorizontal: FreeShowTheme.spacing.sm,
+  },
+  portHelpText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    lineHeight: 18,
+    textAlign: 'left',
   },
 });
 

@@ -1,11 +1,22 @@
 import Zeroconf, { ZeroconfService, ZeroconfError } from 'react-native-zeroconf';
 import { ErrorLogger } from './ErrorLogger';
+import { configService } from '../config/AppConfig';
+
+// Service type mappings
+const SERVICE_TYPE_MAPPINGS = {
+  API: { capability: 'api', portKey: 'api', isApi: true },
+  REMOTE: { capability: 'remoteshow', portKey: 'remote', isApi: false },
+  STAGE: { capability: 'stageshow', portKey: 'stage', isApi: false },
+  CONTROLLER: { capability: 'controlshow', portKey: 'control', isApi: false },
+  OUTPUT_STREAM: { capability: 'outputshow', portKey: 'output', isApi: false },
+  OUTPUT: { capability: 'outputshow', portKey: 'output', isApi: false },
+} as const;
 
 export interface DiscoveredFreeShowInstance {
-  name: string; // Display name (hostname or IP)
-  host: string; // mDNS hostname, e.g. 'MyMacBook.local.'
-  port: number; // Primary port (API port)
-  ip: string; // Primary IP for deduplication
+  name: string;
+  host: string;
+  port: number;
+  ip: string;
   ports: {
     api?: number;
     remote?: number;
@@ -33,56 +44,26 @@ interface PendingService {
 
 /**
  * Parse service name to determine capability and port mapping
- * Handles both old format (e.g. "API", "REMOTE") and new format (e.g. "HOSTNAME-REMOTE-RANDOMHEX")
  */
 function parseServiceCapability(serviceName: string): { 
   capability: string; 
   portKey: string; 
   isApi: boolean;
 } {
-  const name = (serviceName || '').trim();
+  const name = serviceName?.trim() || '';
+  const parts = name.split('-');
   
   // Handle new format: HOSTNAME-CONNECTION-RANDOMHEX
-  const parts = name.split('-');
   if (parts.length >= 3) {
-    // New format detected - the connection type is the second-to-last part
-    // and the random hex is the last part
-    const connectionType = parts[parts.length - 2].toUpperCase();
-    
-    switch (connectionType) {
-      case 'API':
-        return { capability: 'api', portKey: 'api', isApi: true };
-      case 'REMOTE':
-        return { capability: 'remoteshow', portKey: 'remote', isApi: false };
-      case 'STAGE':
-        return { capability: 'stageshow', portKey: 'stage', isApi: false };
-      case 'CONTROLLER':
-        return { capability: 'controlshow', portKey: 'control', isApi: false };
-      case 'OUTPUT_STREAM':
-      case 'OUTPUT':
-        return { capability: 'outputshow', portKey: 'output', isApi: false };
-    }
+    const connectionType = parts[parts.length - 2].toUpperCase() as keyof typeof SERVICE_TYPE_MAPPINGS;
+    const mapping = SERVICE_TYPE_MAPPINGS[connectionType];
+    if (mapping) return mapping;
   }
   
   // Handle old format for backward compatibility
-  const upperName = name.toUpperCase();
-  
-  // Check for exact FreeShow service names
-  if (upperName === 'API') {
-    return { capability: 'api', portKey: 'api', isApi: true };
-  }
-  if (upperName === 'REMOTE') {
-    return { capability: 'remoteshow', portKey: 'remote', isApi: false };
-  }
-  if (upperName === 'STAGE') {
-    return { capability: 'stageshow', portKey: 'stage', isApi: false };
-  }
-  if (upperName === 'CONTROLLER') {
-    return { capability: 'controlshow', portKey: 'control', isApi: false };
-  }
-  if (upperName === 'OUTPUT_STREAM' || upperName === 'OUTPUT') {
-    return { capability: 'outputshow', portKey: 'output', isApi: false };
-  }
+  const upperName = name.toUpperCase() as keyof typeof SERVICE_TYPE_MAPPINGS;
+  const mapping = SERVICE_TYPE_MAPPINGS[upperName];
+  if (mapping) return mapping;
   
   // Fallback for unknown services
   return { 
@@ -93,39 +74,35 @@ function parseServiceCapability(serviceName: string): {
 }
 
 /**
- * Extract hostname from new format service names
- * Returns the hostname part from names like "Gladson-Laptop-REMOTE-d00a5b"
- * Handles hostnames with hyphens like "My-PC-With-Hyphens-STAGE-d00a5b"
+ * Extract hostname from service name and format for display
  */
-function extractHostnameFromServiceName(serviceName: string): string | null {
+function getDisplayName(serviceName: string, hostName: string, ip: string): string {
   const parts = serviceName.split('-');
-  // New format has at least 3 parts: HOSTNAME-CONNECTION-RANDOMHEX
+  
+  // Extract hostname from new format service names
   if (parts.length >= 3) {
-    // Join all parts except the last two (connection type and random hex)
     const hostnameParts = parts.slice(0, parts.length - 2);
-    return hostnameParts.join('-');
+    return hostnameParts.join('-').replace(/-/g, ' ');
   }
-  return null;
-}
-
-/**
- * Format hostname for display by replacing hyphens with spaces
- */
-function formatHostnameForDisplay(hostname: string): string {
-  return hostname.replace(/-/g, ' ');
+  
+  // Use hostname if available
+  if (hostName) {
+    const hostname = hostName.replace(/\.local\.?$/, '');
+    if (hostname && hostname !== ip) {
+      return hostname.replace(/-/g, ' ');
+    }
+  }
+  
+  return ip;
 }
 
 class AutoDiscoveryService {
   private zeroconf: Zeroconf | null = null;
   private discoveredServices: Map<string, DiscoveredFreeShowInstance> = new Map();
-  private pendingServices: Map<string, PendingService[]> = new Map(); // Group services by IP
-  private isScanning: boolean = false;
+  private pendingServices: Map<string, PendingService[]> = new Map();
+  private isScanning = false;
   private scanTimeout: NodeJS.Timeout | null = null;
-  private readonly SCAN_TIMEOUT_MS = 5000; // 5 seconds timeout for snappier rescans
-  
-  // Throttling for performance optimization
   private updateThrottleTimeout: NodeJS.Timeout | null = null;
-  private readonly UPDATE_THROTTLE_MS = 500; // Throttle service updates
   private pendingUpdate = false;
   
   private listeners: {
@@ -141,21 +118,25 @@ class AutoDiscoveryService {
       this.zeroconf = new Zeroconf();
       this.setupEventListeners();
     } catch (error) {
-      ErrorLogger.error('❌ AutoDiscovery: Failed to initialize Zeroconf', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
-      
-      // Check if we're in Expo Go
-      const globalAny = global as any;
-      const isExpoGo = __DEV__ && globalAny.__expo?.packagerConnection;
-      
-      if (isExpoGo) {
-        ErrorLogger.info('💡 AutoDiscovery: Running in Expo Go - native modules not available', 'AutoDiscoveryService');
-        ErrorLogger.info('🔨 AutoDiscovery: Please create a development build to use autodiscovery', 'AutoDiscoveryService');
-      } else {
-        ErrorLogger.info('💡 AutoDiscovery: This may be due to missing native dependencies or permissions', 'AutoDiscoveryService');
-      }
-      
-      this.zeroconf = null;
+      this.handleInitializationError(error);
     }
+  }
+
+  private handleInitializationError(error: unknown): void {
+    ErrorLogger.error('❌ AutoDiscovery: Failed to initialize Zeroconf', 'AutoDiscoveryService', 
+      error instanceof Error ? error : new Error(String(error)));
+    
+    const globalAny = global as any;
+    const isExpoGo = __DEV__ && globalAny.__expo?.packagerConnection;
+    
+    if (isExpoGo) {
+      ErrorLogger.info('💡 AutoDiscovery: Running in Expo Go - native modules not available', 'AutoDiscoveryService');
+      ErrorLogger.info('🔨 AutoDiscovery: Please create a development build to use autodiscovery', 'AutoDiscoveryService');
+    } else {
+      ErrorLogger.info('💡 AutoDiscovery: This may be due to missing native dependencies or permissions', 'AutoDiscoveryService');
+    }
+    
+    this.zeroconf = null;
   }
 
   /**
@@ -165,7 +146,7 @@ class AutoDiscoveryService {
     const services = this.pendingServices.get(ip) || [];
     if (services.length === 0) return;
     
-    // Initialize the aggregated instance
+    const config = configService.getNetworkConfig();
     const ports: Record<string, number> = {};
     const capabilities: string[] = [];
     let displayName = ip;
@@ -181,28 +162,19 @@ class AutoDiscoveryService {
         capabilities.push(service.capability);
       }
       
-      // Use hostname for display name if available
       if (service.host) {
         host = service.host;
-        const hostname = service.host.replace(/\.local\.?$/, '');
-        if (hostname && hostname !== ip) {
-          displayName = formatHostnameForDisplay(hostname);
-        }
       }
       
-      // For new format service names, extract hostname for display
-      const extractedHostname = extractHostnameFromServiceName(service.name);
-      if (extractedHostname && extractedHostname !== ip) {
-        displayName = formatHostnameForDisplay(extractedHostname);
-      }
+      // Get display name using helper function
+      displayName = getDisplayName(service.name, service.host, ip);
     });
     
     // Create the aggregated instance
     const aggregatedInstance: DiscoveredFreeShowInstance = {
       name: displayName,
       host: host || '',
-      // Use discovered API port or default to 5505
-      port: ports.api || 5505,
+      port: ports.api || config.defaultPort,
       ip: ip,
       ports: {
         api: ports.api,
@@ -215,7 +187,6 @@ class AutoDiscoveryService {
       apiEnabled: capabilities.length > 0,
     };
     
-    // Store the aggregated instance
     this.discoveredServices.set(ip, aggregatedInstance);
   }
 
@@ -310,20 +281,20 @@ class AutoDiscoveryService {
     }
 
     if (this.isScanning) {
-      // If a new scan is requested while one is active, restart immediately
       ErrorLogger.info('🔄 AutoDiscovery: Restarting scan on new request', 'AutoDiscoveryService');
       this.restartDiscovery();
       return;
     }
 
+    const config = configService.getNetworkConfig();
+    
     try {
-      ErrorLogger.info(`🔍 AutoDiscovery: Starting scan for FreeShow services (${this.SCAN_TIMEOUT_MS / 1000}s timeout)...`, 'AutoDiscoveryService');
+      ErrorLogger.info(`🔍 AutoDiscovery: Starting scan for FreeShow services (${config.discoveryTimeout / 1000}s timeout)...`, 'AutoDiscoveryService');
       
       // Force stop any previous scan to ensure clean state
       try {
         this.zeroconf.stop();
       } catch {
-        // Ignore stop errors as the service might not be running
         ErrorLogger.debug('Previous scan stop attempt (expected if not running)', 'AutoDiscoveryService');
       }
       
@@ -332,23 +303,23 @@ class AutoDiscoveryService {
       this.pendingServices.clear();
       this.isScanning = true;
       
-      // Set a timeout to automatically stop scanning
       this.setScanTimeout();
       
       // Small delay to ensure zeroconf is properly stopped before starting
       setTimeout(() => {
         try {
-          // Scan for FreeShow services
           this.zeroconf?.scan('freeshow', 'udp');
         } catch (scanError) {
-          ErrorLogger.error('❌ AutoDiscovery: Failed to start scan after delay', 'AutoDiscoveryService', scanError instanceof Error ? scanError : new Error(String(scanError)));
+          ErrorLogger.error('❌ AutoDiscovery: Failed to start scan after delay', 'AutoDiscoveryService', 
+            scanError instanceof Error ? scanError : new Error(String(scanError)));
           this.isScanning = false;
           this.notifyError(`Failed to start discovery: ${scanError}. Try using manual connection instead.`);
         }
-      }, 100); // 100ms delay to ensure clean state
+      }, 100);
       
     } catch (error) {
-      ErrorLogger.error('❌ AutoDiscovery: Failed to start scanning', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error('❌ AutoDiscovery: Failed to start scanning', 'AutoDiscoveryService', 
+        error instanceof Error ? error : new Error(String(error)));
       this.isScanning = false;
       this.notifyError(`Failed to start discovery: ${error}. Try using manual connection instead.`);
     }
@@ -416,16 +387,11 @@ class AutoDiscoveryService {
     this.listeners.onError = [];
   }
 
-  /**
-   * Force restart discovery - ensures clean state reset
-   */
   restartDiscovery(): void {
     ErrorLogger.info('🔄 AutoDiscovery: Force restarting discovery...', 'AutoDiscoveryService');
     
-    // Force stop and clear all state
     this.stopDiscovery();
     
-    // Wait a bit longer for complete cleanup
     setTimeout(() => {
       this.startDiscovery();
     }, 200);
@@ -442,16 +408,20 @@ class AutoDiscoveryService {
 
   private setScanTimeout(): void {
     this.clearScanTimeout();
+    const config = configService.getNetworkConfig();
+    
     this.scanTimeout = setTimeout(() => {
       const discoveredCount = this.discoveredServices.size;
+      const timeoutSeconds = config.discoveryTimeout / 1000;
+      
       if (discoveredCount === 0) {
-        ErrorLogger.info(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s) with no devices found, stopping discovery`, 'AutoDiscoveryService');
-        this.notifyError(`No FreeShow devices found after ${this.SCAN_TIMEOUT_MS / 1000} seconds. Try manual connection or ensure FreeShow is running on your network.`);
+        ErrorLogger.info(`⏰ AutoDiscovery: Scan timeout reached (${timeoutSeconds}s) with no devices found, stopping discovery`, 'AutoDiscoveryService');
+        this.notifyError(`No FreeShow devices found after ${timeoutSeconds} seconds. Try manual connection or ensure FreeShow is running on your network.`);
       } else {
-        ErrorLogger.info(`⏰ AutoDiscovery: Scan timeout reached (${this.SCAN_TIMEOUT_MS / 1000}s), found ${discoveredCount} device(s), stopping discovery`, 'AutoDiscoveryService');
+        ErrorLogger.info(`⏰ AutoDiscovery: Scan timeout reached (${timeoutSeconds}s), found ${discoveredCount} device(s), stopping discovery`, 'AutoDiscoveryService');
       }
       this.stopDiscovery();
-    }, this.SCAN_TIMEOUT_MS);
+    }, config.discoveryTimeout);
   }
 
   private clearScanTimeout(): void {
@@ -491,7 +461,7 @@ class AutoDiscoveryService {
         this.pendingUpdate = false;
         this.notifyServicesUpdated();
       }
-    }, this.UPDATE_THROTTLE_MS);
+    }, 500); // Use hardcoded value for simplicity
   }
 
   private notifyServicesUpdated(): void {

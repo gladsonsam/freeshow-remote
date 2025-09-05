@@ -345,7 +345,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
                       show={show}
                       onPress={() => handleShowSelect(show)}
                       onLongPress={() => openCompactPopup(show)}
-                      size={isTablet ? 'xlarge' : 'default'}
+                      size={isTablet ? 'large' : 'default'}
                     />
                   </Animated.View>
                 ))}
@@ -374,7 +374,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
                       show={show}
                       onPress={() => handleShowSelect(show)}
                       onLongPress={() => openCompactPopup(show)}
-                      size={isTablet ? 'xlarge' : 'default'}
+                      size={isTablet ? 'large' : 'default'}
                     />
                   </Animated.View>
                 ))}
@@ -403,7 +403,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
                       show={showOptions[4]}
                       onPress={() => handleShowSelect(showOptions[4])}
                       onLongPress={() => openCompactPopup(showOptions[4])}
-                      size={isTablet ? 'xlarge' : 'default'}
+                      size={isTablet ? 'large' : 'default'}
                     />
                   </Animated.View>
                 </View>
@@ -480,6 +480,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'space-between',
   },
+  // (removed tablet offset) 
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -501,6 +502,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
+  
   interfacesRow: {
     flex: 1,
     flexDirection: 'row',
