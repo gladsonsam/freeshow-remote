@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Linking,
   TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,13 +41,21 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     message: ''
   });
 
+  // Device detection
+  const [deviceDimensions, setDeviceDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return {
+      isTablet: Math.min(width, height) > 600,
+      screenWidth: width,
+      screenHeight: height,
+    };
+  });
+
   // Double-tap to exit fullscreen
   const [lastTap, setLastTap] = useState<number | null>(null);
   const [showCornerFeedback, setShowCornerFeedback] = useState(false);
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
   const DOUBLE_TAP_DELAY = 300; // milliseconds
-  
-  // (tablet detection removed — double-tap exit now available on all devices)
 
   useEffect(() => {
     // Get current orientation on mount
@@ -57,10 +66,19 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
       setCurrentOrientation(event.orientationInfo.orientation);
     });
 
+    // Listen for dimension changes (device rotation or screen size changes)
+    const dimensionSubscription = Dimensions.addEventListener('change', () => {
+      const { width, height } = Dimensions.get('window');
+      setDeviceDimensions({
+        isTablet: Math.min(width, height) > 600,
+        screenWidth: width,
+        screenHeight: height,
+      });
+    });
+
     return () => {
-      // Reset to default when leaving
-      ScreenOrientation.unlockAsync();
       subscription?.remove();
+      dimensionSubscription?.remove();
     };
   }, []);
 
@@ -210,6 +228,43 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     }
   };
 
+  const handleQuickSwitch = (showId: string) => {
+    if (!connectionHost || !currentShowPorts) return;
+
+    const portMap = {
+      'remote': currentShowPorts.remote,
+      'stage': currentShowPorts.stage,
+      'control': currentShowPorts.control,
+      'output': currentShowPorts.output,
+    };
+
+    const port = portMap[showId as keyof typeof portMap];
+    if (!port) return;
+
+    const showTitles = {
+      'remote': 'RemoteShow',
+      'stage': 'StageShow',
+      'control': 'ControlShow',
+      'output': 'OutputShow',
+    };
+
+    const title = showTitles[showId as keyof typeof showTitles];
+    const newUrl = `http://${connectionHost}:${port}`;
+
+    // Navigate to the new show interface
+    navigation.setParams({
+      url: newUrl,
+      title: title,
+      showId: showId,
+    });
+
+    // Reload the WebView with the new URL
+    if (webViewRef.current) {
+      setLoading(true);
+      setError(null);
+    }
+  };
+
   const getRotationIcon = () => {
     const isLandscape = currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
                         currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
@@ -252,13 +307,112 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
           </TouchableOpacity>
           
           {connectionHost && showId ? (
-            <ShowSwitcher
-              currentTitle={title}
-              currentShowId={showId}
-              connectionHost={connectionHost}
-              showPorts={currentShowPorts || undefined}
-              onShowSelect={handleShowSelect}
-            />
+            deviceDimensions.isTablet ? (
+              /* Tablet: ShowSwitcher modal + Quick Interface Switch Buttons - Centered */
+              <>
+                <ShowSwitcher
+                  currentTitle={title}
+                  currentShowId={showId}
+                  connectionHost={connectionHost}
+                  showPorts={currentShowPorts || undefined}
+                  onShowSelect={handleShowSelect}
+                />
+                <View style={styles.centerContainer}>
+                  <View style={styles.quickButtonsContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.quickButton, 
+                        showId === 'remote' && styles.quickButtonActive,
+                        !currentShowPorts?.remote && styles.quickButtonDisabled
+                      ]}
+                      onPress={() => currentShowPorts?.remote && handleQuickSwitch('remote')}
+                      disabled={!currentShowPorts?.remote}
+                    >
+                      <Ionicons 
+                        name="play-circle" 
+                        size={20} 
+                        color={
+                          showId === 'remote' ? 'white' : 
+                          !currentShowPorts?.remote ? FreeShowTheme.colors.text + '40' : 
+                          FreeShowTheme.colors.text
+                        } 
+                      />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[
+                        styles.quickButton, 
+                        showId === 'stage' && styles.quickButtonActive,
+                        !currentShowPorts?.stage && styles.quickButtonDisabled
+                      ]}
+                      onPress={() => currentShowPorts?.stage && handleQuickSwitch('stage')}
+                      disabled={!currentShowPorts?.stage}
+                    >
+                      <Ionicons 
+                        name="desktop" 
+                        size={20} 
+                        color={
+                          showId === 'stage' ? 'white' : 
+                          !currentShowPorts?.stage ? FreeShowTheme.colors.text + '40' : 
+                          FreeShowTheme.colors.text
+                        } 
+                      />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[
+                        styles.quickButton, 
+                        showId === 'control' && styles.quickButtonActive,
+                        !currentShowPorts?.control && styles.quickButtonDisabled
+                      ]}
+                      onPress={() => currentShowPorts?.control && handleQuickSwitch('control')}
+                      disabled={!currentShowPorts?.control}
+                    >
+                      <Ionicons 
+                        name="settings" 
+                        size={20} 
+                        color={
+                          showId === 'control' ? 'white' : 
+                          !currentShowPorts?.control ? FreeShowTheme.colors.text + '40' : 
+                          FreeShowTheme.colors.text
+                        } 
+                      />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[
+                        styles.quickButton, 
+                        showId === 'output' && styles.quickButtonActive,
+                        !currentShowPorts?.output && styles.quickButtonDisabled
+                      ]}
+                      onPress={() => currentShowPorts?.output && handleQuickSwitch('output')}
+                      disabled={!currentShowPorts?.output}
+                    >
+                      <Ionicons 
+                        name="tv" 
+                        size={20} 
+                        color={
+                          showId === 'output' ? 'white' : 
+                          !currentShowPorts?.output ? FreeShowTheme.colors.text + '40' : 
+                          FreeShowTheme.colors.text
+                        } 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                {/* Right spacer for tablet layout */}
+                <View style={styles.headerSpacer} />
+              </>
+            ) : (
+              /* Mobile: ShowSwitcher modal */
+              <ShowSwitcher
+                currentTitle={title}
+                currentShowId={showId}
+                connectionHost={connectionHost}
+                showPorts={currentShowPorts || undefined}
+                onShowSelect={handleShowSelect}
+              />
+            )
           ) : (
             <View style={styles.titleContainer}>
               <Text style={styles.title}>{title}</Text>
@@ -410,6 +564,44 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  centerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerTitle: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.text + '80',
+    fontFamily: FreeShowTheme.fonts.system,
+    marginBottom: FreeShowTheme.spacing.xs,
+    textAlign: 'center',
+  },
+  quickButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: FreeShowTheme.spacing.xs,
+  },
+  quickButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: FreeShowTheme.colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primary + '40',
+  },
+  quickButtonActive: {
+    backgroundColor: FreeShowTheme.colors.secondary,
+    borderColor: FreeShowTheme.colors.secondary,
+  },
+  quickButtonDisabled: {
+    backgroundColor: FreeShowTheme.colors.primary + '10',
+    borderColor: FreeShowTheme.colors.primary + '20',
+    opacity: 0.5,
   },
   webViewContainer: {
     flex: 1,
