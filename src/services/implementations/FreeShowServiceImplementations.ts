@@ -87,7 +87,8 @@ export class EventManager {
       this.listeners[event] = [];
     }
     this.listeners[event].push(callback);
-    ErrorLogger.debug(`Added listener for event: ${event}`, this.logContext);
+    // Reduced logging to prevent spam
+    // ErrorLogger.debug(`Added listener for event: ${event}`, this.logContext);
   }
 
   removeListener(event: string, callback: (data: any) => void): void {
@@ -95,7 +96,8 @@ export class EventManager {
       const index = this.listeners[event].indexOf(callback);
       if (index > -1) {
         this.listeners[event].splice(index, 1);
-        ErrorLogger.debug(`Removed listener for event: ${event}`, this.logContext);
+        // Reduced logging to prevent spam
+        // ErrorLogger.debug(`Removed listener for event: ${event}`, this.logContext);
       }
     }
   }

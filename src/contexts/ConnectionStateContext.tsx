@@ -1,4 +1,4 @@
-// Connection State Context - Handles basic connection state and operations
+// Connection State Context - Manages connection state and auto-reconnect logic
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
@@ -31,6 +31,13 @@ export interface ConnectionState {
 
 export interface ConnectionActions {
   connect: (host: string, port?: number, name?: string) => Promise<boolean>;
+  connectWithValidation: (host: string, desiredPorts: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+    api: number;
+  }, name?: string) => Promise<{ success: boolean; validatedPorts?: any; error?: string }>;
   disconnect: () => Promise<void>;
   reconnect: () => Promise<boolean>;
   checkConnection: () => boolean;
@@ -45,7 +52,7 @@ export interface ConnectionActions {
   updateCapabilities: (capabilities: string[]) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
-  triggerAutoLaunch?: (connectionHost: string, connectionPort: number, navigation?: any) => Promise<void>;
+  triggerAutoLaunch?: (connectionHost: string, connectionPort: number, navigation?: any, showPorts?: any) => Promise<void>;
 }
 
 export interface ConnectionContextType {
@@ -59,10 +66,16 @@ const ConnectionContext = createContext<ConnectionContextType | undefined>(undef
 
 interface ConnectionProviderProps {
   children: ReactNode;
-  service?: IFreeShowService; // Allow dependency injection for testing
+  service?: IFreeShowService;
   navigation?: any;
-  onConnectionHistoryUpdate?: () => Promise<void>; // Callback to refresh connection history
+  onConnectionHistoryUpdate?: () => Promise<void>;
 }
+
+// Global auto-reconnect flag - prevents multiple simultaneous attempts
+let globalAutoReconnectAttempted = false;
+const resetAutoReconnectFlag = () => {
+  globalAutoReconnectAttempted = false;
+};
 
 export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ 
   children, 
@@ -169,110 +182,165 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     };
   }, [service]);
 
-  // Auto-reconnect on mount
+  // Auto-reconnect logic - runs once per app session
   useEffect(() => {
-    let didAttempt = false;
-    const autoReconnect = async () => {
+    let isMounted = true;
+    
+    const attemptAutoReconnect = async () => {
+      // Early exit conditions
+      if (globalAutoReconnectAttempted || !isMounted) return;
+      globalAutoReconnectAttempted = true;
+      
       try {
         const appSettings = await settingsRepository.getAppSettings();
         if (!appSettings.autoReconnect) {
-          setState(prev => ({ ...prev, autoConnectAttempted: true }));
+          if (isMounted) setState(prev => ({ ...prev, autoConnectAttempted: true }));
           return;
         }
-        if (didAttempt) return;
-        didAttempt = true;
         
         const lastConnection = await settingsRepository.getLastConnection();
-        if (!lastConnection?.host) {
-          setState(prev => ({ ...prev, autoConnectAttempted: true }));
+        if (!lastConnection?.host || !lastConnection.showPorts) {
+          if (isMounted) setState(prev => ({ ...prev, autoConnectAttempted: true }));
           return;
         }
         
-        const timeoutMs = configService.getNetworkConfig().autoConnectTimeout;
-        let timeoutHandle: NodeJS.Timeout | null = null;
-        let didTimeout = false;
+        ErrorLogger.info('[AutoReconnect] Starting auto-reconnect', 'ConnectionStateContext', {
+          host: lastConnection.host,
+          savedPorts: lastConnection.showPorts
+        });
         
-        timeoutHandle = setTimeout(() => {
-          didTimeout = true;
-          service.disconnect();
-          setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout' }));
-        }, timeoutMs);
+        await performAutoReconnect(lastConnection, isMounted);
         
-        // Use saved API port if available and working, otherwise use default port
-        const savedApiPort = lastConnection.showPorts?.api || 0;
-        const apiPort = savedApiPort > 0 ? savedApiPort : configService.getNetworkConfig().defaultPort;
-        
-        const success = await service.connect(
-          lastConnection.host,
-          apiPort,
-          lastConnection.nickname
-        ).then(() => true).catch(() => false);
-        
-        if (timeoutHandle) clearTimeout(timeoutHandle);
-        if (didTimeout) return;
-        
-        if (success) {
+      } catch (err) {
+        ErrorLogger.error('[AutoReconnect] Auto-reconnect failed', 'ConnectionStateContext', 
+          err instanceof Error ? err : new Error(String(err)));
+        if (isMounted) {
           setState(prev => ({ 
             ...prev, 
-            isConnected: true, 
-            connectionHost: lastConnection.host, 
-            connectionName: lastConnection.nickname || lastConnection.host, 
-            connectionStatus: 'connected',
-            connectionPort: apiPort,
+            autoConnectAttempted: true,
+            connectionStatus: 'error',
+            lastError: 'Auto-reconnect failed due to network error'
           }));
-          
-          // Update show ports with the saved configuration (respects disabled interfaces with port=0)
-          if (lastConnection.showPorts) {
-            const showPorts = {
-              remote: lastConnection.showPorts.remote,
-              stage: lastConnection.showPorts.stage,
-              control: lastConnection.showPorts.control,
-              output: lastConnection.showPorts.output,
-              api: lastConnection.showPorts.api,
-            };
-            
-            // Update the show ports state to reflect saved configuration
-            setState(prev => ({ 
-              ...prev, 
-              currentShowPorts: showPorts,
-            }));
-            
-            ErrorLogger.info('[AutoReconnect] Applied saved show ports configuration', 'ConnectionStateContext', {
-              host: lastConnection.host,
-              showPorts
-            });
-          }
-          
-          ErrorLogger.info('[AutoReconnect] Successfully reconnected with saved configuration', 'ConnectionStateContext', {
-            host: lastConnection.host,
-            nickname: lastConnection.nickname,
-            apiPort,
-            showPorts: lastConnection.showPorts
-          });
-          
-          // Trigger auto-launch after a delay to ensure state is updated
-          setTimeout(() => {
-            ErrorLogger.info('[AutoLaunch] Triggering auto-launch after auto-reconnect', 'ConnectionStateContext');
-            // Call triggerAutoLaunch with the connection details directly
-            triggerAutoLaunch(lastConnection.host, apiPort);
-          }, 500);
-        } else {
-          // Stay on Interface; show not-connected state handled by UI
-          ErrorLogger.warn(`[AutoReconnect] Failed to reconnect to last connection: ${lastConnection.host}:${apiPort}`, 'ConnectionStateContext');
         }
-        
-        setState(prev => ({ ...prev, autoConnectAttempted: true }));
-      } catch (err) {
-        ErrorLogger.error('[AutoConnect] Error in auto-reconnect', 'AutoConnect', err instanceof Error ? err : new Error(String(err)));
-        setState(prev => ({ ...prev, autoConnectAttempted: true }));
       }
     };
-    autoReconnect();
+    
+    const performAutoReconnect = async (lastConnection: any, isMounted: boolean) => {
+      const { InterfacePingService } = await import('../services/InterfacePingService');
+      const pingService = new InterfacePingService();
+      
+      const hasSavedPorts = Object.values(lastConnection.showPorts).some((port: any) => typeof port === 'number' && port > 0);
+      let validation: any;
+      let apiPort: number = configService.getNetworkConfig().defaultPort;
+      
+      // Try saved ports first, then fallback to default port discovery
+      if (hasSavedPorts) {
+        validation = await pingService.validateInterfacePorts(lastConnection.host, lastConnection.showPorts);
+        if (!isMounted) return;
+        
+        const reachableInterfaces = Object.values(validation).filter((port: any) => typeof port === 'number' && port > 0);
+        if (reachableInterfaces.length > 0) {
+          apiPort = validation.api > 0 ? validation.api : configService.getNetworkConfig().defaultPort;
+        } else {
+          validation = null; // Force fallback to default port discovery
+        }
+      }
+      
+      // Fallback: try default port discovery
+      if (!hasSavedPorts || !validation) {
+        const hostPing = await pingService.pingHost(lastConnection.host);
+        if (!hostPing.isReachable) {
+          if (isMounted) {
+            setState(prev => ({ 
+              ...prev, 
+              autoConnectAttempted: true,
+              connectionStatus: 'disconnected',
+              lastError: 'Host is not reachable'
+            }));
+          }
+          return;
+        }
+        
+        apiPort = configService.getNetworkConfig().defaultPort;
+        validation = { remote: 0, stage: 0, control: 0, output: 0, api: apiPort };
+      }
+      
+      // Attempt connection with timeout
+      const success = await connectWithTimeout(lastConnection.host, apiPort, lastConnection.nickname, isMounted);
+      
+      if (success && isMounted) {
+        await handleSuccessfulAutoReconnect(lastConnection, apiPort, validation, isMounted);
+      } else if (isMounted) {
+        setState(prev => ({ 
+          ...prev,
+          connectionStatus: 'error',
+          lastError: 'Failed to connect to FreeShow API'
+        }));
+      }
+      
+      if (isMounted) setState(prev => ({ ...prev, autoConnectAttempted: true }));
+    };
+    
+    const connectWithTimeout = async (host: string, port: number, nickname: string, isMounted: boolean): Promise<boolean> => {
+      const timeoutMs = configService.getNetworkConfig().autoConnectTimeout;
+      let timeoutHandle: NodeJS.Timeout | null = null;
+      let didTimeout = false;
+      
+      timeoutHandle = setTimeout(() => {
+        didTimeout = true;
+        service.disconnect();
+        if (isMounted) setState(prev => ({ ...prev, connectionStatus: 'error', lastError: 'Auto-connect timeout' }));
+      }, timeoutMs);
+      
+      try {
+        await service.connect(host, port, nickname);
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        return !didTimeout;
+      } catch {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        return false;
+      }
+    };
+    
+    const handleSuccessfulAutoReconnect = async (lastConnection: any, apiPort: number, validation: any, isMounted: boolean) => {
+      setState(prev => ({ 
+        ...prev, 
+        isConnected: true, 
+        connectionHost: lastConnection.host, 
+        connectionName: lastConnection.nickname || lastConnection.host, 
+        connectionStatus: 'connected',
+        connectionPort: apiPort,
+        currentShowPorts: validation,
+      }));
+      
+      ErrorLogger.info('[AutoReconnect] Successfully reconnected', 'ConnectionStateContext', {
+        host: lastConnection.host,
+        apiPort,
+        validatedPorts: validation
+      });
+      
+      await settingsRepository.updateConnectionPorts(lastConnection.host, validation);
+      
+      // Trigger auto-launch after connection is established
+      setTimeout(() => {
+        if (isMounted) {
+          triggerAutoLaunch(lastConnection.host, apiPort, undefined, validation);
+        }
+      }, 500);
+    };
+    
+    // Start auto-reconnect after a brief delay
+    const timeoutId = setTimeout(attemptAutoReconnect, 100);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Auto-launch functionality
   // Auto-launch functionality
-  const triggerAutoLaunch = useCallback(async (connectionHost: string, connectionPort: number, nav?: any) => {
+  const triggerAutoLaunch = useCallback(async (connectionHost: string, connectionPort: number, nav?: any, showPorts?: any) => {
     try {
       // Simple logic: only auto-launch if not triggered yet this session
       if (state.autoLaunchTriggered) {
@@ -290,6 +358,16 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       if (appSettings.autoReconnect && appSettings.autoLaunchInterface !== 'none') {
         // Mark auto-launch as triggered for this session
         setState(prev => ({ ...prev, autoLaunchTriggered: true }));
+        
+        // Use provided showPorts or fall back to state
+        const currentShowPorts = showPorts || state.currentShowPorts;
+        
+        // Check if the selected interface is enabled (port > 0)
+        const selectedInterfacePort = currentShowPorts?.[appSettings.autoLaunchInterface as keyof typeof currentShowPorts];
+        if (!selectedInterfacePort || selectedInterfacePort <= 0) {
+          ErrorLogger.info(`[AutoLaunch] Skipping ${appSettings.autoLaunchInterface} interface - disabled (port: ${selectedInterfacePort})`, 'ConnectionStateContext');
+          return;
+        }
         
         const defaultPorts = configService.getDefaultShowPorts();
         const showOptions = [
@@ -310,7 +388,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
               showId: appSettings.autoLaunchInterface,
             });
           } else {
-            const url = `http://${connectionHost}:${selectedShow.port}`;
+            const url = `http://${connectionHost}:${selectedInterfacePort}`;
             const title = appSettings.autoLaunchInterface.charAt(0).toUpperCase() + appSettings.autoLaunchInterface.slice(1) + 'Show';
             
             navToUse.navigate('WebView', {
@@ -325,7 +403,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     } catch (error) {
       ErrorLogger.error('[AutoLaunch] Error in auto-launch', 'ConnectionStateContext', error instanceof Error ? error : new Error(String(error)));
     }
-  }, [state.autoLaunchTriggered]);
+  }, [state.autoLaunchTriggered, state.currentShowPorts]);
 
   // App state listener for foreground reconnection
   useEffect(() => {
@@ -439,6 +517,60 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }
   }, [service]);
 
+  // New method: Connect with validation - validates interfaces before connecting
+  const connectWithValidation = useCallback(async (host: string, desiredPorts: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+    api: number;
+  }, name?: string): Promise<{ success: boolean; validatedPorts?: any; error?: string }> => {
+    
+    setState(prev => ({ ...prev, connectionStatus: 'connecting', lastError: null }));
+
+    try {
+      ErrorLogger.info('[ConnectWithValidation] Starting validated connection', 'ConnectionStateContext', {
+        host, desiredPorts, name
+      });
+
+      // Validate interface ports first
+      const { InterfacePingService } = await import('../services/InterfacePingService');
+      const pingService = new InterfacePingService();
+      const validation = await pingService.validateInterfacePorts(host, desiredPorts);
+      
+      // Check if any interfaces are reachable
+      const reachableInterfaces = Object.values(validation).filter(port => port > 0);
+      if (reachableInterfaces.length === 0) {
+        const errorMsg = 'No interfaces are reachable. Please check your connection settings.';
+        setState(prev => ({ ...prev, connectionStatus: 'error', lastError: errorMsg }));
+        return { success: false, error: errorMsg };
+      }
+
+      // Connect using API port or default
+      const apiPort = validation.api > 0 ? validation.api : configService.getNetworkConfig().defaultPort;
+      const success = await connect(host, apiPort, name);
+      
+      if (success) {
+        setState(prev => ({ ...prev, currentShowPorts: validation }));
+        ErrorLogger.info('[ConnectWithValidation] Connection successful', 'ConnectionStateContext', {
+          host, apiPort, validatedPorts: validation
+        });
+        return { success: true, validatedPorts: validation };
+      } else {
+        const errorMsg = 'Failed to connect to FreeShow API server';
+        setState(prev => ({ ...prev, connectionStatus: 'error', lastError: errorMsg }));
+        return { success: false, error: errorMsg };
+      }
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Connection failed due to network error';
+      setState(prev => ({ ...prev, connectionStatus: 'error', lastError: errorMsg }));
+      ErrorLogger.error('[ConnectWithValidation] Connection error', 'ConnectionStateContext', 
+        error instanceof Error ? error : new Error(String(error)));
+      return { success: false, error: errorMsg };
+    }
+  }, [connect]);
+
   const disconnect = useCallback(async (): Promise<void> => {
     try {
       await service.disconnect();
@@ -490,6 +622,13 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     output: number;
     api: number;
   }): Promise<void> => {
+    // Validate that at least one interface is enabled
+    const enabledInterfaces = Object.values(ports).filter(port => port > 0);
+    if (enabledInterfaces.length === 0) {
+      ErrorLogger.warn('[Validation] Attempted to disable all interfaces - at least one must remain enabled', logContext);
+      throw new Error('At least one interface must be enabled');
+    }
+
     setState(prev => ({
       ...prev,
       currentShowPorts: ports,
@@ -528,25 +667,21 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   }, []);
 
   const cancelConnection = useCallback(() => {
-    // Set cancellation flag to prevent connection attempt from completing
     cancelConnectionRef.current = true;
-
-    // Set a flag to prevent auto-reconnect from triggering
     setState(prev => ({
       ...prev,
       connectionStatus: 'disconnected',
       lastError: 'Connection cancelled',
-      autoConnectAttempted: true  // Prevent auto-reconnect
+      autoConnectAttempted: true
     }));
-
-    // Disconnect from the service
     service.disconnect();
-
-    // Clear any pending timeouts or auto-reconnect attempts
+    
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
     }
+    
+    resetAutoReconnectFlag();
   }, [service]);
 
   const setAutoConnectAttempted = useCallback((attempted: boolean) => {
@@ -558,6 +693,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
 
   const actions: ConnectionActions = {
     connect,
+    connectWithValidation,
     disconnect,
     reconnect,
     checkConnection,

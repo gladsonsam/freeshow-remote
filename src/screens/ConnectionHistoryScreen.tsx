@@ -183,9 +183,15 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
                   
                   if (connected) {
                     // Update show ports after successful connection
-                    await updateShowPorts(validatedShowPorts);
-                    // Navigate to Interface screen using the correct nested navigation
-                    navigation.navigate('Main', { screen: 'Interface' });
+                    try {
+                      await updateShowPorts(validatedShowPorts);
+                      // Navigate to Interface screen using the correct nested navigation
+                      navigation.navigate('Main', { screen: 'Interface' });
+                    } catch (error) {
+                      ErrorLogger.error('Failed to update show ports after connection', 'ConnectionHistoryScreen', error instanceof Error ? error : new Error(String(error)));
+                      // Still navigate even if port update fails
+                      navigation.navigate('Main', { screen: 'Interface' });
+                    }
                   }
                 } catch (error) {
                   ErrorLogger.error('History connection failed', 'ConnectionHistoryScreen', error instanceof Error ? error : new Error(String(error)));

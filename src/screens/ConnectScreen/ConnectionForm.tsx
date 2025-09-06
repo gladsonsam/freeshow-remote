@@ -78,7 +78,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
     if (!isConnected) {
       const currentPortsKey = `${remotePort}-${stagePort}-${controlPort}-${outputPort}-${apiPort}`;
       if (currentPortsKey !== prevPortsRef.current) {
-        updateShowPorts(getShowPorts());
+        updateShowPorts(getShowPorts()).catch(error => {
+          ErrorLogger.error('Failed to update show ports in ConnectionForm', 'ConnectionForm', error);
+        });
         prevPortsRef.current = currentPortsKey;
       }
     }

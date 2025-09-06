@@ -17,6 +17,7 @@ import { Linking } from 'react-native';
 import { useConnection, useSettings } from '../contexts';
 import { ShowOption } from '../types';
 import { configService } from '../config/AppConfig';
+import { ErrorLogger } from '../services/ErrorLogger';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
 import CompactPopup from '../components/CompactPopup';
@@ -189,13 +190,32 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
   };
 
   // Handle disabling an interface
-  const handleDisableInterface = (show: ShowOption) => {
+  const handleDisableInterface = async (show: ShowOption) => {
     if (!currentShowPorts) return;
 
     const updatedPorts = { ...currentShowPorts };
     updatedPorts[show.id as keyof typeof updatedPorts] = 0;
-    updateShowPorts(updatedPorts);
-    modalState.hideCompactPopup();
+
+    // Check if this would disable all interfaces
+    const enabledInterfaces = Object.values(updatedPorts).filter(port => port > 0);
+    if (enabledInterfaces.length === 0) {
+      modalState.showErrorModal(
+        'Cannot Disable Interface',
+        'At least one interface must remain enabled. Please enable another interface before disabling this one.'
+      );
+      return;
+    }
+
+    try {
+      await updateShowPorts(updatedPorts);
+      modalState.hideCompactPopup();
+    } catch (error) {
+      ErrorLogger.error('Failed to disable interface', 'InterfaceScreen', error instanceof Error ? error : new Error(String(error)));
+      modalState.showErrorModal(
+        'Error',
+        'Failed to disable interface. Please try again.'
+      );
+    }
   };
 
   // Handle interface modal actions

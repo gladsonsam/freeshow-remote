@@ -79,6 +79,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const {
     connect,
+    connectWithValidation,
     disconnect,
     updateShowPorts,
     updateCapabilities,
@@ -206,33 +207,23 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       const sanitizedHost = hostValidation.sanitizedValue as string;
       const nameToUse = history.find(h => h.host === sanitizedHost)?.nickname;
 
-      // 4. Start connection immediately with optimistic approach
+      // 4. Use new validation-first connection method
       setIsPingingInterfaces(true);
       
-      // Start interface validation in parallel (don't await yet)
-      const validationPromise = interfacePingService.validateInterfacePorts(sanitizedHost, desiredPorts);
-      
-      // 5. Connect immediately using API port if available, otherwise default
-      const apiPortToUse = desiredPorts.api > 0 ? desiredPorts.api : configService.getNetworkConfig().defaultPort;
-      
-      ErrorLogger.info('Starting fast connection with interface validation', 'ConnectScreen', 
-        new Error(`Host: ${sanitizedHost}, API Port: ${apiPortToUse}`)
+      ErrorLogger.info('Starting validated connection', 'ConnectScreen', 
+        new Error(`Host: ${sanitizedHost}, Desired Ports: ${JSON.stringify(desiredPorts)}`)
       );
 
-      const connected = await connect(sanitizedHost, apiPortToUse, nameToUse);
+      const result = await connectWithValidation(sanitizedHost, desiredPorts, nameToUse);
+      setIsPingingInterfaces(false);
       
-      if (connected) {
-        // 6. Wait for validation to complete and update ports
-        const validation = await validationPromise;
-        setIsPingingInterfaces(false);
+      if (result.success && result.validatedPorts) {
+        // Connection successful - save to history and navigate
+        await settingsRepository.addToConnectionHistory(sanitizedHost, result.validatedPorts.api || configService.getNetworkConfig().defaultPort, nameToUse, result.validatedPorts);
         
-        // Update with validated ports
-        await updateShowPorts(validation);
-        await settingsRepository.addToConnectionHistory(sanitizedHost, apiPortToUse, nameToUse, validation);
-        
-        // Show user feedback about disabled interfaces
+        // Show user feedback about any disabled interfaces
         const disabledInterfaces = Object.entries(desiredPorts)
-          .filter(([name, port]) => port > 0 && validation[name as keyof typeof validation] === 0)
+          .filter(([name, port]) => port > 0 && result.validatedPorts[name as keyof typeof result.validatedPorts] === 0)
           .map(([name]) => name);
           
         if (disabledInterfaces.length > 0) {
@@ -241,7 +232,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         
         navigation.navigate('Interface');
       } else {
-        setIsPingingInterfaces(false);
+        // Connection failed - show user-friendly error
+        setErrorModal({
+          visible: true,
+          title: 'Connection Failed',
+          message: result.error || 'Unable to connect to FreeShow. Please check your settings and try again.'
+        });
       }
 
     } catch (error) {
@@ -328,7 +324,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       
       if (connected) {
         // Update show ports after successful connection
-        await updateShowPorts(validatedShowPorts);
+        try {
+          await updateShowPorts(validatedShowPorts);
+        } catch (error) {
+          ErrorLogger.error('Failed to update show ports after history connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+        }
         // Navigate to Interface screen (works for both sidebar and bottom tab layouts)
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Interface');
@@ -394,7 +394,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           ErrorLogger.info(`API interface not available on port ${defaultApiPort}`, 'ConnectScreen');
         }
         
-        await updateShowPorts(discoveredPorts);
+        try {
+          await updateShowPorts(discoveredPorts);
+        } catch (error) {
+          ErrorLogger.error('Failed to update discovered show ports', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+        }
         updateCapabilities(service.capabilities || ['api']);
         await settingsRepository.addToConnectionHistory(host, defaultApiPort, nameToUse, discoveredPorts);
         navigation.navigate('Interface');
@@ -589,7 +593,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         try {
           const connected = await connect(validatedHost, apiPortToUse, nameToUse);
           if (connected) {
-            await updateShowPorts(sanitizedShowPorts);
+            try {
+              await updateShowPorts(sanitizedShowPorts);
+            } catch (error) {
+              ErrorLogger.error('Failed to update show ports after QR scan connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+            }
             await settingsRepository.addToConnectionHistory(validatedHost, apiPortToUse, nameToUse, sanitizedShowPorts);
             navigation.navigate('Interface');
           }
@@ -690,7 +698,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
         if (connected) {
           // Update show ports after successful connection
-          await updateShowPorts(sanitizedShowPorts);
+          try {
+            await updateShowPorts(sanitizedShowPorts);
+          } catch (error) {
+            ErrorLogger.error('Failed to update show ports after QR auto-connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+          }
           navigation.navigate('Interface');
         }
       } catch (connectionError) {
