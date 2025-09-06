@@ -133,6 +133,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         connectionStatus: 'disconnected',
         lastActivity: new Date(),
         autoLaunchTriggered: false, // Reset for next auto-connect session
+        autoConnectAttempted: true, // Mark auto-connect as attempted after disconnect
       }));
       ErrorLogger.info('Connection lost', logContext, data);
     };
