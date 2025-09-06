@@ -522,7 +522,7 @@ function FloatingNavLayout() {
 
   const getTabIcon = (routeName: string, isFocused: boolean) => {
     let iconName: keyof typeof Ionicons.glyphMap;
-    const iconColor = isFocused ? '#A855F7' : 'rgba(255,255,255,0.7)';
+    const iconColor = isFocused ? FreeShowTheme.colors.secondary : 'rgba(255,255,255,0.7)';
 
     if (routeName === 'Interface') {
       iconName = isFocused ? 'apps' : 'apps-outline';
@@ -576,7 +576,7 @@ function FloatingNavLayout() {
         }}>
           {/* Background with blur effect */}
           <LinearGradient
-            colors={['rgba(20, 20, 30, 0.95)', 'rgba(10, 10, 20, 0.98)']}
+            colors={['rgba(25,25,35,0.95)', 'rgba(18,18,28,0.98)']}
             style={{
               flex: 1,
               flexDirection: 'row',
@@ -586,7 +586,7 @@ function FloatingNavLayout() {
               borderWidth: 1,
               borderColor: 'rgba(255, 255, 255, 0.08)',
               // Inner glow effect
-              shadowColor: '#A855F7',
+              shadowColor: FreeShowTheme.colors.secondary,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.1,
               shadowRadius: 8,
@@ -609,11 +609,11 @@ function FloatingNavLayout() {
                     borderRadius: 22,
                     gap: 6,
                     backgroundColor: isFocused 
-                      ? 'rgba(168, 85, 247, 0.2)' 
+                      ? FreeShowTheme.colors.secondarySurface 
                       : 'transparent',
                     // Active state styling
                     ...(isFocused && {
-                      shadowColor: '#A855F7',
+                      shadowColor: FreeShowTheme.colors.secondary,
                       shadowOffset: { width: 0, height: 0 },
                       shadowOpacity: 0.3,
                       shadowRadius: 6,

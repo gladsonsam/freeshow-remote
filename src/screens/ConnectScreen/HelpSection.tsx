@@ -19,7 +19,6 @@ const HelpSection: React.FC<HelpSectionProps> = ({ isConnected }) => {
         <Text style={styles.helpTitle}>Connection Help</Text>
       </View>
       <Text style={styles.helpText}>
-        {'\u2022 Make sure FreeShow is running with WebSocket enabled\n'}
         {'\u2022 Both devices should be on the same WiFi network\n'}
         {'\u2022 Use your computer\'s local IP address (192.168.x.x)'}
       </Text>

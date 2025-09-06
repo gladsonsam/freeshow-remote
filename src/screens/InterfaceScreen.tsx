@@ -28,6 +28,7 @@ import InterfaceCard from '../components/InterfaceCard';
 import { useInterfaceNavigation } from '../hooks/useInterfaceNavigation';
 import { useModalState } from '../hooks/useModalState';
 import { useAppLaunch } from '../hooks/useAppLaunch';
+import { FreeShowTheme } from '../theme/FreeShowTheme';
 
 interface InterfaceScreenProps {
   navigation: any;
@@ -256,10 +257,15 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
         >
           <Text style={styles.loadingText}>Connecting…</Text>
           <Pressable
-            style={styles.cancelButton}
+            style={({ pressed }) => [
+              styles.cancelButton,
+              pressed && styles.connectButtonPressed
+            ]}
             onPress={cancelConnection}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <View style={styles.cancelButtonInner}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </View>
           </Pressable>
         </Animated.View>
       </LinearGradient>
@@ -286,7 +292,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
           ]}
         >
           <View style={styles.notConnectedIcon}>
-            <Ionicons name="wifi-outline" size={48} color="#8B5CF6" />
+            <Ionicons name="wifi-outline" size={48} color={FreeShowTheme.colors.secondary} />
           </View>
 
           <Text style={styles.notConnectedTitle}>Not Connected</Text>
@@ -301,13 +307,10 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
             ]}
             onPress={navigationHandlers.navigateToConnect}
           >
-            <LinearGradient
-              colors={['#8B5CF6', '#A855F7']}
-              style={styles.connectButtonGradient}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="white" />
+            <View style={styles.connectButtonInner}>
+              <Ionicons name="add-circle-outline" size={20} color={FreeShowTheme.colors.textInvert} />
               <Text style={styles.connectButtonText}>Connect to FreeShow</Text>
-            </LinearGradient>
+            </View>
           </Pressable>
         </Animated.View>
       </LinearGradient>
@@ -579,12 +582,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 24,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  backgroundColor: FreeShowTheme.colors.secondary + '22',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
+  borderWidth: 1,
+  borderColor: FreeShowTheme.colors.secondary + '44',
   },
   notConnectedTitle: {
     fontSize: 24,
@@ -607,31 +610,40 @@ const styles = StyleSheet.create({
   connectButtonPressed: {
     transform: [{ scale: 0.98 }],
   },
-  connectButtonGradient: {
+  connectButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
     gap: 8,
+    backgroundColor: FreeShowTheme.colors.secondary,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.secondaryDark,
   },
   connectButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: FreeShowTheme.colors.textInvert,
   },
   cancelButton: {
     marginTop: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  cancelButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 8,
+    backgroundColor: FreeShowTheme.colors.secondary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: FreeShowTheme.colors.secondaryDark,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: 'white',
+    fontWeight: '600',
+    color: FreeShowTheme.colors.textInvert,
   },
 });
 

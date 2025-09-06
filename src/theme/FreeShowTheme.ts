@@ -21,8 +21,12 @@ export const FreeShowTheme = {
     border: '#363945',
     
     // Accent colors
-    secondary: '#f0008c', // FreeShow's signature pink/magenta
-    secondaryOpacity: 'rgba(240, 0, 140, 0.5)',
+  secondary: '#f0008c', // FreeShow's signature pink/magenta
+  // Variants for consistent usage (no hard-coded random purples elsewhere)
+  secondaryLight: '#ff1e9d',
+  secondaryDark: '#c80074',
+  secondaryOpacity: 'rgba(240, 0, 140, 0.5)',
+  secondarySurface: 'rgba(240, 0, 140, 0.16)',
     
     // Interactive states
     hover: 'rgb(255 255 255 / 0.05)',
