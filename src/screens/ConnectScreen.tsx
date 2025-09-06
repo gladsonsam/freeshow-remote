@@ -62,6 +62,16 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   });
   const [isPingingInterfaces, setIsPingingInterfaces] = useState(false);
   
+  // Helper function to show error modal
+  const showError = useCallback((title: string, message: string) => {
+    setErrorModal({ visible: true, title, message });
+  }, []);
+
+  // Helper function to hide error modal
+  const hideError = useCallback(() => {
+    setErrorModal({ visible: false, title: '', message: '' });
+  }, []);
+  
   // Ref to track if we've already processed the history item
   const processedHistoryItemRef = useRef(false);
   
@@ -100,7 +110,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   // Progress state for scan
   // Use shorter timeout for UI progress to match snappier discovery
   const discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
-  const [scanProgress, setScanProgress] = useState(0);
   const [scanComplete, setScanComplete] = useState(false);
   const [isScanActive, setIsScanActive] = useState(false);
   const scanTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -108,7 +117,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   // Clear discovered services and progress when screen mounts
   useEffect(() => {
     clearDiscoveredServices();
-    setScanProgress(0);
     setScanComplete(false);
   }, []);
 
@@ -124,13 +132,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   // Handle scan progress
   useEffect(() => {
     if (isScanActive) {
-      setScanProgress(0);
       setScanComplete(false);
       const start = Date.now();
       scanTimerRef.current = setInterval(() => {
         const elapsed = Date.now() - start;
         const progress = Math.min(elapsed / discoveryTimeout, 1);
-        setScanProgress(progress);
         Animated.timing(animatedScanProgress, {
           toValue: progress,
           duration: appLaunch.isLoading() ? 0 : (appLaunch.shouldAnimate() ? 50 : 0),
@@ -147,7 +153,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         if (scanTimerRef.current) clearInterval(scanTimerRef.current);
       };
     } else {
-      setScanProgress(0);
       animatedScanProgress.setValue(0);
       if (scanTimerRef.current) clearInterval(scanTimerRef.current);
     }
@@ -176,11 +181,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // 1. Validate host
       const hostValidation = ValidationService.validateHost(host.trim());
       if (!hostValidation.isValid) {
-        setErrorModal({
-          visible: true,
-          title: 'Invalid Host',
-          message: hostValidation.error || 'Please enter a valid host address'
-        });
+        showError('Invalid Host', hostValidation.error || 'Please enter a valid host address');
         return;
       }
 
@@ -196,11 +197,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // 3. Check if user wants at least one interface
       const hasDesiredInterfaces = Object.values(desiredPorts).some(port => port > 0);
       if (!hasDesiredInterfaces) {
-        setErrorModal({
-          visible: true,
-          title: 'No Interfaces Enabled',
-          message: 'Please enable at least one interface to connect to FreeShow.'
-        });
+        showError('No Interfaces Enabled', 'Please enable at least one interface to connect to FreeShow.');
         return;
       }
 
@@ -233,11 +230,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         navigation.navigate('Interface');
       } else {
         // Connection failed - show user-friendly error
-        setErrorModal({
-          visible: true,
-          title: 'Connection Failed',
-          message: result.error || 'Unable to connect to FreeShow. Please check your settings and try again.'
-        });
+        showError('Connection Failed', result.error || 'Unable to connect to FreeShow. Please check your settings and try again.');
       }
 
     } catch (error) {
@@ -503,13 +496,138 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     };
   }, [navigation, handleHistoryConnect]);
 
+  // Helper function to handle structured QR payload
+  const handleStructuredQRPayload = useCallback(async (payload: any) => {
+    // Validate host
+    const hostValidation = ValidationService.validateHost(String(payload.host));
+    if (!hostValidation.isValid) {
+      showError('Invalid Host', `QR code contains invalid host: ${hostValidation.error}`);
+      return;
+    }
+
+    // Validate ports
+    const portsValidation = ValidationService.validateShowPorts(payload.ports);
+    if (!portsValidation.isValid) {
+      showError('Invalid Ports', portsValidation.error || 'QR payload contained invalid ports');
+      return;
+    }
+
+    const validatedHost = hostValidation.sanitizedValue as string;
+    const sanitizedShowPorts = portsValidation.sanitizedValue as { remote: number; stage: number; control: number; output: number; api: number };
+    const apiPortToUse = sanitizedShowPorts.api > 0 ? sanitizedShowPorts.api : configService.getNetworkConfig().defaultPort;
+    const historyMatch = history.find(h => h.host === validatedHost);
+    const nameToUse = payload.nickname || historyMatch?.nickname;
+
+    // Update UI with scanned host
+    setHost(validatedHost);
+    setRemotePort(sanitizedShowPorts.remote ? String(sanitizedShowPorts.remote) : '');
+    setStagePort(sanitizedShowPorts.stage ? String(sanitizedShowPorts.stage) : '');
+    setControlPort(sanitizedShowPorts.control ? String(sanitizedShowPorts.control) : '');
+    setOutputPort(sanitizedShowPorts.output ? String(sanitizedShowPorts.output) : '');
+    setApiPort(sanitizedShowPorts.api ? String(sanitizedShowPorts.api) : '');
+
+    try {
+      const connected = await connect(validatedHost, apiPortToUse, nameToUse);
+      if (connected) {
+        try {
+          await updateShowPorts(sanitizedShowPorts);
+        } catch (error) {
+          ErrorLogger.error('Failed to update show ports after QR scan connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+        }
+        await settingsRepository.addToConnectionHistory(validatedHost, apiPortToUse, nameToUse, sanitizedShowPorts);
+        navigation.navigate('Interface');
+      }
+    } catch (connectionError) {
+      ErrorLogger.error('Auto-connection from structured QR failed', 'ConnectScreen',
+        connectionError instanceof Error ? connectionError : new Error(String(connectionError))
+      );
+      showError('Connection Failed', 'Could not connect using the scanned connection. Please ensure FreeShow is running and try again.');
+    }
+  }, [history, connect, updateShowPorts, navigation, showError]);
+
+  // Helper function to handle legacy QR format
+  const handleLegacyQRFormat = useCallback(async (sanitizedContent: string) => {
+    // Extract host from URL if it's a full URL, otherwise use as-is
+    let extractedHost = sanitizedContent;
+    try {
+      const url = new URL(sanitizedContent);
+      extractedHost = url.hostname;
+    } catch {
+      // Not a URL, use the content as-is (should be an IP or hostname)
+    }
+
+    // Final validation of the extracted host
+    const hostValidation = ValidationService.validateHost(extractedHost);
+    if (!hostValidation.isValid) {
+      showError('Invalid Host', `QR code contains invalid host: ${hostValidation.error}`);
+      return;
+    }
+
+    const validatedHost = hostValidation.sanitizedValue as string;
+
+    // Update UI with scanned host
+    setHost(validatedHost);
+
+    // Auto-connect after QR scan
+    try {
+      // Validate current port configuration for auto-connect
+      const portsToValidate = {
+        remote: remotePort,
+        stage: stagePort,
+        control: controlPort,
+        output: outputPort,
+        api: apiPort,
+      };
+
+      const validatedPorts: any = {};
+      for (const [portName, portValue] of Object.entries(portsToValidate)) {
+        const portValidation = ValidationService.validatePort(portValue);
+        if (!portValidation.isValid) {
+          showError('Connection Error', `Invalid ${portName} port configuration. Please check your port settings and try again.`);
+          return;
+        }
+        validatedPorts[portName] = portValidation.sanitizedValue;
+      }
+
+      // Additional validation for show ports as a group
+      const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
+      if (!showPortsValidation.isValid) {
+        showError('Port Configuration Error', showPortsValidation.error || 'Invalid port configuration. Please check your settings.');
+        return;
+      }
+
+      const sanitizedShowPorts = showPortsValidation.sanitizedValue;
+      const defaultPort = configService.getNetworkConfig().defaultPort;
+
+      // Find existing nickname before connecting
+      const historyMatch = history.find(h => h.host === validatedHost);
+      const nameToUse = historyMatch?.nickname;
+
+      const connected = await connect(validatedHost, defaultPort, nameToUse);
+
+      if (connected) {
+        // Update show ports after successful connection
+        try {
+          await updateShowPorts(sanitizedShowPorts);
+        } catch (error) {
+          ErrorLogger.error('Failed to update show ports after QR auto-connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
+        }
+        navigation.navigate('Interface');
+      }
+    } catch (connectionError) {
+      ErrorLogger.error('Auto-connection from QR scan failed', 'ConnectScreen',
+        connectionError instanceof Error ? connectionError : new Error(String(connectionError))
+      );
+      showError('Connection Failed', 'Could not connect to the scanned FreeShow instance. Please check that FreeShow is running and try again.');
+    }
+  }, [remotePort, stagePort, controlPort, outputPort, apiPort, history, connect, updateShowPorts, navigation, showError]);
+
   // Update: Scan button clears results and rescans, or cancels if already scanning
   const handleScanPress = () => {
     if (isScanActive) {
       // Cancel scanning
       stopDiscovery();
       setIsScanActive(false);
-      setScanProgress(0);
       setScanComplete(false);
       animatedScanProgress.setValue(0);
       if (scanTimerRef.current) {
@@ -518,7 +636,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     } else {
       // Start scanning
       clearDiscoveredServices();
-      setScanProgress(0);
       setScanComplete(false);
       setIsScanActive(true);
       // Reset animated progress
@@ -532,11 +649,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
       // Validate QR content
       const qrValidation = ValidationService.validateQRContent(scannedContent);
       if (!qrValidation.isValid) {
-        setErrorModal({
-          visible: true,
-          title: 'Invalid QR Code',
-          message: qrValidation.error || 'The QR code contains invalid content'
-        });
+        showError('Invalid QR Code', qrValidation.error || 'The QR code contains invalid content');
         setShowQRScanner(false);
         return;
       }
@@ -545,183 +658,18 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
       // Case 1: Structured payload with nickname and ports
       if (value && typeof value === 'object' && value.type === 'freeshow-remote-connection') {
-        const payload = value;
-
-        // Validate host
-        const hostValidation = ValidationService.validateHost(String(payload.host));
-        if (!hostValidation.isValid) {
-          setErrorModal({
-            visible: true,
-            title: 'Invalid Host',
-            message: `QR code contains invalid host: ${hostValidation.error}`
-          });
-          setShowQRScanner(false);
-          return;
-        }
-
-        // Validate ports (includes zeros)
-        const portsValidation = ValidationService.validateShowPorts(payload.ports);
-        if (!portsValidation.isValid) {
-          setErrorModal({
-            visible: true,
-            title: 'Invalid Ports',
-            message: portsValidation.error || 'QR payload contained invalid ports'
-          });
-          setShowQRScanner(false);
-          return;
-        }
-
-        const validatedHost = hostValidation.sanitizedValue as string;
-        const sanitizedShowPorts = portsValidation.sanitizedValue as { remote: number; stage: number; control: number; output: number; api: number };
-        const apiPortToUse = sanitizedShowPorts.api > 0 ? sanitizedShowPorts.api : configService.getNetworkConfig().defaultPort;
-        const historyMatch = history.find(h => h.host === validatedHost);
-        const nameToUse = payload.nickname || historyMatch?.nickname;
-
-        ErrorLogger.info('QR scan successful - structured payload', 'ConnectScreen',
-          new Error(`Host: ${validatedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}, Nickname: ${nameToUse || ''}`)
-        );
-
-        // Update UI with scanned host
-        setHost(validatedHost);
-        setRemotePort(sanitizedShowPorts.remote ? String(sanitizedShowPorts.remote) : '');
-        setStagePort(sanitizedShowPorts.stage ? String(sanitizedShowPorts.stage) : '');
-        setControlPort(sanitizedShowPorts.control ? String(sanitizedShowPorts.control) : '');
-        setOutputPort(sanitizedShowPorts.output ? String(sanitizedShowPorts.output) : '');
-        setApiPort(sanitizedShowPorts.api ? String(sanitizedShowPorts.api) : '');
+        await handleStructuredQRPayload(value);
         setShowQRScanner(false);
-
-        try {
-          const connected = await connect(validatedHost, apiPortToUse, nameToUse);
-          if (connected) {
-            try {
-              await updateShowPorts(sanitizedShowPorts);
-            } catch (error) {
-              ErrorLogger.error('Failed to update show ports after QR scan connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
-            }
-            await settingsRepository.addToConnectionHistory(validatedHost, apiPortToUse, nameToUse, sanitizedShowPorts);
-            navigation.navigate('Interface');
-          }
-        } catch (connectionError) {
-          ErrorLogger.error('Auto-connection from structured QR failed', 'ConnectScreen',
-            connectionError instanceof Error ? connectionError : new Error(String(connectionError))
-          );
-          setErrorModal({
-            visible: true,
-            title: 'Connection Failed',
-            message: 'Could not connect using the scanned connection. Please ensure FreeShow is running and try again.'
-          });
-        }
         return;
       }
 
       // Case 2: Legacy URL/host format
-      const sanitizedContent = value as string;
-      // Extract host from URL if it's a full URL, otherwise use as-is
-      let extractedHost = sanitizedContent;
-      try {
-        const url = new URL(sanitizedContent);
-        extractedHost = url.hostname;
-      } catch {
-        // Not a URL, use the content as-is (should be an IP or hostname)
-      }
-
-      // Final validation of the extracted host
-      const hostValidation = ValidationService.validateHost(extractedHost);
-      if (!hostValidation.isValid) {
-        setErrorModal({
-          visible: true,
-          title: 'Invalid Host',
-          message: `QR code contains invalid host: ${hostValidation.error}`
-        });
-        setShowQRScanner(false);
-        return;
-      }
-
-      const validatedHost = hostValidation.sanitizedValue as string;
-
-      ErrorLogger.info('QR scan successful - auto-connecting', 'ConnectScreen', 
-        new Error(`Scanned: ${scannedContent}, Extracted: ${validatedHost}`)
-      );
-
-      // Update UI with scanned host
-      setHost(validatedHost);
+      await handleLegacyQRFormat(value as string);
       setShowQRScanner(false);
 
-      // Auto-connect after QR scan
-      try {
-        // Validate current port configuration for auto-connect
-        const portsToValidate = {
-          remote: remotePort,
-          stage: stagePort,
-          control: controlPort,
-          output: outputPort,
-          api: apiPort,
-        };
-
-        const validatedPorts: any = {};
-        for (const [portName, portValue] of Object.entries(portsToValidate)) {
-          const portValidation = ValidationService.validatePort(portValue);
-          if (!portValidation.isValid) {
-            setErrorModal({
-              visible: true,
-              title: 'Connection Error',
-              message: `Invalid ${portName} port configuration. Please check your port settings and try again.`
-            });
-            return;
-          }
-          validatedPorts[portName] = portValidation.sanitizedValue;
-        }
-
-        // Additional validation for show ports as a group
-        const showPortsValidation = ValidationService.validateShowPorts(validatedPorts);
-        if (!showPortsValidation.isValid) {
-          setErrorModal({
-            visible: true,
-            title: 'Port Configuration Error',
-            message: showPortsValidation.error || 'Invalid port configuration. Please check your settings.'
-          });
-          return;
-        }
-
-        const sanitizedShowPorts = showPortsValidation.sanitizedValue;
-        const defaultPort = configService.getNetworkConfig().defaultPort;
-
-        // Find existing nickname before connecting
-        const historyMatch = history.find(h => h.host === validatedHost);
-        const nameToUse = historyMatch?.nickname;
-
-        ErrorLogger.info('Attempting auto-connection from QR scan', 'ConnectScreen', 
-          new Error(`Host: ${validatedHost}, Ports: ${JSON.stringify(sanitizedShowPorts)}`)
-        );
-
-        const connected = await connect(validatedHost, defaultPort, nameToUse);
-
-        if (connected) {
-          // Update show ports after successful connection
-          try {
-            await updateShowPorts(sanitizedShowPorts);
-          } catch (error) {
-            ErrorLogger.error('Failed to update show ports after QR auto-connection', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
-          }
-          navigation.navigate('Interface');
-        }
-      } catch (connectionError) {
-        ErrorLogger.error('Auto-connection from QR scan failed', 'ConnectScreen',
-          connectionError instanceof Error ? connectionError : new Error(String(connectionError))
-        );
-        setErrorModal({
-          visible: true,
-          title: 'Connection Failed',
-          message: 'Could not connect to the scanned FreeShow instance. Please check that FreeShow is running and try again.'
-        });
-      }
     } catch (error) {
       ErrorLogger.error('QR scan processing failed', 'ConnectScreen', error instanceof Error ? error : new Error(String(error)));
-      setErrorModal({
-        visible: true,
-        title: 'QR Scan Error',
-        message: 'Failed to process QR code content'
-      });
+      showError('QR Scan Error', 'Failed to process QR code content');
       setShowQRScanner(false);
     }
   };
@@ -758,9 +706,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
               history={history}
               discoveredServices={discoveredServices as DiscoveredFreeShowInstance[]}
               isDiscoveryAvailable={isDiscoveryAvailable}
-              isDiscovering={isDiscovering}
               isScanActive={isScanActive}
-              scanProgress={scanProgress}
               scanComplete={scanComplete}
               animatedScanProgress={animatedScanProgress}
               onScanPress={handleScanPress}
@@ -840,7 +786,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           visible={errorModal.visible}
           title={errorModal.title}
           message={errorModal.message}
-          onClose={() => setErrorModal({visible: false, title: '', message: ''})}
+          onClose={hideError}
         />
         </KeyboardAvoidingView>
       </SafeAreaView>

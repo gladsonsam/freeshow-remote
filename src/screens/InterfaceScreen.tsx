@@ -306,6 +306,9 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
               pressed && styles.connectButtonPressed
             ]}
             onPress={navigationHandlers.navigateToConnect}
+            accessibilityRole="button"
+            accessibilityLabel="Connect to FreeShow server"
+            accessibilityHint="Navigate to connection screen to set up a new connection"
           >
             <View style={styles.connectButtonInner}>
               <Ionicons name="add-circle-outline" size={20} color={FreeShowTheme.colors.textInvert} />
@@ -342,7 +345,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
 
           {/* Interface Cards */}
           <View style={styles.interfacesSection}>
-            <Text style={[styles.sectionTitleLarge, isTablet && styles.sectionTitleLargeTablet]}>Available Interfaces</Text>
+            <Text style={[styles.sectionTitleLarge, isTablet && styles.sectionTitleLargeTablet]} accessibilityRole="header">Available Interfaces</Text>
             
             <Animated.View style={[styles.interfacesContainer, { opacity: contentFade, transform: [{ translateY: contentSlide }] }] }>
               {/* First Row - 2 cards */}

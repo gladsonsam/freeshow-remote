@@ -129,11 +129,14 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
     <Modal visible={visible} animationType="slide">
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Scan QR Code</Text>
+          <Text style={styles.title} accessibilityRole="header" accessibilityLabel="QR Code Scanner">Scan QR Code</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity 
               style={styles.torchButton} 
               onPress={() => setTorchEnabled(!torchEnabled)}
+              accessibilityRole="button"
+              accessibilityLabel={torchEnabled ? "Turn off flashlight" : "Turn on flashlight"}
+              accessibilityHint="Toggle camera flashlight for better scanning in low light"
             >
               <Ionicons 
                 name={torchEnabled ? "flashlight" : "flashlight-outline"} 
@@ -141,7 +144,13 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
                 color="white" 
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close scanner"
+              accessibilityHint="Close the QR code scanner"
+            >
               <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
           </View>
@@ -184,13 +193,16 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onClose, onSca
         </View>
 
         <View style={styles.instructions}>
-          <Text style={styles.instructionText}>
+          <Text style={styles.instructionText} accessibilityRole="text">
             Point your camera at the FreeShow QR code to scan and connect automatically
           </Text>
           {scanned && (
             <TouchableOpacity 
               style={styles.button} 
               onPress={() => setScanned(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Scan again"
+              accessibilityHint="Start scanning for another QR code"
             >
               <Text style={styles.buttonText}>Scan Again</Text>
             </TouchableOpacity>

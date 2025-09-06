@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ interface ConnectionHistoryScreenProps {
   navigation: any;
 }
 
-const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navigation }) => {
+const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.memo(({ navigation }) => {
   const { history, actions } = useSettings();
   const connection = useConnection();
   const { connect, updateShowPorts } = connection.actions;
@@ -35,12 +35,17 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [connectionToRemove, setConnectionToRemove] = useState<string | null>(null);
 
-  const handleRemoveFromHistory = (id: string) => {
+  // Memoize sorted history
+  const sortedHistory = useMemo(() => {
+    return [...history].sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime());
+  }, [history]);
+
+  const handleRemoveFromHistory = useCallback((id: string) => {
     setConnectionToRemove(id);
     setShowRemoveConfirm(true);
-  };
+  }, []);
 
-  const confirmRemoveFromHistory = async () => {
+  const confirmRemoveFromHistory = useCallback(async () => {
     if (!connectionToRemove) return;
     
     try {
@@ -51,7 +56,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
       console.error('Failed to remove connection from history:', error);
       // You could add another modal for error display here if needed
     }
-  };
+  }, []);
 
   const cancelRemoveFromHistory = () => {
     setShowRemoveConfirm(false);
@@ -62,7 +67,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
     setShowClearAllConfirm(true);
   };
 
-  const confirmClearAllHistory = async () => {
+  const confirmClearAllHistory = useCallback(async () => {
     try {
       await actions.clearHistory();
       setShowClearAllConfirm(false);
@@ -70,7 +75,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
       console.error('Failed to clear connection history:', error);
       // You could add another modal for error display here if needed
     }
-  };
+  }, []);
 
   const cancelClearAllHistory = () => {
     setShowClearAllConfirm(false);
@@ -82,7 +87,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
     setShowEditNickname(true);
   };
 
-  const handleSaveNickname = async () => {
+  const handleSaveNickname = useCallback(async () => {
     if (!editingConnection) return;
     
     try {
@@ -95,7 +100,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
       console.error('Failed to update nickname:', error);
       // You could add an error modal here if needed, for now just log the error
     }
-  };
+  }, [editingConnection, editNicknameText]);
 
   const handleCancelEdit = () => {
     setShowEditNickname(false);
@@ -140,7 +145,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {history.map((item: ConnectionHistory, _index: number) => (
+          {sortedHistory.map((item: ConnectionHistory, _index: number) => (
             <TouchableOpacity 
               key={item.id} 
               style={styles.historyItem}
@@ -349,7 +354,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = ({ navig
       </SafeAreaView>
     </LinearGradient>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -271,7 +271,7 @@ export class InputValidationService {
   }
 
   /**
-   * Validate QR code content
+   * Validate QR code content with enhanced security
    */
   static validateQRContent(content: string): ValidationResult {
     try {
@@ -292,7 +292,15 @@ export class InputValidationService {
         };
       }
 
-      // Check for suspicious patterns
+      // Length check for security
+      if (sanitized.length > 2048) {
+        return {
+          isValid: false,
+          error: 'QR code content is too long',
+        };
+      }
+
+      // Enhanced suspicious patterns check
       const suspiciousPatterns = [
         /javascript:/i,
         /data:/i,
@@ -300,18 +308,50 @@ export class InputValidationService {
         /<script/i,
         /onclick/i,
         /onerror/i,
+        /onload/i,
+        /eval\(/i,
+        /function\(/i,
+        /alert\(/i,
+        /document\./i,
+        /window\./i,
+        /location\./i,
+        /cookie/i,
+        /localStorage/i,
+        /sessionStorage/i,
+        /XMLHttpRequest/i,
+        /fetch\(/i,
+        /import\(/i,
+        /require\(/i,
+        /process\./i,
+        /__dirname/i,
+        /__filename/i,
+        /global/i,
+        /Buffer/i,
+        /fs\./i,
+        /path\./i,
+        /os\./i,
+        /child_process/i,
+        /exec\(/i,
+        /spawn\(/i,
       ];
 
       for (const pattern of suspiciousPatterns) {
         if (pattern.test(sanitized)) {
           ErrorLogger.warn('QR code contains suspicious content', 'InputValidation', 
-            new Error(`Suspicious content detected: ${sanitized}`)
-          );
+            new Error(`Suspicious pattern detected: ${pattern}`));
           return {
             isValid: false,
-            error: 'QR code contains invalid content',
+            error: 'QR code contains potentially unsafe content',
           };
         }
+      }
+
+      // Check for non-printable characters
+      if (/[^\x20-\x7E\t\n\r]/.test(sanitized)) {
+        return {
+          isValid: false,
+          error: 'QR code contains invalid characters',
+        };
       }
 
       // Try to parse as structured JSON payload first

@@ -24,47 +24,14 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { Sidebar, SidebarTraditional } from './src/components/Sidebar';
 import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
-import { settingsRepository } from './src/repositories';
+import { useAutoConnectExpected } from './src/hooks/useAutoConnect';
+import { getTabIcon } from './src/utils/tabConfig';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 // Create navigation ref at module level for use in layout components
 const navigationRef = createNavigationContainerRef();
-
-// Hook to check if auto-connect should be attempted
-const useAutoConnectExpected = () => {
-  const [autoConnectExpected, setAutoConnectExpected] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const checkAutoConnectConditions = async () => {
-      try {
-        const appSettings = await settingsRepository.getAppSettings();
-        if (!appSettings.autoReconnect) {
-          setAutoConnectExpected(false);
-          return;
-        }
-        
-        const lastConnection = await settingsRepository.getLastConnection();
-        const shouldAutoConnect = !!(lastConnection && lastConnection.host);
-        setAutoConnectExpected(shouldAutoConnect);
-        
-        ErrorLogger.info('[AutoConnectCheck] Conditions checked', 'App', {
-          autoReconnect: appSettings.autoReconnect,
-          hasLastConnection: !!lastConnection?.host,
-          shouldAutoConnect
-        });
-      } catch (error) {
-        ErrorLogger.error('[AutoConnectCheck] Error checking conditions', 'App', error instanceof Error ? error : new Error(String(error)));
-        setAutoConnectExpected(false);
-      }
-    };
-
-    checkAutoConnectConditions();
-  }, []);
-
-  return autoConnectExpected;
-};
 
 // Screen components wrapped with error boundaries
 const InterfaceScreenComponent = (props: any) => (
@@ -84,34 +51,6 @@ const SettingsScreenWrapped = (props: any) => (
     <SettingsScreen {...props} />
   </ErrorBoundary>
 );
-
-// Helper function to get tab icon and color based on route and state
-function getTabIcon(routeName: string, isFocused: boolean, isConnected: boolean, connectionStatus: string) {
-  let iconName: keyof typeof Ionicons.glyphMap;
-  let iconColor = isFocused ? FreeShowTheme.colors.secondary : FreeShowTheme.colors.text + '80';
-
-  if (routeName === 'Interface') {
-    iconName = isFocused ? 'apps' : 'apps-outline';
-  } else if (routeName === 'Connect') {
-    iconName = isFocused ? 'wifi' : 'wifi-outline';
-    // Dynamic color for Connect tab based on connection status
-    if (isFocused) {
-      iconColor = FreeShowTheme.colors.secondary; // Purple when focused (on Connect page)
-    } else if (isConnected) {
-      iconColor = '#4CAF50'; // Green when connected but not focused
-    } else if (connectionStatus === 'connecting') {
-      iconColor = '#FF9800'; // Orange when connecting
-    } else {
-      iconColor = FreeShowTheme.colors.text + '80'; // Gray when not focused and not connected
-    }
-  } else if (routeName === 'Settings') {
-    iconName = isFocused ? 'settings' : 'settings-outline';
-  } else {
-    iconName = 'help-circle-outline';
-  }
-
-  return { iconName, iconColor };
-}
 
 // TypeScript interfaces for better type safety
 interface TabBarProps {

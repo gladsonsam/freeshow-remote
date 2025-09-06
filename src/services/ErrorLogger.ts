@@ -14,6 +14,7 @@ export class ErrorLogger {
   private static logs: LogEntry[] = [];
   private static maxLogs = 1000;
   private static listeners: ((entry: LogEntry) => void)[] = [];
+  private static isProduction = !__DEV__;
 
   static log(level: LogEntry['level'], message: string, context?: string, error?: Error, metadata?: Record<string, any>) {
     const entry: LogEntry = {
@@ -41,25 +42,42 @@ export class ErrorLogger {
       }
     });
 
-    // Console output in development
-    if (__DEV__) {
-      const prefix = `[${level.toUpperCase()}]${context ? ` [${context}]` : ''}`;
-      
-      switch (level) {
-        case 'debug':
+    // Console output based on environment and log level
+    this.outputToConsole(level, message, context, metadata, error);
+  }
+
+  private static outputToConsole(
+    level: LogEntry['level'], 
+    message: string, 
+    context?: string, 
+    metadata?: Record<string, any>,
+    error?: Error
+  ): void {
+    // In production, only log errors and above
+    if (this.isProduction && level !== 'error' && level !== 'fatal') {
+      return;
+    }
+
+    const prefix = `[${level.toUpperCase()}]${context ? ` [${context}]` : ''}`;
+    
+    switch (level) {
+      case 'debug':
+        if (!this.isProduction) {
           console.debug(prefix, message, metadata);
-          break;
-        case 'info':
+        }
+        break;
+      case 'info':
+        if (!this.isProduction) {
           console.info(prefix, message, metadata);
-          break;
-        case 'warn':
-          console.warn(prefix, message, metadata, error);
-          break;
-        case 'error':
-        case 'fatal':
-          console.error(prefix, message, metadata, error);
-          break;
-      }
+        }
+        break;
+      case 'warn':
+        console.warn(prefix, message, metadata, error);
+        break;
+      case 'error':
+      case 'fatal':
+        console.error(prefix, message, metadata, error);
+        break;
     }
   }
 

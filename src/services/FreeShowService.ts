@@ -563,4 +563,23 @@ export class FreeShowService implements IFreeShowService {
   clearRequestQueue(): void {
     this.requestQueue.clearQueue();
   }
+
+  destroy(): void {
+    this.disconnect();
+    this.eventManager.removeAllListeners();
+    this.requestQueue.clearQueue();
+    
+    // Clear all timeouts and intervals
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    
+    // Clean up socket if it exists
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
 }

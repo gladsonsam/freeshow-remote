@@ -404,6 +404,16 @@ class AutoDiscoveryService {
     this.pendingServices.clear();
     this.clearScanTimeout();
     this.clearUpdateThrottle();
+    
+    // Clean up Zeroconf instance
+    if (this.zeroconf) {
+      try {
+        this.zeroconf.removeAllListeners();
+        this.zeroconf = null;
+      } catch (error) {
+        ErrorLogger.warn('Error cleaning up Zeroconf instance', 'AutoDiscoveryService', error instanceof Error ? error : new Error(String(error)));
+      }
+    }
   }
 
   private setScanTimeout(): void {

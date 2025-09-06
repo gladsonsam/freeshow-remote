@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -12,9 +12,7 @@ interface QuickConnectSectionProps {
   history: ConnectionHistory[];
   discoveredServices: DiscoveredFreeShowInstance[];
   isDiscoveryAvailable: boolean;
-  isDiscovering: boolean;
   isScanActive: boolean;
-  scanProgress: number;
   scanComplete: boolean;
   animatedScanProgress: Animated.Value;
   onScanPress: () => void;
@@ -25,13 +23,11 @@ interface QuickConnectSectionProps {
   onClearAllHistory: () => void;
 }
 
-const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
+const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
   history,
   discoveredServices,
   isDiscoveryAvailable,
-  isDiscovering: _isDiscovering,
   isScanActive,
-  scanProgress: _scanProgress,
   scanComplete,
   animatedScanProgress,
   onScanPress,
@@ -42,7 +38,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
   onClearAllHistory,
 }) => {
   const _discoveryTimeout = configService.getNetworkConfig().discoveryTimeout;
-  const isIpAddress = (str: string) => /^(\d{1,3}\.){3}\d{1,3}$/.test(str);
+  const isIpAddress = useCallback((str: string) => /^(\d{1,3}\.){3}\d{1,3}$/.test(str), []);
 
   // Check if running in Expo Go
   const isExpoGo = Constants.executionEnvironment === 'storeClient';
@@ -51,13 +47,19 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
   const [showExpoGoWarning, setShowExpoGoWarning] = useState(false);
 
   // Handle scan press with Expo Go check
-  const handleScanPress = () => {
+  const handleScanPress = useCallback(() => {
     if (isExpoGo) {
       setShowExpoGoWarning(true);
       return;
     }
     onScanPress();
-  };
+  }, [isExpoGo, onScanPress]);
+
+  // Memoize computed values
+  const recentHistory = useMemo(() => history.slice(0, 3), [history]);
+
+  const hasDiscoveredServices = useMemo(() => discoveredServices.length > 0, [discoveredServices.length]);
+  const hasHistory = useMemo(() => history.length > 0, [history.length]);
 
   return (
     <View style={styles.quickConnectCard}>
@@ -85,6 +87,8 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                   isScanActive && styles.discoveryToggleActive,
                   { overflow: 'hidden', position: 'relative' },
                 ]}
+                accessibilityLabel={isScanActive ? "Stop network scan" : "Start network scan"}
+                accessibilityHint={isScanActive ? "Stop scanning for FreeShow devices on the network" : "Scan the network for available FreeShow devices"}
               >
                 {/* Progress fill overlay */}
                 {isScanActive && (
@@ -106,7 +110,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                   />
                 )}
                 {/* Icon and label */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', zIndex: 2 }}>
+                <View style={styles.discoveryToggleContent}>
                   <Ionicons
                     name={isScanActive ? 'stop' : 'search'}
                     size={16}
@@ -116,7 +120,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                     style={[
                       styles.discoveryToggleText,
                       isScanActive && styles.discoveryToggleTextActive,
-                      { marginLeft: 6 },
+                      styles.discoveryToggleTextMargin,
                     ]}
                   >
                     {isScanActive ? 'Scanning…' : 'Scan'}
@@ -124,7 +128,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                 </View>
               </TouchableOpacity>
             </View>
-            {discoveredServices.length > 0 ? (
+            {hasDiscoveredServices ? (
               <View style={styles.discoveredDevices}>
                 {discoveredServices.map((service: DiscoveredFreeShowInstance, _index: number) => {
                   const showHost = service.host && !isIpAddress(service.host);
@@ -138,6 +142,8 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                       ]}
                       onPress={() => onDiscoveredConnect(service)}
                       disabled={!hasServices}
+                      accessibilityLabel={`Connect to ${service.name || service.ip}`}
+                      accessibilityHint={hasServices ? "Tap to connect to this FreeShow device" : "This device has no available services"}
                     >
                       <View style={styles.discoveredDeviceIcon}>
                         <Ionicons 
@@ -166,7 +172,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                           {(!service.capabilities || service.capabilities.length === 0) ? (
                             <Text style={styles.capabilityBadgeDisabled}>No Services</Text>
                           ) : (
-                            <>
+                            <View style={styles.capabilityBadgesRow}>
                               {service.ports?.remote && (
                                 <Text style={styles.capabilityBadge}>Remote:{service.ports.remote}</Text>
                               )}
@@ -179,7 +185,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
                               {service.ports?.output && (
                                 <Text style={styles.capabilityBadge}>Output:{service.ports.output}</Text>
                               )}
-                            </>
+                            </View>
                           )}
                         </View>
                       </View>
@@ -213,7 +219,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
         )}
 
         {/* Recent Connections */}
-        {history.length > 0 && (
+        {hasHistory && (
           <View style={styles.recentSection}>
             <View style={styles.recentSectionHeader}>
               <View style={styles.recentTitleRow}>
@@ -229,11 +235,13 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
               </TouchableOpacity>
             </View>
             <View style={styles.recentDevices}>
-              {history.slice(0, 3).map((item: ConnectionHistory, _index: number) => (
+              {recentHistory.map((item: ConnectionHistory, _index: number) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.recentDevice}
                   onPress={() => onHistoryConnect(item)}
+                  accessibilityLabel={`Connect to ${item.nickname || item.host}`}
+                  accessibilityHint="Tap to reconnect to this previously used FreeShow device"
                 >
                   <View style={styles.recentDeviceInfo}>
                     <Text style={styles.recentDeviceIP}>{item.nickname || item.host}</Text>
@@ -279,7 +287,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = ({
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   // Quick Connect Styles
@@ -374,6 +382,14 @@ const styles = StyleSheet.create({
   discoveryToggleTextActive: {
     color: 'white',
   },
+  discoveryToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  discoveryToggleTextMargin: {
+    marginLeft: 6,
+  },
   discoveredDevices: {
     gap: FreeShowTheme.spacing.sm,
   },
@@ -451,6 +467,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
     overflow: 'hidden',
+  },
+  capabilityBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: FreeShowTheme.spacing.xs,
   },
   emptyDiscovery: {
     alignItems: 'center',

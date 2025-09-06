@@ -218,11 +218,17 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             autoCapitalize="none"
             autoCorrect={false}
             editable={!isConnected}
+            accessibilityLabel="Server address input"
+            accessibilityHint="Enter the IP address or hostname of the FreeShow server"
+            keyboardType="default"
           />
           {!isConnected && (
             <TouchableOpacity
               style={styles.inputAction}
               onPress={onShowQRScanner}
+              accessibilityRole="button"
+              accessibilityLabel="Scan QR code"
+              accessibilityHint="Open camera to scan a QR code for connection details"
             >
               <Ionicons name="qr-code-outline" size={22} color={FreeShowTheme.colors.secondary} />
             </TouchableOpacity>
@@ -234,6 +240,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
       <TouchableOpacity 
         style={styles.advancedToggle}
         onPress={() => setShowAdvanced(!showAdvanced)}
+        accessibilityRole="button"
+        accessibilityLabel={showAdvanced ? "Hide interface ports" : "Show interface ports"}
+        accessibilityHint="Toggle display of advanced port configuration options"
       >
         <Text style={styles.advancedText}>Interface Ports</Text>
         <Ionicons 
@@ -393,7 +402,13 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
       <View style={styles.actionContainer}>
         {isConnected ? (
           <View style={styles.connectedActions}>
-            <TouchableOpacity style={styles.secondaryActionButton} onPress={onShowShareQR}>
+            <TouchableOpacity 
+              style={styles.secondaryActionButton} 
+              onPress={onShowShareQR}
+              accessibilityRole="button"
+              accessibilityLabel="Share connection QR code"
+              accessibilityHint="Generate and display a QR code for sharing this connection"
+            >
               <LinearGradient
                 colors={['#4CAF50', '#388E3C']}
                 start={{ x: 0, y: 0 }}
@@ -409,6 +424,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             <TouchableOpacity
               style={styles.secondaryActionButton}
               onPress={onDisconnect}
+              accessibilityRole="button"
+              accessibilityLabel="Disconnect from server"
+              accessibilityHint="End the current connection to the FreeShow server"
             >
               <LinearGradient
                 colors={['#F44336', '#D32F2F']}
@@ -427,6 +445,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             <TouchableOpacity
               style={[styles.actionButton, styles.connectingButton]}
               onPress={onCancelConnection}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel connection attempt"
+              accessibilityHint="Stop the current connection attempt"
             >
               <LinearGradient
                 colors={['#F0008C', '#E0007A']}
@@ -443,6 +464,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             <TouchableOpacity
               style={[styles.actionButton, styles.connectButton]}
               onPress={handleConnect}
+              accessibilityRole="button"
+              accessibilityLabel="Connect to FreeShow server"
+              accessibilityHint="Attempt to connect to the FreeShow server with the entered details"
             >
               <LinearGradient
                 colors={['#F0008C', '#E0007A']}
