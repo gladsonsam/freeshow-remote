@@ -74,7 +74,7 @@ function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
       paddingTop: 4,
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 75,
+      minHeight: 80,
     }}>
       {state.routes.map((route: any, index: number) => {
         const { options } = descriptors[route.key];
@@ -114,19 +114,19 @@ function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
               flex: 1,
               justifyContent: 'center',
               alignItems: 'center',
-              paddingVertical: 8,
+              paddingVertical: 12,
             }}
           >
-            <Ionicons name={iconName} size={24} color={iconColor} />
-            <Text style={{
-              color: iconColor,
-              fontSize: 12,
-              fontWeight: '600',
-              fontFamily: FreeShowTheme.fonts.system,
-              marginTop: 2,
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: isFocused ? FreeShowTheme.colors.secondarySurface : 'transparent',
             }}>
-              {label}
-            </Text>
+              <Ionicons name={iconName} size={28} color={iconColor} />
+            </View>
           </TouchableOpacity>
         );
       })}
@@ -503,8 +503,8 @@ function FloatingNavLayout() {
           left: 24,
           right: 24,
           bottom: insets.bottom + 24,
-          height: 56,
-          borderRadius: 28,
+          height: 64,
+          borderRadius: 32,
           overflow: 'hidden',
           // Enhanced shadow for better depth
           shadowColor: '#000',
@@ -521,7 +521,7 @@ function FloatingNavLayout() {
               flexDirection: 'row',
               alignItems: 'center',
               paddingHorizontal: 6,
-              borderRadius: 28,
+              borderRadius: 32,
               borderWidth: 1,
               borderColor: 'rgba(255, 255, 255, 0.08)',
               // Inner glow effect
@@ -540,13 +540,11 @@ function FloatingNavLayout() {
                   key={route}
                   style={{
                     flex: 1,
-                    height: 44,
-                    flexDirection: 'row',
+                    height: 52,
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginHorizontal: 2,
-                    borderRadius: 22,
-                    gap: 6,
+                    borderRadius: 26,
                     backgroundColor: isFocused 
                       ? FreeShowTheme.colors.secondarySurface 
                       : 'transparent',
@@ -563,20 +561,9 @@ function FloatingNavLayout() {
                 >
                   <Ionicons 
                     name={iconName} 
-                    size={isFocused ? 22 : 20} 
+                    size={28} 
                     color={iconColor}
-                    style={{
-                      // remove glow on active icon
-                    }}
                   />
-                  <Text style={{
-                    fontSize: 12,
-                    fontWeight: '600',
-                    color: iconColor,
-                    letterSpacing: -0.2,
-                  }}>
-                    {route}
-                  </Text>
                 </TouchableOpacity>
               );
             })}

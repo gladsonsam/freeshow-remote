@@ -24,6 +24,8 @@ import CompactPopup from '../components/CompactPopup';
 import EnableInterfaceModal from '../components/EnableInterfaceModal';
 import InterfaceHeader from '../components/InterfaceHeader';
 import InterfaceCard from '../components/InterfaceCard';
+import ConnectingScreen from '../components/ConnectingScreen';
+import NotConnectedScreen from '../components/NotConnectedScreen';
 // Interface configuration methods are now available through configService
 import { useInterfaceNavigation } from '../hooks/useInterfaceNavigation';
 import { useModalState } from '../hooks/useModalState';
@@ -241,82 +243,21 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
   // Initial auto-reconnect in progress: show clean loading instead of Not Connected
   if (!isConnected && !autoConnectAttempted && (connectionStatus === 'connecting' || connectionStatus === 'disconnected' || connectionStatus === 'error')) {
     return (
-      <LinearGradient
-        colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
-        style={[styles.container, { paddingTop: insets.top }]}
-      >
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-        <Animated.View
-          style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            opacity: 1,
-            transform: [{ translateY: 0 }],
-          }}
-        >
-          <Text style={styles.loadingText}>Connecting…</Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.cancelButton,
-              pressed && styles.connectButtonPressed
-            ]}
-            onPress={cancelConnection}
-          >
-            <View style={styles.cancelButtonInner}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </View>
-          </Pressable>
-        </Animated.View>
-      </LinearGradient>
+      <ConnectingScreen 
+        onCancel={cancelConnection} 
+        connectionStatus={connectionStatus}
+        isFloatingNav={isFloatingNav}
+      />
     );
   }
 
   // Not connected state after auto-reconnect attempt is done
   if (!isConnected) {
     return (
-      <LinearGradient
-        colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
-        style={[styles.container, { paddingTop: insets.top }]}
-      >
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-        <Animated.View
-          style={[
-            styles.notConnectedContainer,
-            isFloatingNav ? { paddingBottom: 120 } : { paddingBottom: 40 },
-            {
-              opacity: 1,
-              transform: [{ translateY: 0 }],
-            }
-          ]}
-        >
-          <View style={styles.notConnectedIcon}>
-            <Ionicons name="wifi-outline" size={48} color={FreeShowTheme.colors.secondary} />
-          </View>
-
-          <Text style={styles.notConnectedTitle}>Not Connected</Text>
-          <Text style={styles.notConnectedSubtitle}>
-            Connect to FreeShow to access interfaces
-          </Text>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.connectButton,
-              pressed && styles.connectButtonPressed
-            ]}
-            onPress={navigationHandlers.navigateToConnect}
-            accessibilityRole="button"
-            accessibilityLabel="Connect to FreeShow server"
-            accessibilityHint="Navigate to connection screen to set up a new connection"
-          >
-            <View style={styles.connectButtonInner}>
-              <Ionicons name="add-circle-outline" size={20} color={FreeShowTheme.colors.textInvert} />
-              <Text style={styles.connectButtonText}>Connect to FreeShow</Text>
-            </View>
-          </Pressable>
-        </Animated.View>
-      </LinearGradient>
+      <NotConnectedScreen 
+        onNavigateToConnect={navigationHandlers.navigateToConnect}
+        isFloatingNav={isFloatingNav}
+      />
     );
   }
 
@@ -574,80 +515,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Not Connected State
-  notConnectedContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  notConnectedIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-  backgroundColor: FreeShowTheme.colors.secondary + '22',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  borderWidth: 1,
-  borderColor: FreeShowTheme.colors.secondary + '44',
-  },
-  notConnectedTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  notConnectedSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  connectButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  connectButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  connectButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 8,
-    backgroundColor: FreeShowTheme.colors.secondary,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondaryDark,
-  },
-  connectButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.textInvert,
-  },
-  cancelButton: {
-    marginTop: 24,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  cancelButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 8,
-    backgroundColor: FreeShowTheme.colors.secondary,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondaryDark,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.textInvert,
-  },
 });
 
 export default InterfaceScreen;

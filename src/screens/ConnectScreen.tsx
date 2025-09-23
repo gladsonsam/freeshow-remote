@@ -31,6 +31,7 @@ import QuickConnectSection from './ConnectScreen/QuickConnectSection';
 import ConnectionForm from './ConnectScreen/ConnectionForm';
 import HelpSection from './ConnectScreen/HelpSection';
 import EditNicknameModal from './ConnectScreen/EditNicknameModal';
+import ConnectedScreen from '../components/ConnectedScreen';
 
 interface ConnectScreenProps {
   navigation: any;
@@ -676,6 +677,20 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const isConnecting = connectionStatus === 'connecting';
 
+  // Show connected screen when connected
+  if (isConnected) {
+    return (
+      <ConnectedScreen
+        connectionName={connectionName}
+        connectionHost={connectionHost}
+        currentShowPorts={currentShowPorts}
+        onDisconnect={handleDisconnect}
+        onShowQRCode={() => setQrModalVisible(true)}
+        isFloatingNav={isFloatingNav}
+      />
+    );
+  }
+
   return (
     <LinearGradient
       colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
@@ -698,10 +713,11 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
               connectionPulse={connectionPulse}
               shouldAnimate={appLaunch.isLoading() ? false : appLaunch.shouldAnimate()}
               connectionStatus={connectionStatus}
+              currentShowPorts={currentShowPorts}
             />
 
-          {/* Quick Connect Section - Premium placement */}
-          {(history.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
+          {/* Quick Connect Section - Only show when not connected */}
+          {!isConnected && (history.length > 0 || discoveredServices.length > 0 || isDiscoveryAvailable) && (
             <QuickConnectSection
               history={history}
               discoveredServices={discoveredServices as DiscoveredFreeShowInstance[]}

@@ -11,6 +11,13 @@ interface HeaderProps {
   connectionPulse: Animated.Value;
   shouldAnimate?: boolean;
   connectionStatus?: 'connected' | 'connecting' | 'disconnected' | 'error';
+  currentShowPorts?: {
+    remote: number;
+    stage: number;
+    control: number;
+    output: number;
+    api: number;
+  };
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -20,6 +27,7 @@ const Header: React.FC<HeaderProps> = ({
   connectionPulse: _connectionPulse,
   shouldAnimate: _shouldAnimate = true,
   connectionStatus = 'disconnected',
+  currentShowPorts,
 }) => {
   const status = React.useMemo((): {
     color: string;
@@ -88,8 +96,20 @@ const Header: React.FC<HeaderProps> = ({
         <Text style={styles.subtitle}>
           {status.subtitle}
         </Text>
+        {isConnected && currentShowPorts && (
+          <View style={styles.portsContainer}>
+            {Object.entries(currentShowPorts)
+              .filter(([_, port]) => port > 0)
+              .map(([name, port]) => (
+                <View key={name} style={styles.portChip}>
+                  <Text style={styles.portChipText}>
+                    {name}: {port}
+                  </Text>
+                </View>
+              ))}
+          </View>
+        )}
       </View>
-      {/* Status pill removed per request; subtitle serves as the single status display */}
     </LinearGradient>
   );
 };
@@ -137,6 +157,26 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: FreeShowTheme.fontSize.sm,
     color: FreeShowTheme.colors.textSecondary,
+  },
+  portsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  portChip: {
+    backgroundColor: 'rgba(76,175,80,0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(76,175,80,0.3)',
+  },
+  portChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4CAF50',
+    textTransform: 'capitalize',
   },
 });
 

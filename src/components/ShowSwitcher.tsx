@@ -7,14 +7,16 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
 
-// Responsive sizing utility for ShowSwitcher
 const getResponsiveDimensions = () => {
   const { width, height } = Dimensions.get('window');
   const isTablet = Math.min(width, height) > 600;
@@ -51,7 +53,6 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
 
-  // Update dimensions when orientation changes
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', () => {
       setDimensions(getResponsiveDimensions());
@@ -60,12 +61,9 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
     return () => subscription?.remove();
   }, []);
 
-  // Memoize the default ports configuration
   const defaultPorts = useMemo(() => configService.getConfig().defaultShowPorts, []);
 
-  // Memoize show options calculation - only recalculates when showPorts changes
   const showOptions = useMemo((): ShowOption[] => {
-    // Use provided show ports or fall back to defaults
     const actualPorts = showPorts || defaultPorts;
 
     return [
@@ -112,14 +110,11 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
     ];
   }, [showPorts, defaultPorts]);
 
-  // Memoize current show lookup - only recalculates when showOptions or currentShowId changes
   const currentShow = useMemo(() => {
     return showOptions.find(show => show.id === currentShowId);
   }, [showOptions, currentShowId]);
 
-  // Memoize event handlers to prevent prop drilling and unnecessary re-renders
   const handleShowSelect = useCallback((show: ShowOption) => {
-    ErrorLogger.debug('ShowSwitcher - handleShowSelect called with', 'ShowSwitcher', { show });
     setModalVisible(false);
     onShowSelect(show);
   }, [onShowSelect]);
@@ -221,60 +216,98 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                 ]}>
                   Current
                 </Text>
-                <View
-                  style={[
-                    styles.showItem,
-                    styles.showItemSurface,
-                    {
-                      borderLeftColor: currentShow.color,
-                      padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
-                      marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                      gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                      minHeight: dimensions.isTablet ? 72 : 56,
-                    }
-                  ]}
-                >
-                  <View style={[
-                    styles.iconContainer,
-                    {
-                      backgroundColor: currentShow.color + '15',
-                      width: dimensions.isTablet ? 48 : 40,
-                      height: dimensions.isTablet ? 48 : 40,
-                    }
-                  ]}>
-                    <Ionicons
-                      name={currentShow.icon as any}
-                      size={dimensions.isTablet ? 28 : 24}
-                      color={currentShow.color}
-                    />
-                  </View>
-                  <View style={styles.showInfo}>
-                    <Text style={[
-                      styles.showTitle,
-                      { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
-                    ]}>
-                      {currentShow.title}
-                    </Text>
-                    <Text style={[
-                      styles.showDescription,
-                      { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs }
-                    ]}>
-                      {currentShow.description}
-                    </Text>
-                  </View>
-                  {currentShow.port > 0 && (
-                    <View style={[
-                      styles.portBadge,
-                      { marginRight: FreeShowTheme.spacing.sm }
-                    ]}>
-                      <Text style={styles.portText}>{currentShow.port}</Text>
-                    </View>
-                  )}
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={dimensions.isTablet ? 24 : 20}
-                    color={currentShow.color}
-                  />
+                <View style={[
+                  styles.showCard,
+                  {
+                    marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                  }
+                ]}>
+                  <LinearGradient
+                    colors={[
+                      `${currentShow.color}12`,
+                      `${currentShow.color}08`
+                    ]}
+                    style={styles.showCardGradient}
+                  >
+                        {Platform.OS === 'ios' ? (
+                          <BlurView intensity={15} style={[
+                            styles.showCardBlur,
+                            styles.compactCard,
+                            { padding: FreeShowTheme.spacing.md }
+                          ]}>
+                            <View style={styles.compactCardContent}>
+                              <View style={[
+                                styles.showIconContainer,
+                                styles.compactIcon,
+                                { backgroundColor: currentShow.color + '20' }
+                              ]}>
+                                <Ionicons
+                                  name={currentShow.icon as any}
+                                  size={20}
+                                  color={currentShow.color}
+                                />
+                              </View>
+                              <View style={styles.compactInfo}>
+                                <Text style={[styles.compactTitle, { color: currentShow.color }]}>
+                                  {currentShow.title}
+                                </Text>
+                              </View>
+                              <View style={styles.compactActions}>
+                                {currentShow.port > 0 && (
+                                  <View style={styles.compactPortBadge}>
+                                    <Text style={styles.compactPortText}>{currentShow.port}</Text>
+                                  </View>
+                                )}
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={18}
+                                  color={currentShow.color}
+                                />
+                              </View>
+                            </View>
+                          </BlurView>
+                        ) : (
+                          <View style={[
+                            styles.showCardContent,
+                            styles.compactCard,
+                            { 
+                              padding: FreeShowTheme.spacing.md,
+                              backgroundColor: 'rgba(255,255,255,0.03)'
+                            }
+                          ]}>
+                            <View style={styles.compactCardContent}>
+                              <View style={[
+                                styles.showIconContainer,
+                                styles.compactIcon,
+                                { backgroundColor: currentShow.color + '20' }
+                              ]}>
+                                <Ionicons
+                                  name={currentShow.icon as any}
+                                  size={20}
+                                  color={currentShow.color}
+                                />
+                              </View>
+                              <View style={styles.compactInfo}>
+                                <Text style={[styles.compactTitle, { color: currentShow.color }]}>
+                                  {currentShow.title}
+                                </Text>
+                              </View>
+                              <View style={styles.compactActions}>
+                                {currentShow.port > 0 && (
+                                  <View style={styles.compactPortBadge}>
+                                    <Text style={styles.compactPortText}>{currentShow.port}</Text>
+                                  </View>
+                                )}
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={18}
+                                  color={currentShow.color}
+                                />
+                              </View>
+                            </View>
+                          </View>
+                        )}
+                  </LinearGradient>
                 </View>
               </View>
             )}
@@ -298,69 +331,104 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
                   if (show.id === currentShowId) return null;
                   
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={show.id}
                       onPress={() => handleShowSelect(show)}
-                      activeOpacity={1.0}
-                      style={{
-                        marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                      }}
+                      style={({ pressed }) => [
+                        styles.showCard,
+                        {
+                          marginBottom: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
+                          transform: pressed ? [{ scale: 0.98 }] : [{ scale: 1 }],
+                        }
+                      ]}
                     >
-                      <View
-                        style={[
-                          styles.showItem,
-                          styles.showItemSurface,
-                          {
-                            borderLeftColor: show.color,
-                            padding: dimensions.isTablet ? FreeShowTheme.spacing.lg : FreeShowTheme.spacing.md,
-                            gap: dimensions.isTablet ? FreeShowTheme.spacing.md : FreeShowTheme.spacing.sm,
-                            minHeight: dimensions.isTablet ? 72 : 56,
-                          }
+                      <LinearGradient
+                        colors={[
+                          `${show.color}10`,
+                          `${show.color}05`
                         ]}
+                        style={styles.showCardGradient}
                       >
-                        <View style={[
-                          styles.iconContainer,
-                          {
-                            backgroundColor: show.color + '15',
-                            width: dimensions.isTablet ? 48 : 40,
-                            height: dimensions.isTablet ? 48 : 40,
-                          }
-                        ]}>
-                          <Ionicons
-                            name={show.icon as any}
-                            size={dimensions.isTablet ? 28 : 24}
-                            color={show.color}
-                          />
-                        </View>
-                        <View style={styles.showInfo}>
-                          <Text style={[
-                            styles.showTitle,
-                            { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.lg : FreeShowTheme.fontSize.md }
+                        {Platform.OS === 'ios' ? (
+                          <BlurView intensity={15} style={[
+                            styles.showCardBlur,
+                            styles.compactCard,
+                            { padding: FreeShowTheme.spacing.md }
                           ]}>
-                            {show.title}
-                          </Text>
-                          <Text style={[
-                            styles.showDescription,
-                            { fontSize: dimensions.isTablet ? FreeShowTheme.fontSize.sm : FreeShowTheme.fontSize.xs }
-                          ]}>
-                            {show.description}
-                          </Text>
-                        </View>
-                        {show.port > 0 && (
+                            <View style={styles.compactCardContent}>
+                              <View style={[
+                                styles.showIconContainer,
+                                styles.compactIcon,
+                                { backgroundColor: show.color + '15' }
+                              ]}>
+                                <Ionicons
+                                  name={show.icon as any}
+                                  size={20}
+                                  color={show.color}
+                                />
+                              </View>
+                              <View style={styles.compactInfo}>
+                                <Text style={styles.compactTitle}>
+                                  {show.title}
+                                </Text>
+                              </View>
+                              <View style={styles.compactActions}>
+                                {show.port > 0 && (
+                                  <View style={styles.compactPortBadge}>
+                                    <Text style={styles.compactPortText}>{show.port}</Text>
+                                  </View>
+                                )}
+                                <Ionicons
+                                  name="chevron-forward"
+                                  size={16}
+                                  color={FreeShowTheme.colors.text + '66'}
+                                />
+                              </View>
+                            </View>
+                          </BlurView>
+                        ) : (
                           <View style={[
-                            styles.portBadge,
-                            { marginRight: FreeShowTheme.spacing.sm }
+                            styles.showCardContent,
+                            styles.compactCard,
+                            { 
+                              padding: FreeShowTheme.spacing.md,
+                              backgroundColor: 'rgba(255,255,255,0.02)'
+                            }
                           ]}>
-                            <Text style={styles.portText}>{show.port}</Text>
+                            <View style={styles.compactCardContent}>
+                              <View style={[
+                                styles.showIconContainer,
+                                styles.compactIcon,
+                                { backgroundColor: show.color + '15' }
+                              ]}>
+                                <Ionicons
+                                  name={show.icon as any}
+                                  size={20}
+                                  color={show.color}
+                                />
+                              </View>
+                              <View style={styles.compactInfo}>
+                                <Text style={styles.compactTitle}>
+                                  {show.title}
+                                </Text>
+                              </View>
+                              <View style={styles.compactActions}>
+                                {show.port > 0 && (
+                                  <View style={styles.compactPortBadge}>
+                                    <Text style={styles.compactPortText}>{show.port}</Text>
+                                  </View>
+                                )}
+                                <Ionicons
+                                  name="chevron-forward"
+                                  size={16}
+                                  color={FreeShowTheme.colors.text + '66'}
+                                />
+                              </View>
+                            </View>
                           </View>
                         )}
-                        <Ionicons
-                          name="chevron-forward"
-                          size={dimensions.isTablet ? 20 : 16}
-                          color={FreeShowTheme.colors.text + '66'}
-                        />
-                      </View>
-                    </TouchableOpacity>
+                      </LinearGradient>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -377,20 +445,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    // marginHorizontal and gap now handled dynamically
   },
   title: {
     fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    // fontSize now handled dynamically
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    // padding now handled dynamically
   },
   backgroundTouchable: {
     position: 'absolute',
@@ -405,7 +470,6 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
-    // maxWidth, minHeight, borderRadius now handled dynamically
   },
   modalHeader: {
     flexDirection: 'row',
@@ -413,89 +477,123 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
-    // padding now handled dynamically
   },
   modalTitle: {
     fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
-    // fontSize now handled dynamically
   },
-  closeButton: {
-    // padding now handled dynamically
-  },
-  currentShowSection: {
-    // padding now handled dynamically
-  },
-  otherShowsSection: {
-    // padding now handled dynamically
-  },
+  closeButton: {},
+  currentShowSection: {},
+  otherShowsSection: {},
   sectionTitle: {
     fontWeight: '600',
     color: FreeShowTheme.colors.text + 'CC',
     fontFamily: FreeShowTheme.fonts.system,
     marginBottom: FreeShowTheme.spacing.sm,
     textTransform: 'uppercase',
-    // fontSize now handled dynamically
   },
-  showsList: {
-    // No max height needed since we removed scrolling
+  showsList: {},
+  showCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  showItem: {
+  showCardGradient: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  showCardBlur: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  showCardContent: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  showCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  showCardBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: FreeShowTheme.borderRadius.md,
-    borderLeftWidth: 3,
-    overflow: 'hidden', // Ensure gradient fills the entire item
-    // padding, marginBottom, gap, minHeight now handled dynamically
+    justifyContent: 'space-between',
   },
-  showItemSurface: {
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  portBadge: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  portText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '500',
-  },
-  iconContainer: {
-    borderRadius: FreeShowTheme.borderRadius.sm,
+  showIconContainer: {
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    // width, height now handled dynamically
   },
   showInfo: {
     flex: 1,
   },
-  showTitle: {
+  modernShowTitle: {
     fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-    fontFamily: FreeShowTheme.fonts.system,
+    color: 'white',
     marginBottom: 2,
-    // fontSize now handled dynamically
+    letterSpacing: -0.1,
   },
-  showDescription: {
-    color: FreeShowTheme.colors.text + '99',
-    fontFamily: FreeShowTheme.fonts.system,
-    // fontSize now handled dynamically
+  modernShowDescription: {
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 16,
+  },
+  modernPortBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  modernPortText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
+  },
+  currentIndicator: {
+    marginLeft: 8,
+  },
+  compactCard: {
+    height: 60,
+  },
+  compactCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    height: '100%',
+  },
+  compactIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  compactInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  compactTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    letterSpacing: -0.1,
+  },
+  compactActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactPortBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  compactPortText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
 });
 
