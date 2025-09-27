@@ -7,6 +7,7 @@ import { IFreeShowService } from '../services/interfaces/IFreeShowService';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { settingsRepository } from '../repositories';
 import { configService } from '../config/AppConfig';
+import { InterfacePingService } from '../services/InterfacePingService';
 
 export interface ConnectionState {
   isConnected: boolean;
@@ -227,7 +228,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     };
     
     const performAutoReconnect = async (lastConnection: any, isMounted: boolean) => {
-      const { InterfacePingService } = await import('../services/InterfacePingService');
       const pingService = new InterfacePingService();
       
       const hasSavedPorts = Object.values(lastConnection.showPorts).some((port: any) => typeof port === 'number' && port > 0);
@@ -535,7 +535,6 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       });
 
       // Validate interface ports first
-      const { InterfacePingService } = await import('../services/InterfacePingService');
       const pingService = new InterfacePingService();
       const validation = await pingService.validateInterfacePorts(host, desiredPorts);
       
