@@ -128,9 +128,11 @@ const Header: React.FC<HeaderProps> = ({
                 {status.label}
               </Text>
             </View>
-            <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet, isTablet && styles.connectionNameTabletLarge]}>
-              {connectionName || connectionHost || 'Not connected'}
-            </Text>
+            {(connectionStatus === 'connected' || isConnected) && (
+              <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet, isTablet && styles.connectionNameTabletLarge]}>
+                {connectionName || connectionHost || 'Connected'}
+              </Text>
+            )}
             {isConnected && currentShowPorts && (
               <View style={styles.portsContainer}>
                 {Object.entries(currentShowPorts)
