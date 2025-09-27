@@ -2,7 +2,7 @@
   "expo": {
     "name": "FreeShow Remote",
     "slug": "freeshow-remote",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -33,7 +33,7 @@
           "NSAllowsArbitraryLoads": true
         },
         "CFBundleDisplayName": "FreeShow Remote",
-        "CFBundleShortVersionString": "1.0.1",
+        "CFBundleShortVersionString": "1.0.2",
         "CFBundleVersion": "1",
         "UIStatusBarHidden": false,
         "UIViewControllerBasedStatusBarAppearance": true,
