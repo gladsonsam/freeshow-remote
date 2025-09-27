@@ -88,6 +88,8 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
 
   const { qrSize, modalMaxWidth, isTablet } = dimensions;
 
+  console.log('ShareQRModal render:', { visible, host, port, payload: JSON.stringify(payload) });
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalOverlay}>

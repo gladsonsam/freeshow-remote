@@ -492,6 +492,7 @@ const styles = StyleSheet.create({
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
     padding: FreeShowTheme.spacing.xl,
+    marginTop: 0, // Remove default margin since spacing is handled by parent
     marginBottom: FreeShowTheme.spacing.lg,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,

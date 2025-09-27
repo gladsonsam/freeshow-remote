@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable, Platform, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
@@ -17,7 +17,8 @@ interface HeaderProps {
     control: number;
     output: number;
     api: number;
-  };
+  } | null;
+  onDisconnect?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -28,6 +29,7 @@ const Header: React.FC<HeaderProps> = ({
   shouldAnimate: _shouldAnimate = true,
   connectionStatus = 'disconnected',
   currentShowPorts,
+  onDisconnect,
 }) => {
   const status = React.useMemo((): {
     color: string;
@@ -77,86 +79,172 @@ const Header: React.FC<HeaderProps> = ({
     };
   }, [connectionStatus, isConnected, connectionName, connectionHost]);
 
+  const screenWidth = Dimensions.get('window').width;
+  const isTablet = screenWidth >= 768;
+
   return (
-    <LinearGradient
-      colors={['rgba(20,20,30,0.95)', 'rgba(15,15,24,0.98)']}
-      style={styles.card}
-    >
-      <View style={styles.left}>
-        <View style={[styles.logoContainer, { borderColor: status.color }]}>
-          <Image
-            source={require('../../../assets/icon.png')}
-            style={styles.logoImage}
-            resizeMode="cover"
-          />
+    <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 10 : 20 }]}>
+      <View style={styles.headerTop}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.title, isTablet && styles.titleTablet]}>FreeShow Remote</Text>
         </View>
-      </View>
-      <View style={styles.center}>
-        <Text style={styles.appTitle}>FreeShow Remote</Text>
-        <Text style={styles.subtitle}>
-          {status.subtitle}
-        </Text>
-        {isConnected && currentShowPorts && (
-          <View style={styles.portsContainer}>
-            {Object.entries(currentShowPorts)
-              .filter(([_, port]) => port > 0)
-              .map(([name, port]) => (
-                <View key={name} style={styles.portChip}>
-                  <Text style={styles.portChipText}>
-                    {name}: {port}
-                  </Text>
-                </View>
-              ))}
-          </View>
+
+        {onDisconnect && isConnected && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.profileButton,
+              pressed && styles.profileButtonPressed
+            ]}
+            onPress={onDisconnect}
+          >
+            <LinearGradient
+              colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+              style={styles.profileButtonGradient}
+            >
+              <Ionicons name="log-out-outline" size={isTablet ? 20 : 18} color="white" />
+            </LinearGradient>
+          </Pressable>
         )}
       </View>
-    </LinearGradient>
+
+      {/* Connection Status Card */}
+      <View style={styles.connectionCard}>
+        <LinearGradient
+          colors={
+            connectionStatus === 'connected' || isConnected
+              ? ['rgba(76, 175, 80, 0.08)', 'rgba(76, 175, 80, 0.04)']
+              : connectionStatus === 'connecting'
+              ? ['rgba(255, 152, 0, 0.08)', 'rgba(255, 152, 0, 0.04)']
+              : connectionStatus === 'error'
+              ? ['rgba(239, 83, 80, 0.08)', 'rgba(239, 83, 80, 0.04)']
+              : ['rgba(102, 102, 102, 0.08)', 'rgba(102, 102, 102, 0.04)']
+          }
+          style={[styles.connectionCardGradient, isTablet && styles.connectionCardGradientTablet]}
+        >
+          <View style={styles.connectionInfo}>
+            <View style={styles.connectionStatus}>
+              <View style={[styles.statusIndicator, { backgroundColor: status.color }]} />
+              <Text style={[styles.connectionLabel, isTablet && styles.connectionLabelTablet]}>
+                {status.label}
+              </Text>
+            </View>
+            <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet, isTablet && styles.connectionNameTabletLarge]}>
+              {connectionName || connectionHost || 'Not connected'}
+            </Text>
+            {isConnected && currentShowPorts && (
+              <View style={styles.portsContainer}>
+                {Object.entries(currentShowPorts)
+                  .filter(([_, port]) => port > 0)
+                  .map(([name, port]) => (
+                    <View key={name} style={styles.portChip}>
+                      <Text style={styles.portChipText}>
+                        {name}: {port}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+            )}
+          </View>
+          <View style={styles.connectionIcon}>
+            <Ionicons name={status.icon} size={20} color={status.color} />
+          </View>
+        </LinearGradient>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
+  header: {
+    paddingHorizontal: 0, // Remove padding to inherit from parent container
+    paddingBottom: 12,
+  },
+  headerTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    borderRadius: FreeShowTheme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: FreeShowTheme.spacing.lg,
+    marginBottom: 12,
   },
-  left: {
-    marginRight: FreeShowTheme.spacing.md,
+  headerLeft: {
+    flex: 1,
   },
-  logoContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: 'white',
+    letterSpacing: -0.5,
+  },
+  titleTablet: {
+    fontSize: 34,
+  },
+  profileButton: {
+    borderRadius: 12,
     overflow: 'hidden',
   },
-  logoImage: {
+  profileButtonPressed: {
+    transform: [{ scale: 0.95 }],
+  },
+  profileButtonGradient: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  center: {
+
+  // Connection Card
+  connectionCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  connectionCardGradient: {
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.08)',
+  },
+  connectionCardGradientTablet: {
+    padding: 18,
+  },
+  connectionInfo: {
     flex: 1,
-    minWidth: 0,
   },
-  appTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '700',
-    color: FreeShowTheme.colors.text,
-    letterSpacing: 0.2,
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  subtitle: {
-    marginTop: 2,
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  connectionLabel: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
+  },
+  connectionLabelTablet: {
+    fontSize: 16,
+  },
+  connectionName: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+  },
+  connectionNameTablet: {
+    fontSize: 22,
+  },
+  connectionNameTabletLarge: {
+    fontSize: 26,
+  },
+  connectionIcon: {
+    marginLeft: 16,
   },
   portsContainer: {
     flexDirection: 'row',

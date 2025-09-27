@@ -8,6 +8,7 @@ import {
   Linking,
   TouchableWithoutFeedback,
   Dimensions,
+  Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -533,6 +534,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: FreeShowTheme.spacing.md,
     paddingVertical: FreeShowTheme.spacing.sm,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,

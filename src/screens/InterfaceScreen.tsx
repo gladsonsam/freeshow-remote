@@ -5,12 +5,10 @@ import {
   StyleSheet,
   Animated,
   StatusBar,
-  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
 
@@ -20,6 +18,7 @@ import { configService } from '../config/AppConfig';
 import { ErrorLogger } from '../services/ErrorLogger';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
+import { FreeShowTheme } from '../theme/FreeShowTheme';
 import CompactPopup from '../components/CompactPopup';
 import EnableInterfaceModal from '../components/EnableInterfaceModal';
 import InterfaceHeader from '../components/InterfaceHeader';
@@ -30,7 +29,6 @@ import NotConnectedScreen from '../components/NotConnectedScreen';
 import { useInterfaceNavigation } from '../hooks/useInterfaceNavigation';
 import { useModalState } from '../hooks/useModalState';
 import { useAppLaunch } from '../hooks/useAppLaunch';
-import { FreeShowTheme } from '../theme/FreeShowTheme';
 
 interface InterfaceScreenProps {
   navigation: any;
@@ -432,10 +430,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.lg,
     paddingBottom: 40, // Space for bottom bar navigation
   },
   contentWithFloatingNav: {
     flex: 1,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.lg,
     paddingBottom: 120, // More space for floating nav
   },
   
@@ -444,7 +446,7 @@ const styles = StyleSheet.create({
   // Interfaces Section
   interfacesSection: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     justifyContent: 'space-between',
   },
   // (removed tablet offset) 

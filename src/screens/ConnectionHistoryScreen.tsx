@@ -7,6 +7,7 @@ import {
   ScrollView,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -368,6 +369,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: FreeShowTheme.spacing.lg,
     paddingVertical: FreeShowTheme.spacing.md,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
   },

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -601,6 +602,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: FreeShowTheme.spacing.md,
     paddingVertical: FreeShowTheme.spacing.sm,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,

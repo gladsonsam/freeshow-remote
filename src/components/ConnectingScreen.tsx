@@ -6,7 +6,6 @@ import {
   Animated,
   StatusBar,
   Pressable,
-  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';

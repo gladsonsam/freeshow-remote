@@ -53,6 +53,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const [showEditNickname, setShowEditNickname] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionHistory | null>(null);
   const [editNicknameText, setEditNicknameText] = useState('');
+  const [showQrModalVisible, setShowQrModalVisible] = useState(false);
   const [connectionPulse] = useState(new Animated.Value(1));
   const [animatedScanProgress] = useState(new Animated.Value(0));
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
@@ -685,7 +686,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         connectionHost={connectionHost}
         currentShowPorts={currentShowPorts}
         onDisconnect={handleDisconnect}
-        onShowQRCode={() => setQrModalVisible(true)}
+        onShowQRCode={() => setShowQrModalVisible(true)}
         isFloatingNav={isFloatingNav}
       />
     );
@@ -781,6 +782,13 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           visible={showShareQR}
           onClose={() => setShowShareQR(false)}
           host={host}
+          port={String(configService.getNetworkConfig().defaultPort)}
+        />
+
+        <ShareQRModal
+          visible={showQrModalVisible}
+          onClose={() => setShowQrModalVisible(false)}
+          host={connectionHost || host}
           port={String(configService.getNetworkConfig().defaultPort)}
         />
 

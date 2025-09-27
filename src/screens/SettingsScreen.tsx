@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,9 +37,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [navigationLayout, setNavigationLayout] = useState<'bottomBar' | 'sidebar' | 'floating'>(settings?.navigationLayout || 'bottomBar');
   const [keepAwake, setKeepAwake] = useState(settings?.keepAwake || false);
   const [showLaunchPicker, setShowLaunchPicker] = useState(false);
-
-
-
 
   const showOptions: ShowOption[] = [
     {
@@ -178,22 +176,13 @@ const handleKeepAwakeToggle = async (value: boolean) => {
             bounces={false}
           >
             {/* Header */}
-            <LinearGradient
-              colors={['rgba(20,20,30,0.95)', 'rgba(15,15,24,0.98)']}
-              style={styles.headerCard}
-            >
-              <View style={styles.headerLeft}>
-                <View style={styles.headerLeftIcon}>
-                  <Ionicons name="settings" size={22} color={FreeShowTheme.colors.secondary} />
+            <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 10 : 20 }]}>
+              <View style={styles.headerTop}>
+                <View style={styles.headerLeft}>
+                  <Text style={[styles.title, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Settings</Text>
                 </View>
               </View>
-              <View style={styles.headerCenter}>
-                <Text style={styles.headerTitle}>Settings</Text>
-                <Text style={styles.headerSubtitle}>
-                  Configure your FreeShow Remote preferences
-                </Text>
-              </View>
-            </LinearGradient>
+            </View>
 
             {/* Settings Card */}
             <View style={styles.settingsCard}>
@@ -429,7 +418,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
             </View>
 
             {/* Connection History Section */}
-            <View style={styles.infoCard}>
+            <View style={styles.settingsCard}>
               <TouchableOpacity
                 style={styles.settingItem}
                 onPress={() => navigation.navigate('ConnectionHistory')}
@@ -460,7 +449,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
             </View>
 
             {/* About Section */}
-            <View style={styles.infoCard}>
+            <View style={styles.settingsCard}>
               <TouchableOpacity
                 style={styles.settingItem}
                 onPress={() => navigation.navigate('About')}
@@ -563,54 +552,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: FreeShowTheme.spacing.md,
-    paddingTop: FreeShowTheme.spacing.md,
+    padding: FreeShowTheme.spacing.lg,
+    paddingBottom: FreeShowTheme.spacing.xxxl,
     flexGrow: 1,
   },
   scrollContentWithFloatingNav: {
-    padding: FreeShowTheme.spacing.md,
-    paddingTop: FreeShowTheme.spacing.md,
+    padding: FreeShowTheme.spacing.lg,
     paddingBottom: FreeShowTheme.spacing.xxxl * 3, // Extra space for floating nav
     flexGrow: 1,
   },
-  headerCard: {
+  header: {
+    paddingHorizontal: 0, // Remove padding to inherit from parent container
+    paddingBottom: 12,
+  },
+  headerTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: FreeShowTheme.spacing.lg,
+    marginBottom: 12,
   },
   headerLeft: {
-    marginRight: FreeShowTheme.spacing.md,
-  },
-  headerLeftIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
     flex: 1,
-    minWidth: 0,
   },
-  headerTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
+  title: {
+    fontSize: 28,
     fontWeight: '700',
-    color: FreeShowTheme.colors.text,
-    letterSpacing: 0.2,
+    color: 'white',
+    letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    marginTop: 2,
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
+  titleTablet: {
+    fontSize: 34,
   },
+
   settingsCard: {
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: 16,
@@ -627,26 +600,6 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 4,
-      },
-    }),
-  },
-  infoCard: {
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: 16,
-    padding: FreeShowTheme.spacing.md + 4,
-    marginBottom: FreeShowTheme.spacing.sm,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter + '30',
-    borderStyle: 'dashed',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 2,
       },
     }),
   },

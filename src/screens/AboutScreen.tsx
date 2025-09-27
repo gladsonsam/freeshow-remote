@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Linking,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -176,6 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: FreeShowTheme.spacing.lg,
     paddingVertical: FreeShowTheme.spacing.md,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
   },

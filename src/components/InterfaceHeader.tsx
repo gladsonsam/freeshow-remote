@@ -10,7 +10,7 @@ interface InterfaceHeaderProps {
 }
 
 /**
- * Header component for the modern interface screen
+ * Header component for the interface screen
  * Displays connection status and disconnect button
  */
 const InterfaceHeader: React.FC<InterfaceHeaderProps> = ({
@@ -70,7 +70,7 @@ const InterfaceHeader: React.FC<InterfaceHeaderProps> = ({
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     paddingBottom: 12,
   },
   headerTop: {

@@ -294,6 +294,7 @@ const styles = StyleSheet.create({
   quickConnectCard: {
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderRadius: FreeShowTheme.borderRadius.lg,
+    marginTop: 0, // Remove default margin since spacing is handled by parent
     marginBottom: FreeShowTheme.spacing.lg,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.secondary + '40',

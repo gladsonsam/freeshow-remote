@@ -5,13 +5,15 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// Removed safe-area top padding to match other screens' header positioning
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Platform } from 'react-native';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ConnectedScreenProps {
   connectionName: string | null;
@@ -317,11 +319,12 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.screenTitle}>Connection Status</Text>
-          <Text style={styles.screenSubtitle}>
-            Manage your FreeShow connection
-          </Text>
+        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 10 : 20 }] }>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <Text style={[styles.screenTitle, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Connection Status</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.cardsContainer}>
@@ -342,23 +345,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: FreeShowTheme.spacing.lg,
   },
   header: {
-    marginBottom: 24,
+    paddingHorizontal: 0,
+    paddingBottom: 12,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
   },
   screenTitle: {
     fontSize: 28,
     fontWeight: '700',
     color: 'white',
     marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  titleTablet: {
+    fontSize: 34,
   },
   screenSubtitle: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.7)',
   },
   cardsContainer: {
-    gap: 16,
+    gap: FreeShowTheme.spacing.lg,
   },
   
   // Connection Info Card

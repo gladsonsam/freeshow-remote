@@ -14,7 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ShowOption } from '../types';
-import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
 
 const getResponsiveDimensions = () => {
@@ -66,7 +65,7 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
   const showOptions = useMemo((): ShowOption[] => {
     const actualPorts = showPorts || defaultPorts;
 
-    return [
+    const allOptions = [
       {
         id: 'remote',
         title: 'RemoteShow',
@@ -108,6 +107,9 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
         color: '#B10DC9',
       },
     ];
+
+    // Filter out disabled interfaces (those with port <= 0)
+    return allOptions.filter(option => option.port && option.port > 0);
   }, [showPorts, defaultPorts]);
 
   const currentShow = useMemo(() => {
@@ -531,23 +533,23 @@ const styles = StyleSheet.create({
   showInfo: {
     flex: 1,
   },
-  modernShowTitle: {
+  showTitle: {
     fontWeight: '600',
     color: 'white',
     marginBottom: 2,
     letterSpacing: -0.1,
   },
-  modernShowDescription: {
+  showDescription: {
     color: 'rgba(255,255,255,0.6)',
     lineHeight: 16,
   },
-  modernPortBadge: {
+  portBadge: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
-  modernPortText: {
+  portText: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',

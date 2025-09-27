@@ -33,7 +33,7 @@ const Stack = createStackNavigator();
 // Create navigation ref at module level for use in layout components
 const navigationRef = createNavigationContainerRef();
 
-// Screen components wrapped with error boundaries
+// Screen components with error boundaries
 const InterfaceScreenComponent = (props: any) => (
   <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('InterfaceScreen Error', 'App', error, { errorInfo })}>
     <InterfaceScreen {...props} />
@@ -52,14 +52,13 @@ const SettingsScreenWrapped = (props: any) => (
   </ErrorBoundary>
 );
 
-// TypeScript interfaces for better type safety
 interface TabBarProps {
   state: any;
   descriptors: any;
   navigation: any;
 }
 
-// Custom Tab Bar Component that handles safe area insets
+// Custom Tab Bar Component
 function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { state: connectionState } = useConnection();
@@ -114,18 +113,22 @@ function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
               flex: 1,
               justifyContent: 'center',
               alignItems: 'center',
-              paddingVertical: 12,
+              paddingVertical: 8,
             }}
           >
             <View style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: isFocused ? FreeShowTheme.colors.secondarySurface : 'transparent',
             }}>
-              <Ionicons name={iconName} size={28} color={iconColor} />
+              <Ionicons name={iconName} size={24} color={iconColor} />
+              <Text style={{
+                color: iconColor,
+                fontSize: 12,
+                marginTop: 4,
+                fontWeight: isFocused ? '600' : '400',
+              }}>
+                {label}
+              </Text>
             </View>
           </TouchableOpacity>
         );
@@ -134,7 +137,6 @@ function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
   );
 }
 
-// Bottom Tab Navigator
 function BottomTabsLayout() {
   const autoConnectExpected = useAutoConnectExpected();
 
@@ -188,15 +190,8 @@ function BottomTabsLayout() {
   );
 }
 
-// Define route types to prevent navigation issues
-// 
-// SIDEBAR_ROUTES: Routes that are handled within the sidebar navigation system
-// These routes replace the main content area when using sidebar layout
+// Route definitions for sidebar navigation
 const SIDEBAR_ROUTES = ['Interface', 'Connect', 'Settings'];
-
-// EXTERNAL_ROUTES: Routes that should use the main navigation stack
-// These are typically modal screens, overlays, or screens that exist outside the main app flow
-// When adding new screens, add them here if they should be accessible from sidebar layout
 const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'ConnectionHistory', 'About', 'Main'];
 
 // Sidebar Layout with content area

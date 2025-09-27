@@ -30,14 +30,17 @@ const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({
   return (
     <LinearGradient
       colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={styles.container}
     >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <Animated.View
         style={[
           styles.notConnectedContainer,
-          isFloatingNav ? { paddingBottom: 120 } : { paddingBottom: 40 },
+          { 
+            paddingTop: insets.top,
+            paddingBottom: isFloatingNav ? 120 : 40,
+          },
           {
             opacity: 1,
             transform: [{ translateY: 0 }],
@@ -70,7 +73,6 @@ const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({
             style={styles.connectButtonGradient}
           >
             <View style={styles.connectButtonInner}>
-              <Ionicons name="wifi" size={22} color="white" />
               <Text style={styles.connectButtonText}>Connect to FreeShow</Text>
             </View>
           </LinearGradient>
@@ -142,7 +144,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
     paddingVertical: 18,
-    gap: 12,
   },
   connectButtonText: {
     fontSize: 17,

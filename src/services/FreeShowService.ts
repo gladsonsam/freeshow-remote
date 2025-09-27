@@ -1,4 +1,4 @@
-// Refactored FreeShowService without dependency injection
+// FreeShowService implementation
 
 import { Socket } from 'socket.io-client';
 import { 
@@ -40,7 +40,7 @@ export class FreeShowNetworkError extends Error {
 }
 
 /**
- * FreeShow service without dependency injection
+ * FreeShow service implementation
  */
 export class FreeShowService implements IFreeShowService {
   private socket: Socket | null = null;

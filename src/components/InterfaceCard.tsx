@@ -13,7 +13,7 @@ interface InterfaceCardProps {
 }
 
 /**
- * Individual interface card component for the modern interface screen
+ * Individual interface card component
  */
 const InterfaceCard: React.FC<InterfaceCardProps> = ({
   show,
