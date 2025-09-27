@@ -14,8 +14,8 @@
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#FFFFFF"
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0f"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -23,6 +23,11 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0a0a0f"
+      },
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -54,6 +59,11 @@
       "icon": "./assets/icon.png",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": true,
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0a0a0f"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.INTERNET",
