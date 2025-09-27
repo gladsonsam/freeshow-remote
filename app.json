@@ -14,7 +14,7 @@
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#0a0a0f"
     },
     "assetBundlePatterns": [
@@ -25,7 +25,7 @@
       "requireFullScreen": false,
       "splash": {
         "image": "./assets/splash-icon.png",
-        "resizeMode": "contain",
+        "resizeMode": "cover",
         "backgroundColor": "#0a0a0f"
       },
       "infoPlist": {
@@ -61,7 +61,7 @@
       "predictiveBackGestureEnabled": true,
       "splash": {
         "image": "./assets/splash-icon.png",
-        "resizeMode": "contain",
+        "resizeMode": "cover",
         "backgroundColor": "#0a0a0f"
       },
       "permissions": [
