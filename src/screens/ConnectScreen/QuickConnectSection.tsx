@@ -45,20 +45,74 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
 
   // Modal state
   const [showExpoGoWarning, setShowExpoGoWarning] = useState(false);
+  // Expo Go mock discovery state
+  const [isMockScanActive, setIsMockScanActive] = useState(false);
+  const [mockedServices, setMockedServices] = useState<DiscoveredFreeShowInstance[]>([]);
+  const [showExpoMockNotice, setShowExpoMockNotice] = useState(false);
 
   // Handle scan press with Expo Go check
   const handleScanPress = useCallback(() => {
     if (isExpoGo) {
-      setShowExpoGoWarning(true);
+      // Simulate discovery results in Expo Go
+      setShowExpoMockNotice(true);
+      setIsMockScanActive(true);
+      const defaultPort = configService.getNetworkConfig().defaultPort;
+      const mocks: DiscoveredFreeShowInstance[] = [
+        {
+          name: 'Main Hall Server',
+          host: 'main-hall.local',
+          port: defaultPort,
+          ip: '192.168.1.50',
+          ports: { api: defaultPort, remote: 5510, stage: 5511, control: 5512, output: 5513 },
+          capabilities: ['remoteshow', 'stageshow', 'controlshow', 'outputshow'],
+          apiEnabled: true,
+        },
+        {
+          name: 'Stage Left',
+          host: 'stage-left.local',
+          port: defaultPort,
+          ip: '192.168.1.71',
+          ports: { api: defaultPort, remote: 5510, stage: 0, control: 5512, output: 0 },
+          capabilities: ['remoteshow', 'controlshow'],
+          apiEnabled: true,
+        },
+        {
+          name: 'Lobby Display',
+          host: 'lobby-screen.local',
+          port: defaultPort,
+          ip: '192.168.1.89',
+          ports: { api: defaultPort, remote: 0, stage: 0, control: 0, output: 5513 },
+          capabilities: ['outputshow'],
+          apiEnabled: true,
+        },
+      ];
+      setMockedServices(mocks);
+      // Animate progress briefly for UX, then stop
+      Animated.timing(animatedScanProgress, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: false,
+      }).start(() => {
+        setIsMockScanActive(false);
+        Animated.timing(animatedScanProgress, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: false,
+        }).start();
+      });
       return;
     }
     onScanPress();
-  }, [isExpoGo, onScanPress]);
+  }, [isExpoGo, onScanPress, animatedScanProgress]);
 
   // Memoize computed values
   const recentHistory = useMemo(() => history.slice(0, 3), [history]);
 
-  const hasDiscoveredServices = useMemo(() => discoveredServices.length > 0, [discoveredServices.length]);
+  const effectiveScanActive = isScanActive || (isExpoGo && isMockScanActive);
+  const effectiveServices = useMemo(() => {
+    return (isExpoGo && mockedServices.length > 0) ? mockedServices : discoveredServices;
+  }, [isExpoGo, mockedServices, discoveredServices]);
+  const hasDiscoveredServices = useMemo(() => effectiveServices.length > 0, [effectiveServices]);
   const hasHistory = useMemo(() => history.length > 0, [history.length]);
 
   return (
@@ -84,14 +138,14 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                 onPress={handleScanPress}
                 style={[
                   styles.discoveryToggle,
-                  isScanActive && styles.discoveryToggleActive,
+                  effectiveScanActive && styles.discoveryToggleActive,
                   { overflow: 'hidden', position: 'relative' },
                 ]}
                 accessibilityLabel={isScanActive ? "Stop network scan" : "Start network scan"}
                 accessibilityHint={isScanActive ? "Stop scanning for FreeShow devices on the network" : "Scan the network for available FreeShow devices"}
               >
                 {/* Progress fill overlay */}
-                {isScanActive && (
+                {effectiveScanActive && (
                   <Animated.View
                     style={{
                       position: 'absolute',
@@ -112,27 +166,34 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                 {/* Icon and label */}
                 <View style={styles.discoveryToggleContent}>
                   <Ionicons
-                    name={isScanActive ? 'stop' : 'search'}
+                    name={effectiveScanActive ? 'stop' : 'search'}
                     size={16}
-                    color={isScanActive ? 'white' : FreeShowTheme.colors.secondary}
+                    color={effectiveScanActive ? 'white' : FreeShowTheme.colors.secondary}
                   />
                   <Text
                     style={[
                       styles.discoveryToggleText,
-                      isScanActive && styles.discoveryToggleTextActive,
+                      effectiveScanActive && styles.discoveryToggleTextActive,
                       styles.discoveryToggleTextMargin,
                     ]}
                   >
-                    {isScanActive ? 'Scanning…' : 'Scan'}
+                    {effectiveScanActive ? 'Scanning…' : 'Scan'}
                   </Text>
                 </View>
               </TouchableOpacity>
             </View>
+            {isExpoGo && showExpoMockNotice && (
+              <View style={styles.mockNotice}>
+                <Ionicons name="alert-circle" size={14} color={FreeShowTheme.colors.secondary} />
+                <Text style={styles.mockNoticeText}>Showing simulated results in Expo Go. Build a dev client for real discovery.</Text>
+              </View>
+            )}
             {hasDiscoveredServices ? (
               <View style={styles.discoveredDevices}>
-                {discoveredServices.map((service: DiscoveredFreeShowInstance, _index: number) => {
+                {effectiveServices.map((service: DiscoveredFreeShowInstance, _index: number) => {
                   const showHost = service.host && !isIpAddress(service.host);
                   const hasServices = service.capabilities && service.capabilities.length > 0;
+                  const connectDisabled = !hasServices || (isExpoGo && showExpoMockNotice);
                   return (
                     <TouchableOpacity
                       key={service.ip}
@@ -141,7 +202,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                         !hasServices && styles.discoveredDeviceDisabled
                       ]}
                       onPress={() => onDiscoveredConnect(service)}
-                      disabled={!hasServices}
+                      disabled={connectDisabled}
                       accessibilityLabel={`Connect to ${service.name || service.ip}`}
                       accessibilityHint={hasServices ? "Tap to connect to this FreeShow device" : "This device has no available services"}
                     >
@@ -191,9 +252,9 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                       </View>
                       <View style={styles.discoveredDeviceAction}>
                         <Ionicons 
-                          name={!hasServices ? "ban-outline" : "arrow-forward-circle"} 
+                          name={connectDisabled ? "ban-outline" : "arrow-forward-circle"} 
                           size={24} 
-                          color={!hasServices ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                          color={connectDisabled ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
                         />
                       </View>
                     </TouchableOpacity>
@@ -369,6 +430,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  mockNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: FreeShowTheme.colors.secondarySurface,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    paddingHorizontal: FreeShowTheme.spacing.md,
+    paddingVertical: FreeShowTheme.spacing.sm,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.secondary + '40',
+    marginTop: FreeShowTheme.spacing.sm,
+    marginBottom: FreeShowTheme.spacing.md,
+  },
+  mockNoticeText: {
+    fontSize: FreeShowTheme.fontSize.xs,
+    color: FreeShowTheme.colors.secondaryLight,
+    flex: 1,
+  },
   discoveryToggleActive: {
     backgroundColor: FreeShowTheme.colors.secondary,
     borderColor: FreeShowTheme.colors.secondary,
@@ -448,25 +527,23 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   capabilityBadge: {
-    fontSize: 10,
+    fontSize: 11,
     color: FreeShowTheme.colors.secondary,
-    backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
+    backgroundColor: FreeShowTheme.colors.secondarySurface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 0,
     overflow: 'hidden',
   },
   capabilityBadgeDisabled: {
-    fontSize: 10,
+    fontSize: 11,
     color: FreeShowTheme.colors.textSecondary,
-    backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
+    backgroundColor: FreeShowTheme.colors.primaryLighter + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 0,
     overflow: 'hidden',
   },
   capabilityBadgesRow: {

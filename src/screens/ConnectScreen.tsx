@@ -681,14 +681,22 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   // Show connected screen when connected
   if (isConnected) {
     return (
-      <ConnectedScreen
-        connectionName={connectionName}
-        connectionHost={connectionHost}
-        currentShowPorts={currentShowPorts}
-        onDisconnect={handleDisconnect}
-        onShowQRCode={() => setShowQrModalVisible(true)}
-        isFloatingNav={isFloatingNav}
-      />
+      <>
+        <ConnectedScreen
+          connectionName={connectionName}
+          connectionHost={connectionHost}
+          currentShowPorts={currentShowPorts}
+          onDisconnect={handleDisconnect}
+          onShowQRCode={() => setShowQrModalVisible(true)}
+          isFloatingNav={isFloatingNav}
+        />
+        <ShareQRModal
+          visible={showQrModalVisible}
+          onClose={() => setShowQrModalVisible(false)}
+          host={connectionHost || host}
+          port={String(configService.getNetworkConfig().defaultPort)}
+        />
+      </>
     );
   }
 
