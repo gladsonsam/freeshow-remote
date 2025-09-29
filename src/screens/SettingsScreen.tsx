@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useSettings } from '../contexts';
+import { getNavigationLayoutInfo } from '../utils/navigationUtils';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 interface SettingsScreenProps {
@@ -161,13 +162,16 @@ const handleKeepAwakeToggle = async (value: boolean) => {
   const selectedShow = getSelectedShow();
 
 
+  const { shouldSkipSafeArea } = getNavigationLayoutInfo(navigationLayout);
+  const SafeAreaWrapper = shouldSkipSafeArea ? View : SafeAreaView;
+
   return (
     <>
       <LinearGradient
         colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
         style={styles.container}
       >
-      <SafeAreaView style={[styles.safeAreaContainer, { backgroundColor: 'transparent' }]}>
+      <SafeAreaWrapper style={[styles.safeAreaContainer, { backgroundColor: 'transparent' }]}>
         <View style={styles.animatedContainer}>
           <ScrollView
             style={styles.scrollView}
@@ -473,7 +477,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
             </View>
           </ScrollView>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     </LinearGradient>
 
     {/* Auto-Launch Picker Modal */}
@@ -558,7 +562,7 @@ const styles = StyleSheet.create({
   },
   scrollContentWithFloatingNav: {
     padding: FreeShowTheme.spacing.lg,
-    paddingBottom: FreeShowTheme.spacing.xxxl * 3, // Extra space for floating nav
+    paddingBottom: 120,
     flexGrow: 1,
   },
   header: {

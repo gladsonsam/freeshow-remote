@@ -5,6 +5,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  View,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +17,7 @@ import {
   useSettings,
   useDiscoveryActions,
 } from '../contexts';
+import { getNavigationLayoutInfo } from '../utils/navigationUtils';
 import { DiscoveredFreeShowInstance } from '../services/AutoDiscoveryService';
 import { ConnectionHistory, settingsRepository } from '../repositories';
 import QRScannerModal from '../components/QRScannerModal';
@@ -700,12 +703,15 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     );
   }
 
+  const { shouldSkipSafeArea } = getNavigationLayoutInfo(settings?.navigationLayout);
+  const SafeAreaWrapper = shouldSkipSafeArea ? View : SafeAreaView;
+
   return (
     <LinearGradient
       colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
       style={styles.container}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaWrapper style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -821,7 +827,7 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           onClose={hideError}
         />
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     </LinearGradient>
   );
 };
@@ -846,7 +852,7 @@ const styles = StyleSheet.create({
   },
   scrollContentWithFloatingNav: {
     padding: FreeShowTheme.spacing.lg,
-    paddingBottom: FreeShowTheme.spacing.xxxl * 3, // Extra space for floating nav
+    paddingBottom: 120,
   },
 });
 

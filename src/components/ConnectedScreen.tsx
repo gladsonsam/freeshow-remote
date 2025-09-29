@@ -6,14 +6,16 @@ import {
   Pressable,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
-// Removed safe-area top padding to match other screens' header positioning
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Platform } from 'react-native';
-import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { useSettings } from '../contexts';
+import { getNavigationLayoutInfo, getBottomPadding } from '../utils/navigationUtils';
 
 interface ConnectedScreenProps {
   connectionName: string | null;
@@ -39,6 +41,11 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
   isFloatingNav = false,
 }) => {
   const insets = useSafeAreaInsets();
+  const { settings } = useSettings();
+  const { shouldSkipSafeArea, isFloatingNav: navIsFloating } = getNavigationLayoutInfo(settings?.navigationLayout);
+  
+  // Use prop value if provided, otherwise use detected value
+  const effectiveIsFloatingNav = isFloatingNav || navIsFloating;
 
   const getActivePortsCount = () => {
     if (!currentShowPorts) return 0;
@@ -309,17 +316,17 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
   return (
     <LinearGradient
       colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[styles.container, !shouldSkipSafeArea && { paddingTop: insets.top }]}
     >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          isFloatingNav ? { paddingBottom: 120 } : { paddingBottom: 40 }
+          { paddingBottom: getBottomPadding(effectiveIsFloatingNav) }
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 10 : 20 }] }>
+        <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <Text style={[styles.screenTitle, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Connection Status</Text>
@@ -345,7 +352,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: FreeShowTheme.spacing.lg,
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.md,
   },
   header: {
     paddingHorizontal: 0,

@@ -5,30 +5,31 @@ import {
   StyleSheet,
   Animated,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
 
+import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection, useSettings } from '../contexts';
+import { getNavigationLayoutInfo, getBottomPadding } from '../utils/navigationUtils';
 import { ShowOption } from '../types';
 import { configService } from '../config/AppConfig';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { useInterfaceNavigation } from '../hooks/useInterfaceNavigation';
+import { useModalState } from '../hooks/useModalState';
+import { useAppLaunch } from '../hooks/useAppLaunch';
+
 import ConfirmationModal from '../components/ConfirmationModal';
 import ErrorModal from '../components/ErrorModal';
-import { FreeShowTheme } from '../theme/FreeShowTheme';
 import CompactPopup from '../components/CompactPopup';
 import EnableInterfaceModal from '../components/EnableInterfaceModal';
 import InterfaceHeader from '../components/InterfaceHeader';
 import InterfaceCard from '../components/InterfaceCard';
 import ConnectingScreen from '../components/ConnectingScreen';
 import NotConnectedScreen from '../components/NotConnectedScreen';
-// Interface configuration methods are now available through configService
-import { useInterfaceNavigation } from '../hooks/useInterfaceNavigation';
-import { useModalState } from '../hooks/useModalState';
-import { useAppLaunch } from '../hooks/useAppLaunch';
 
 interface InterfaceScreenProps {
   navigation: any;
@@ -40,13 +41,9 @@ interface InterfaceScreenProps {
  */
 const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const screenWidth = Dimensions.get('window').width;
-  const isTablet = screenWidth >= 768;
   const { state, actions } = useConnection();
   const { settings } = useSettings();
-
-  // Check if we're using floating navigation layout
-  const isFloatingNav = settings?.navigationLayout === 'floating';
+  const { isFloatingNav, isTablet, shouldSkipSafeArea } = getNavigationLayoutInfo(settings?.navigationLayout);
 
   const { isConnected, connectionHost, connectionName, currentShowPorts, autoConnectAttempted, connectionStatus } = state;
   const { disconnect, updateShowPorts, cancelConnection } = actions;
@@ -262,7 +259,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
   return (
     <LinearGradient
       colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[styles.container, !shouldSkipSafeArea && { paddingTop: insets.top }]}
     >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       
@@ -438,7 +435,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: FreeShowTheme.spacing.lg,
     paddingTop: FreeShowTheme.spacing.md,
-    paddingBottom: 120, // More space for floating nav
+    paddingBottom: 120,
   },
   
 

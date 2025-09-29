@@ -9,13 +9,16 @@ import {
   TextInput,
   Modal,
   Platform,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ErrorLogger } from '../services/ErrorLogger';
-import { useConnection } from '../contexts';
+import { useConnection, useSettings } from '../contexts';
+import { getNavigationLayoutInfo } from '../utils/navigationUtils';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { ShowOption } from '../types';
 import ErrorModal from '../components/ErrorModal';
@@ -33,18 +36,28 @@ interface APIScreenProps {
 
 const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const { state } = useConnection();
+  const { settings } = useSettings();
   const { connectionHost, isConnected, currentShowPorts } = state;
   const { title = 'FreeShow Remote' } = route.params || {};
+  const { shouldSkipSafeArea } = getNavigationLayoutInfo(settings?.navigationLayout);
+  const SafeAreaWrapper = shouldSkipSafeArea ? View : SafeAreaView;
 
   // State management
   const [socketConnected, setSocketConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Advanced mode state
   const [customCommand, setCustomCommand] = useState('');
   const [apiResponse, setApiResponse] = useState<string>('');
   const [shows, setShows] = useState<any[]>([]);
+  
+  // Fullscreen state
+  const [lastTap, setLastTap] = useState<number | null>(null);
+  const [showCornerFeedback, setShowCornerFeedback] = useState(false);
+  const [showFullscreenHint, setShowFullscreenHint] = useState(false);
+  const DOUBLE_TAP_DELAY = 300; // milliseconds
   
   const socketRef = useRef<Socket | null>(null);
   const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -68,6 +81,18 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     };
   }, [isConnected, connectionHost]);
 
+  // Show fullscreen hint when entering fullscreen
+  useEffect(() => {
+    if (isFullScreen) {
+      setShowFullscreenHint(true);
+      const timer = setTimeout(() => {
+        setShowFullscreenHint(false);
+      }, 3000); // Show hint for 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isFullScreen]);
+
   const handleShowSelect = (show: ShowOption) => {
     navigation.navigate('WebView', {
       title: show.title,
@@ -78,6 +103,32 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
 
   // Check if API is available
   const isApiAvailable = currentShowPorts?.api && currentShowPorts.api > 0;
+
+  const handleToggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
+  const handleClose = () => {
+    navigation.goBack();
+  };
+
+  // Handle double-tap on corner to exit fullscreen
+  const handleCornerDoubleTap = () => {
+    if (!isFullScreen) return;
+
+    const now = Date.now();
+    
+    setShowCornerFeedback(true);
+    setTimeout(() => setShowCornerFeedback(false), 200);
+
+    if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
+      // Double tap detected - exit fullscreen
+      setIsFullScreen(false);
+      setLastTap(null);
+    } else {
+      setLastTap(now);
+    }
+  };
 
   const connectWebSocket = async () => {
     if (!connectionHost) return;
@@ -280,12 +331,13 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
 
   if (!isConnected) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaWrapper style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{title}</Text>
+          <View style={styles.placeholder} />
         </View>
         <View style={styles.centerContainer}>
           <Ionicons name="wifi-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
@@ -297,30 +349,32 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             <Text style={styles.connectButtonText}>Go to Connect</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
   // Show API not available UI if connected but API is disabled
   if (!isApiAvailable) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaWrapper style={styles.safeArea} {...(!shouldSkipSafeArea && { edges: ['top', 'left', 'right'] })}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
           
-          <ShowSwitcher
-            currentTitle={title}
-            currentShowId="api"
-            connectionHost={connectionHost || ''}
-            showPorts={currentShowPorts || undefined}
-            onShowSelect={handleShowSelect}
-          />
-
-          <View style={styles.headerRight}>
-            {/* Connection dot removed as per request */}
-          </View>
+          {connectionHost ? (
+            <ShowSwitcher
+              currentTitle={title}
+              currentShowId="api"
+              connectionHost={connectionHost}
+              showPorts={currentShowPorts || undefined}
+              onShowSelect={handleShowSelect}
+            />
+          ) : (
+            <Text style={styles.title}>{title}</Text>
+          )}
+          
+          <View style={styles.placeholder} />
         </View>
 
         <View style={styles.centerContainer}>
@@ -337,29 +391,39 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             <Text style={styles.connectButtonText}>Reconnect with API</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
-        
-        <ShowSwitcher
-          currentTitle={title}
-          currentShowId="api"
-          connectionHost={connectionHost || ''}
-          showPorts={currentShowPorts || undefined}
-          onShowSelect={handleShowSelect}
-        />
+    <SafeAreaView style={styles.container}>
+      {!isFullScreen && (
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+          
+          {connectionHost ? (
+            <ShowSwitcher
+              currentTitle={title}
+              currentShowId="api"
+              connectionHost={connectionHost}
+              showPorts={currentShowPorts || undefined}
+              onShowSelect={handleShowSelect}
+            />
+          ) : (
+            <Text style={styles.title}>{title}</Text>
+          )}
 
-        <View style={styles.headerRight}>
-          {/* Connection dot removed as per request */}
+          <TouchableOpacity style={styles.fullScreenButton} onPress={handleToggleFullScreen}>
+            <Ionicons 
+              name={isFullScreen ? "contract" : "expand"} 
+              size={20} 
+              color={FreeShowTheme.colors.text} 
+            />
+          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       <View style={styles.container}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -584,6 +648,45 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           }
         }}
       />
+
+      {/* Fullscreen hint (tap to dismiss) */}
+      {isFullScreen && showFullscreenHint && (
+        <TouchableOpacity
+          style={styles.fullscreenHint}
+          activeOpacity={0.85}
+          onPress={() => setShowFullscreenHint(false)}
+        >
+          <View style={styles.hintContainer}>
+            <Ionicons name="information-circle" size={20} color={FreeShowTheme.colors.text} />
+            <Text style={styles.hintText}>Double-tap any corner to exit fullscreen</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Double-tap corners to exit fullscreen */}
+      {isFullScreen && (
+        <>
+          {/* Top-left corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.corner, styles.topLeft, showCornerFeedback && styles.cornerFeedback]} />
+          </TouchableWithoutFeedback>
+
+          {/* Top-right corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.corner, styles.topRight, showCornerFeedback && styles.cornerFeedback]} />
+          </TouchableWithoutFeedback>
+
+          {/* Bottom-left corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.corner, styles.bottomLeft, showCornerFeedback && styles.cornerFeedback]} />
+          </TouchableWithoutFeedback>
+
+          {/* Bottom-right corner */}
+          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
+            <View style={[styles.corner, styles.bottomRight, showCornerFeedback && styles.cornerFeedback]} />
+          </TouchableWithoutFeedback>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -601,8 +704,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: FreeShowTheme.spacing.md,
-    paddingVertical: FreeShowTheme.spacing.sm,
-    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    paddingVertical: FreeShowTheme.spacing.md,
+    paddingTop: 10,
     backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
@@ -610,24 +713,14 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: FreeShowTheme.spacing.sm,
   },
-  titleContainer: {
-    flex: 1,
-    marginHorizontal: FreeShowTheme.spacing.md,
-  },
   title: {
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: 'bold',
     color: FreeShowTheme.colors.text,
     fontFamily: FreeShowTheme.fonts.system,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: FreeShowTheme.spacing.md,
-  },
-  headerAdvancedButton: {
-    padding: FreeShowTheme.spacing.sm,
-    marginLeft: FreeShowTheme.spacing.sm,
+  placeholder: {
+    width: 40,
   },
   content: {
     flex: 1,
@@ -922,6 +1015,59 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: FreeShowTheme.spacing.md,
     fontStyle: 'italic',
+  },
+  
+  // Fullscreen styles
+  fullScreenButton: {
+    padding: FreeShowTheme.spacing.sm,
+  },
+  fullscreenHint: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    right: 20,
+    zIndex: 1000,
+  },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  hintText: {
+    color: FreeShowTheme.colors.text,
+    fontSize: 14,
+    flex: 1,
+  },
+  corner: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    backgroundColor: 'transparent',
+    zIndex: 999,
+  },
+  topLeft: {
+    top: 0,
+    left: 0,
+  },
+  topRight: {
+    top: 0,
+    right: 0,
+  },
+  bottomLeft: {
+    bottom: 0,
+    left: 0,
+  },
+  bottomRight: {
+    bottom: 0,
+    right: 0,
+  },
+  cornerFeedback: {
+    backgroundColor: FreeShowTheme.colors.secondary + '30',
+    borderRadius: 8,
   },
 });
 
