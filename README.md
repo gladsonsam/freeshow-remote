@@ -1,6 +1,6 @@
 <h1 align="left">
   FreeShow Remote
-  <img src="assets/splash-icon.png" align="right" width="64" height="64" alt="FreeShow Remote Logo" style="margin-left: 15px; margin-top: -15px;"/>
+  <img src="assets/splash-icon.png" align="right" width="64" height="64" alt="FreeShow Remote Logo" hspace="15" vspace="15"/>
 </h1>
 A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo. Not affiliated with FreeShow.
 
