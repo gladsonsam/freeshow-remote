@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated, Pressable, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
@@ -83,7 +83,7 @@ const Header: React.FC<HeaderProps> = ({
   const isTablet = screenWidth >= 768;
 
   return (
-    <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 10 : 20 }]}>
+    <View style={styles.header}>
       <View style={styles.headerTop}>
         <View style={styles.headerLeft}>
           <Text style={[styles.title, isTablet && styles.titleTablet]}>FreeShow Remote</Text>

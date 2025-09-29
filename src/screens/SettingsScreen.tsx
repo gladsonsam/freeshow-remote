@@ -176,7 +176,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
             bounces={false}
           >
             {/* Header */}
-            <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 10 : 20 }]}>
+            <View style={styles.header}>
               <View style={styles.headerTop}>
                 <View style={styles.headerLeft}>
                   <Text style={[styles.title, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Settings</Text>

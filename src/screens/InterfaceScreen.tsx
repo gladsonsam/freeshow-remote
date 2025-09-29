@@ -431,13 +431,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingTop: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.md,
     paddingBottom: 40, // Space for bottom bar navigation
   },
   contentWithFloatingNav: {
     flex: 1,
     paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingTop: FreeShowTheme.spacing.lg,
+    paddingTop: FreeShowTheme.spacing.md,
     paddingBottom: 120, // More space for floating nav
   },
   
