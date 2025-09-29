@@ -2,6 +2,7 @@
 <img src="assets/splash-icon.png" width="64" height="64" alt="FreeShow Remote Logo" align="right" style="margin: 10px 0 0 15px;"/>
 A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo. Not affiliated with FreeShow.
 
+---
 
 > **⚠️ Important Note**: Currently only available for Android. The $99/year Apple Developer Program fee makes iOS distribution unfeasible. If you're interested in sponsoring iOS distribution or publishing this on the App Store, please [open an issue](https://github.com/gladsonsam/freeshow-remote/issues) or contact me! Android users can download the APK from the releases page. Will be released to the Play Store in the future.
 
