@@ -6,7 +6,6 @@ import {
   Platform,
   ScrollView,
   View,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,12 +43,12 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
   const appLaunch = useAppLaunch();
   const defaultPorts = configService.getDefaultShowPorts();
 
-  const [host, setHost] = useState('192.168.1.100');
-  const [remotePort, setRemotePort] = useState(String(defaultPorts?.remote ?? 5510));
-  const [stagePort, setStagePort] = useState(String(defaultPorts?.stage ?? 5511));
-  const [controlPort, setControlPort] = useState(String(defaultPorts?.control ?? 5512));
-  const [outputPort, setOutputPort] = useState(String(defaultPorts?.output ?? 5513));
-  const [apiPort, setApiPort] = useState(String(defaultPorts?.api ?? 5505));
+  const [host, setHost] = useState(configService.getNetworkConfig().defaultHost);
+  const [remotePort, setRemotePort] = useState(String(defaultPorts.remote));
+  const [stagePort, setStagePort] = useState(String(defaultPorts.stage));
+  const [controlPort, setControlPort] = useState(String(defaultPorts.control));
+  const [outputPort, setOutputPort] = useState(String(defaultPorts.output));
+  const [apiPort, setApiPort] = useState(String(defaultPorts.api));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showShareQR, setShowShareQR] = useState(false);
@@ -426,8 +425,29 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
     if (!editingConnection) return;
     
     try {
-      await settingsRepository.updateConnectionNickname(editingConnection.id, editNicknameText);
+      // Check if this connection exists in history
+      const existsInHistory = history.some(item => item.id === editingConnection.id);
+      
+      if (!existsInHistory) {
+        // Add the connection to history first if it doesn't exist
+        await settingsRepository.addToConnectionHistory(
+          editingConnection.host,
+          editingConnection.showPorts?.api || configService.getNetworkConfig().defaultPort,
+          editNicknameText, // Use the new nickname
+          editingConnection.showPorts
+        );
+      } else {
+        // Update existing connection nickname
+        await settingsRepository.updateConnectionNickname(editingConnection.id, editNicknameText);
+      }
+      
       await historyActions.refreshHistory(); // Use the destructured action
+      
+      // Update the connection name in the connection state if this is the current connection
+      if (isConnected && editingConnection.host === connectionHost) {
+        actions.updateConnectionName(editNicknameText);
+      }
+      
       setShowEditNickname(false);
       setEditingConnection(null);
       setEditNicknameText('');
@@ -691,6 +711,26 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           currentShowPorts={currentShowPorts}
           onDisconnect={handleDisconnect}
           onShowQRCode={() => setShowQrModalVisible(true)}
+          onEditNickname={() => {
+            // Find the current connection in history and trigger edit
+            let currentConnection = history.find(item => 
+              item.host === connectionHost && item.showPorts?.api === currentShowPorts?.api
+            );
+            
+            // If no matching connection found, create a temporary one for editing
+            if (!currentConnection) {
+              currentConnection = {
+                id: connectionHost || 'unknown',
+                host: connectionHost || 'unknown',
+                nickname: connectionName || undefined,
+                lastUsed: new Date().toISOString(),
+                successfulConnections: 1,
+                showPorts: currentShowPorts || undefined,
+              };
+            }
+            
+            handleEditNickname(currentConnection);
+          }}
           isFloatingNav={isFloatingNav}
         />
         <ShareQRModal
@@ -698,6 +738,14 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           onClose={() => setShowQrModalVisible(false)}
           host={connectionHost || host}
           port={String(configService.getNetworkConfig().defaultPort)}
+        />
+        <EditNicknameModal
+          visible={showEditNickname}
+          editingConnection={editingConnection}
+          editNicknameText={editNicknameText}
+          setEditNicknameText={setEditNicknameText}
+          onSave={handleSaveNickname}
+          onCancel={handleCancelEdit}
         />
       </>
     );

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
+import { configService } from '../config/AppConfig';
 
 interface SidebarProps {
   navigation: any;
@@ -100,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
   const handleNavigate = (route: string) => {
     onNavigate(route);
     // Close sidebar after navigation
-    setTimeout(() => onClose(), 150);
+    setTimeout(() => onClose(), configService.getNetworkConfig().sidebarCloseDelay);
   };
 
   const handleBackdropPress = () => {

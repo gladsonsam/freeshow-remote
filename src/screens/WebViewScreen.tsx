@@ -8,7 +8,6 @@ import {
   Linking,
   TouchableWithoutFeedback,
   Dimensions,
-  Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import ShowSwitcher from '../components/ShowSwitcher';
 import { useConnection } from '../contexts';
+import { configService } from '../config/AppConfig';
 import { ErrorLogger } from '../services/ErrorLogger';
 import { ShowOption } from '../types';
 import ErrorModal from '../components/ErrorModal';
@@ -56,7 +56,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
   const [lastTap, setLastTap] = useState<number | null>(null);
   const [showCornerFeedback, setShowCornerFeedback] = useState(false);
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
-  const DOUBLE_TAP_DELAY = 300; // milliseconds
+  const DOUBLE_TAP_DELAY = configService.getNetworkConfig().doubleTapDelay;
 
   useEffect(() => {
     // Get current orientation on mount
@@ -89,7 +89,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
       setShowFullscreenHint(true);
       const timer = setTimeout(() => {
         setShowFullscreenHint(false);
-      }, 3000); // Show hint for 3 seconds
+      }, configService.getNetworkConfig().fullscreenHintDuration);
       
       return () => clearTimeout(timer);
     }
@@ -149,7 +149,7 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     
     // Show visual feedback on any tap
     setShowCornerFeedback(true);
-    setTimeout(() => setShowCornerFeedback(false), 200);
+    setTimeout(() => setShowCornerFeedback(false), configService.getNetworkConfig().cornerFeedbackDuration);
 
     if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
   // Double tap detected - exit fullscreen
@@ -242,12 +242,10 @@ const WebViewScreen: React.FC<WebViewScreenProps> = ({ navigation, route }) => {
     const port = portMap[showId as keyof typeof portMap];
     if (!port) return;
 
-    const showTitles = {
-      'remote': 'RemoteShow',
-      'stage': 'StageShow',
-      'control': 'ControlShow',
-      'output': 'OutputShow',
-    };
+    const showTitles = configService.getInterfaceConfigs().reduce((acc, config) => {
+      acc[config.id] = config.title;
+      return acc;
+    }, {} as Record<string, string>);
 
     const title = showTitles[showId as keyof typeof showTitles];
     const newUrl = `http://${connectionHost}:${port}`;

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Animated,
   StatusBar,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,7 +13,7 @@ import { Linking } from 'react-native';
 
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection, useSettings } from '../contexts';
-import { getNavigationLayoutInfo, getBottomPadding } from '../utils/navigationUtils';
+import { getNavigationLayoutInfo } from '../utils/navigationUtils';
 import { ShowOption } from '../types';
 import { configService } from '../config/AppConfig';
 import { ErrorLogger } from '../services/ErrorLogger';
@@ -172,13 +171,13 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
   const getDefaultPortForInterface = (interfaceId: string): string => {
     const defaultPorts = configService.getDefaultShowPorts();
     const portMap: Record<string, number> = {
-      'api': defaultPorts?.api ?? 5505,
-      'remote': defaultPorts?.remote ?? 5510,
-      'stage': defaultPorts?.stage ?? 5511,
-      'control': defaultPorts?.control ?? 5512,
-      'output': defaultPorts?.output ?? 5513,
+      'api': defaultPorts.api,
+      'remote': defaultPorts.remote,
+      'stage': defaultPorts.stage,
+      'control': defaultPorts.control,
+      'output': defaultPorts.output,
     };
-    return String(portMap[interfaceId] ?? 5505);
+    return String(portMap[interfaceId] ?? defaultPorts.api);
   };
 
   // Handle enabling an interface

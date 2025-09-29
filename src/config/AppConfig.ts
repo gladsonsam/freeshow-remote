@@ -14,6 +14,13 @@ export interface NetworkConfig {
   reconnectDelay: number;
   maxRetries: number;
   keepAliveInterval: number;
+  defaultHost: string;
+  hostPlaceholder: string;
+  interfacePingTimeout: number;
+  doubleTapDelay: number;
+  fullscreenHintDuration: number;
+  cornerFeedbackDuration: number;
+  sidebarCloseDelay: number;
 }
 
 export interface ShowPortsConfig {
@@ -73,6 +80,13 @@ const DEFAULT_CONFIG: AppConfig = {
     reconnectDelay: 3000, // 3 seconds
     maxRetries: 3,
     keepAliveInterval: 30000, // 30 seconds
+    defaultHost: '192.168.1.100',
+    hostPlaceholder: '192.168.1.100',
+    interfacePingTimeout: 2000, // 2 seconds
+    doubleTapDelay: 300, // milliseconds
+    fullscreenHintDuration: 3000, // 3 seconds
+    cornerFeedbackDuration: 200, // milliseconds
+    sidebarCloseDelay: 150, // milliseconds
   },
   defaultShowPorts: {
     remote: 5510,

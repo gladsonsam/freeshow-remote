@@ -26,13 +26,13 @@ const EnableInterfaceModal: React.FC<EnableInterfaceModalProps> = ({
   // Helper function to get default port for interface
   const getDefaultPortForInterface = (interfaceId: string): string => {
     const portMap: Record<string, number> = {
-      'api': defaultPorts?.api ?? 5505,
-      'remote': defaultPorts?.remote ?? 5510,
-      'stage': defaultPorts?.stage ?? 5511,
-      'control': defaultPorts?.control ?? 5512,
-      'output': defaultPorts?.output ?? 5513,
+      'api': defaultPorts.api,
+      'remote': defaultPorts.remote,
+      'stage': defaultPorts.stage,
+      'control': defaultPorts.control,
+      'output': defaultPorts.output,
     };
-    return String(portMap[interfaceId] ?? 5505);
+    return String(portMap[interfaceId] ?? defaultPorts.api);
   };
 
   const [port, setPort] = useState(() => getDefaultPortForInterface(show?.id || ''));

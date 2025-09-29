@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ interface ConnectedScreenProps {
   } | null;
   onDisconnect: () => void;
   onShowQRCode: () => void;
+  onEditNickname: () => void;
   isFloatingNav?: boolean;
 }
 
@@ -38,6 +40,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
   currentShowPorts,
   onDisconnect,
   onShowQRCode,
+  onEditNickname,
   isFloatingNav = false,
 }) => {
   const insets = useSafeAreaInsets();
@@ -91,7 +94,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
               </View>
               
               <View style={styles.connectionDetails}>
-                <View style={styles.detailRow}>
+                <TouchableOpacity style={styles.detailRow} onPress={onEditNickname}>
                   <Ionicons name="wifi" size={20} color={FreeShowTheme.colors.secondary} />
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Server</Text>
@@ -99,7 +102,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                       {connectionName || connectionHost || 'Unknown'}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
                 
                 {connectionHost && (
                   <View style={styles.detailRow}>
@@ -133,7 +136,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
             </View>
             
             <View style={styles.connectionDetails}>
-              <View style={styles.detailRow}>
+              <TouchableOpacity style={styles.detailRow} onPress={onEditNickname}>
                 <Ionicons name="wifi" size={20} color={FreeShowTheme.colors.secondary} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Server</Text>
@@ -141,7 +144,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                     {connectionName || connectionHost || 'Unknown'}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
               
               {connectionHost && (
                 <View style={styles.detailRow}>

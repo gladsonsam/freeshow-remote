@@ -8,8 +8,6 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
-  Platform,
-  Dimensions,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,7 +55,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const [lastTap, setLastTap] = useState<number | null>(null);
   const [showCornerFeedback, setShowCornerFeedback] = useState(false);
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
-  const DOUBLE_TAP_DELAY = 300; // milliseconds
+  const DOUBLE_TAP_DELAY = configService.getNetworkConfig().doubleTapDelay;
   
   const socketRef = useRef<Socket | null>(null);
   const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,7 +85,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       setShowFullscreenHint(true);
       const timer = setTimeout(() => {
         setShowFullscreenHint(false);
-      }, 3000); // Show hint for 3 seconds
+      }, configService.getNetworkConfig().fullscreenHintDuration);
       
       return () => clearTimeout(timer);
     }
@@ -119,7 +117,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     const now = Date.now();
     
     setShowCornerFeedback(true);
-    setTimeout(() => setShowCornerFeedback(false), 200);
+    setTimeout(() => setShowCornerFeedback(false), configService.getNetworkConfig().cornerFeedbackDuration);
 
     if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
       // Double tap detected - exit fullscreen

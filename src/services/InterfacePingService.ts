@@ -29,7 +29,7 @@ export interface InterfaceValidationResult {
  */
 export class InterfacePingService {
   private readonly logContext = 'InterfacePingService';
-  private readonly timeout = 500;
+  private readonly timeout = configService.getNetworkConfig().interfacePingTimeout;
 
   /**
    * Test a specific port on a host

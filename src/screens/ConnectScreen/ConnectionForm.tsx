@@ -172,11 +172,11 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
   };
 
   const handleRestoreDefaults = () => {
-    setRemotePort(String(defaultPorts?.remote ?? 5510));
-    setStagePort(String(defaultPorts?.stage ?? 5511));
-    setControlPort(String(defaultPorts?.control ?? 5512));
-    setOutputPort(String(defaultPorts?.output ?? 5513));
-    setApiPort(String(defaultPorts?.api ?? 5505));
+    setRemotePort(String(defaultPorts.remote));
+    setStagePort(String(defaultPorts.stage));
+    setControlPort(String(defaultPorts.control));
+    setOutputPort(String(defaultPorts.output));
+    setApiPort(String(defaultPorts.api));
   };
 
   // Function to clear a port (disable an interface)
@@ -213,7 +213,7 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             style={styles.textInput}
             value={host}
             onChangeText={setHost}
-            placeholder="192.168.1.100"
+            placeholder={configService.getNetworkConfig().hostPlaceholder}
             placeholderTextColor={FreeShowTheme.colors.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}

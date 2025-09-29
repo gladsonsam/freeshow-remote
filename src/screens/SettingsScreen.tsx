@@ -16,19 +16,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useSettings } from '../contexts';
 import { getNavigationLayoutInfo } from '../utils/navigationUtils';
+import { configService } from '../config/AppConfig';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { ShowOption } from '../types';
 
 interface SettingsScreenProps {
   navigation: any;
 }
 
-interface ShowOption {
-  id: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
-  title: string;
-  description: string;
-  icon: string;
-  color: string;
-}
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { settings, history, actions } = useSettings();
@@ -46,42 +41,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       description: 'Stay on Connect screen',
       icon: 'close-circle',
       color: FreeShowTheme.colors.textSecondary,
+      port: 0,
     },
-    {
-      id: 'remote',
-      title: 'RemoteShow',
-      description: 'Control slides and presentations remotely',
-      icon: 'play-circle',
-      color: '#f0008c',
-    },
-    {
-      id: 'stage',
-      title: 'StageShow',
-      description: 'Stage display for performers and speakers',
-      icon: 'desktop',
-      color: '#2ECC40',
-    },
-    {
-      id: 'control',
-      title: 'ControlShow',
-      description: 'Full control interface for operators',
-      icon: 'settings',
-      color: '#0074D9',
-    },
-    {
-      id: 'output',
-      title: 'OutputShow',
-      description: 'Output display for screens and projectors',
-      icon: 'tv',
-      color: '#FF851B',
-    },
-    {
-      id: 'api',
-      title: 'API Controls',
-      description: 'Custom native controls using FreeShow API',
-      icon: 'code-slash',
-      color: '#B10DC9',
-    },
+    ...configService.getInterfaceConfigs().map(config => ({
+      id: config.id,
+      title: config.title,
+      description: config.description,
+      icon: config.icon,
+      color: config.color,
+      port: 0, // Port not relevant for this usage
+    })),
   ];
 
   useEffect(() => {

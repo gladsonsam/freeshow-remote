@@ -63,7 +63,13 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
           host: 'main-hall.local',
           port: defaultPort,
           ip: '192.168.1.50',
-          ports: { api: defaultPort, remote: 5510, stage: 5511, control: 5512, output: 5513 },
+          ports: { 
+            api: defaultPort, 
+            remote: configService.getDefaultShowPorts().remote, 
+            stage: configService.getDefaultShowPorts().stage, 
+            control: configService.getDefaultShowPorts().control, 
+            output: configService.getDefaultShowPorts().output 
+          },
           capabilities: ['remoteshow', 'stageshow', 'controlshow', 'outputshow'],
           apiEnabled: true,
         },
@@ -72,7 +78,13 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
           host: 'stage-left.local',
           port: defaultPort,
           ip: '192.168.1.71',
-          ports: { api: defaultPort, remote: 5510, stage: 0, control: 5512, output: 0 },
+          ports: { 
+            api: defaultPort, 
+            remote: configService.getDefaultShowPorts().remote, 
+            stage: 0, 
+            control: configService.getDefaultShowPorts().control, 
+            output: 0 
+          },
           capabilities: ['remoteshow', 'controlshow'],
           apiEnabled: true,
         },
@@ -81,7 +93,13 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
           host: 'lobby-screen.local',
           port: defaultPort,
           ip: '192.168.1.89',
-          ports: { api: defaultPort, remote: 0, stage: 0, control: 0, output: 5513 },
+          ports: { 
+            api: defaultPort, 
+            remote: 0, 
+            stage: 0, 
+            control: 0, 
+            output: configService.getDefaultShowPorts().output 
+          },
           capabilities: ['outputshow'],
           apiEnabled: true,
         },

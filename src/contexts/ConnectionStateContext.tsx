@@ -51,6 +51,7 @@ export interface ConnectionActions {
     api: number;
   }) => Promise<void>;
   updateCapabilities: (capabilities: string[]) => void;
+  updateConnectionName: (name: string) => void;
   cancelConnection: () => void;
   setAutoConnectAttempted: (attempted: boolean) => void;
   triggerAutoLaunch?: (connectionHost: string, connectionPort: number, navigation?: any, showPorts?: any) => Promise<void>;
@@ -320,7 +321,14 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
         validatedPorts: validation
       });
       
+      // Update connection ports and ensure it's in history
       await settingsRepository.updateConnectionPorts(lastConnection.host, validation);
+      try {
+        await settingsRepository.addToConnectionHistory(lastConnection.host, apiPort, lastConnection.nickname, validation);
+      } catch (error) {
+        ErrorLogger.error('[AutoReconnect] Failed to update connection history', 'ConnectionStateContext', 
+          error instanceof Error ? error : new Error(String(error)));
+      }
       
       // Trigger auto-launch after connection is established
       setTimeout(() => {
@@ -552,6 +560,18 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       
       if (success) {
         setState(prev => ({ ...prev, currentShowPorts: validation }));
+        
+        // Save successful connection to history
+        try {
+          await settingsRepository.addToConnectionHistory(host, apiPort, name, validation);
+          ErrorLogger.info('[ConnectWithValidation] Connection saved to history', 'ConnectionStateContext', {
+            host, apiPort, name, validatedPorts: validation
+          });
+        } catch (error) {
+          ErrorLogger.error('[ConnectWithValidation] Failed to save connection to history', 'ConnectionStateContext', 
+            error instanceof Error ? error : new Error(String(error)));
+        }
+        
         ErrorLogger.info('[ConnectWithValidation] Connection successful', 'ConnectionStateContext', {
           host, apiPort, validatedPorts: validation
         });
@@ -666,6 +686,14 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     }));
   }, []);
 
+  const updateConnectionName = useCallback((name: string): void => {
+    setState(prev => ({
+      ...prev,
+      connectionName: name,
+    }));
+    ErrorLogger.info('[ConnectionState] Connection name updated', 'ConnectionStateContext', { name });
+  }, []);
+
   const cancelConnection = useCallback(() => {
     cancelConnectionRef.current = true;
     setState(prev => ({
@@ -700,6 +728,7 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
     clearError,
     updateShowPorts,
     updateCapabilities,
+    updateConnectionName,
     cancelConnection,
     setAutoConnectAttempted,
     triggerAutoLaunch,

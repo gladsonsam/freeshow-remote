@@ -66,46 +66,14 @@ const ShowSwitcher: React.FC<ShowSwitcherProps> = ({
     const actualPorts = showPorts || defaultPorts;
 
     const allOptions = [
-      {
-        id: 'remote',
-        title: 'RemoteShow',
-        description: 'Control slides and presentations remotely',
-        port: actualPorts.remote,
-        icon: 'play-circle',
-        color: '#f0008c',
-      },
-      {
-        id: 'stage',
-        title: 'StageShow',
-        description: 'Stage display for performers and speakers',
-        port: actualPorts.stage,
-        icon: 'desktop',
-        color: '#2ECC40',
-      },
-      {
-        id: 'control',
-        title: 'ControlShow',
-        description: 'Full control interface for operators',
-        port: actualPorts.control,
-        icon: 'settings',
-        color: '#0074D9',
-      },
-      {
-        id: 'output',
-        title: 'OutputShow',
-        description: 'Output display for screens and projectors',
-        port: actualPorts.output,
-        icon: 'tv',
-        color: '#FF851B',
-      },
-      {
-        id: 'api',
-        title: 'API Controls',
-        description: 'Custom native controls using FreeShow API',
-        port: actualPorts.api,
-        icon: 'code-slash',
-        color: '#B10DC9',
-      },
+      ...configService.getInterfaceConfigs().map(config => ({
+        id: config.id,
+        title: config.title,
+        description: config.description,
+        port: actualPorts[config.id as keyof typeof actualPorts] || 0,
+        icon: config.icon,
+        color: config.color,
+      })),
     ];
 
     // Filter out disabled interfaces (those with port <= 0)
