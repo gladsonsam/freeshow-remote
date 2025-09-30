@@ -136,11 +136,8 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
   return (
     <View style={styles.quickConnectCard}>
       <View style={styles.quickConnectHeader}>
-        <View style={styles.quickConnectTitleContainer}>
-          <Ionicons name="flash" size={20} color={FreeShowTheme.colors.secondary} />
-          <Text style={styles.quickConnectTitle}>Quick Connect</Text>
-        </View>
-        <Text style={styles.quickConnectSubtitle}>Tap to connect instantly</Text>
+        <Text style={styles.quickConnectTitle}>Quick Connect</Text>
+        <Text style={styles.quickConnectSubtitle}>Available connections</Text>
       </View>
       
       <View style={styles.quickConnectContent}>
@@ -148,10 +145,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
         {isDiscoveryAvailable && (
           <View style={styles.discoverySection}>
             <View style={styles.discoverySectionHeader}>
-              <View style={styles.discoveryTitleRow}>
-                <Ionicons name="scan" size={16} color={FreeShowTheme.colors.secondary} />
-                <Text style={styles.discoveryTitle}>Network Scan</Text>
-              </View>
+              <Text style={styles.discoveryTitle}>Network Scan</Text>
               <TouchableOpacity
                 onPress={handleScanPress}
                 style={[
@@ -186,15 +180,9 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                   <Ionicons
                     name={effectiveScanActive ? 'stop' : 'search'}
                     size={16}
-                    color={effectiveScanActive ? 'white' : FreeShowTheme.colors.secondary}
+                    color="white"
                   />
-                  <Text
-                    style={[
-                      styles.discoveryToggleText,
-                      effectiveScanActive && styles.discoveryToggleTextActive,
-                      styles.discoveryToggleTextMargin,
-                    ]}
-                  >
+                  <Text style={styles.discoveryToggleText}>
                     {effectiveScanActive ? 'Scanning…' : 'Scan'}
                   </Text>
                 </View>
@@ -202,7 +190,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
             </View>
             {isExpoGo && showExpoMockNotice && (
               <View style={styles.mockNotice}>
-                <Ionicons name="alert-circle" size={14} color={FreeShowTheme.colors.secondary} />
+                <Ionicons name="alert-circle" size={14} color={FreeShowTheme.colors.textSecondary} />
                 <Text style={styles.mockNoticeText}>Showing simulated results in Expo Go. Build a dev client for real discovery.</Text>
               </View>
             )}
@@ -227,8 +215,8 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                       <View style={styles.discoveredDeviceIcon}>
                         <Ionicons 
                           name="desktop" 
-                          size={18} 
-                          color={!hasServices ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                          size={20} 
+                          color={!hasServices ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.text} 
                         />
                       </View>
                       <View style={styles.discoveredDeviceInfo}>
@@ -249,20 +237,30 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                         {/* Show capabilities */}
                         <View style={styles.capabilitiesContainer}>
                           {(!service.capabilities || service.capabilities.length === 0) ? (
-                            <Text style={styles.capabilityBadgeDisabled}>No Services</Text>
+                            <View style={styles.capabilityBadgeDisabled}>
+                              <Text style={styles.capabilityBadgeText}>No Services</Text>
+                            </View>
                           ) : (
                             <View style={styles.capabilityBadgesRow}>
                               {service.ports?.remote && (
-                                <Text style={styles.capabilityBadge}>Remote:{service.ports.remote}</Text>
+                                <View style={styles.capabilityBadge}>
+                                  <Text style={styles.capabilityBadgeText}>Remote: {service.ports.remote}</Text>
+                                </View>
                               )}
                               {service.ports?.stage && (
-                                <Text style={styles.capabilityBadge}>Stage:{service.ports.stage}</Text>
+                                <View style={styles.capabilityBadge}>
+                                  <Text style={styles.capabilityBadgeText}>Stage: {service.ports.stage}</Text>
+                                </View>
                               )}
                               {service.ports?.control && (
-                                <Text style={styles.capabilityBadge}>Control:{service.ports.control}</Text>
+                                <View style={styles.capabilityBadge}>
+                                  <Text style={styles.capabilityBadgeText}>Control: {service.ports.control}</Text>
+                                </View>
                               )}
                               {service.ports?.output && (
-                                <Text style={styles.capabilityBadge}>Output:{service.ports.output}</Text>
+                                <View style={styles.capabilityBadge}>
+                                  <Text style={styles.capabilityBadgeText}>Output: {service.ports.output}</Text>
+                                </View>
                               )}
                             </View>
                           )}
@@ -270,9 +268,9 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
                       </View>
                       <View style={styles.discoveredDeviceAction}>
                         <Ionicons 
-                          name={connectDisabled ? "ban-outline" : "arrow-forward-circle"} 
-                          size={24} 
-                          color={connectDisabled ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.secondary} 
+                          name={connectDisabled ? "ban-outline" : "chevron-forward"} 
+                          size={20} 
+                          color={connectDisabled ? FreeShowTheme.colors.textSecondary : FreeShowTheme.colors.textSecondary} 
                         />
                       </View>
                     </TouchableOpacity>
@@ -301,10 +299,7 @@ const QuickConnectSection: React.FC<QuickConnectSectionProps> = React.memo(({
         {hasHistory && (
           <View style={styles.recentSection}>
             <View style={styles.recentSectionHeader}>
-              <View style={styles.recentTitleRow}>
-                <Ionicons name="time" size={16} color={FreeShowTheme.colors.textSecondary} />
-                <Text style={styles.recentTitle}>Recent Connections</Text>
-              </View>
+              <Text style={styles.recentTitle}>Recent Connections</Text>
               <TouchableOpacity 
                 onPress={onClearAllHistory}
                 style={styles.clearAllButton}
@@ -372,42 +367,28 @@ const styles = StyleSheet.create({
   // Quick Connect Styles
   quickConnectCard: {
     backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    marginTop: 0, // Remove default margin since spacing is handled by parent
+    borderRadius: 12,
+    marginTop: 0,
     marginBottom: FreeShowTheme.spacing.lg,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '40',
-    shadowColor: FreeShowTheme.colors.secondary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: FreeShowTheme.colors.primaryLighter,
     overflow: 'hidden',
   },
   quickConnectHeader: {
-    backgroundColor: FreeShowTheme.colors.secondary + '10',
     padding: FreeShowTheme.spacing.lg,
+    paddingBottom: FreeShowTheme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.secondary + '20',
-  },
-  quickConnectTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: FreeShowTheme.spacing.xs,
+    borderBottomColor: FreeShowTheme.colors.primaryLighter,
   },
   quickConnectTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '800',
-    color: FreeShowTheme.colors.secondary,
-    marginLeft: FreeShowTheme.spacing.sm,
-    textShadowColor: FreeShowTheme.colors.secondary + '20',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontSize: 18,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 4,
   },
   quickConnectSubtitle: {
-    fontSize: FreeShowTheme.fontSize.sm,
+    fontSize: 14,
     color: FreeShowTheme.colors.textSecondary,
-    fontWeight: '500',
   },
   quickConnectContent: {
     padding: FreeShowTheme.spacing.lg,
@@ -428,91 +409,74 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   discoveryTitle: {
-    fontSize: FreeShowTheme.fontSize.md,
+    fontSize: 14,
     fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-    marginLeft: FreeShowTheme.spacing.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   discoveryToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    paddingHorizontal: FreeShowTheme.spacing.md,
-    paddingVertical: FreeShowTheme.spacing.sm,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '30',
-    shadowColor: FreeShowTheme.colors.secondary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: FreeShowTheme.colors.secondary,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 0,
   },
   mockNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: FreeShowTheme.colors.secondarySurface,
-    borderRadius: FreeShowTheme.borderRadius.md,
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    borderRadius: 8,
     paddingHorizontal: FreeShowTheme.spacing.md,
     paddingVertical: FreeShowTheme.spacing.sm,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '40',
+    borderColor: FreeShowTheme.colors.primaryLighter,
     marginTop: FreeShowTheme.spacing.sm,
     marginBottom: FreeShowTheme.spacing.md,
   },
   mockNoticeText: {
-    fontSize: FreeShowTheme.fontSize.xs,
-    color: FreeShowTheme.colors.secondaryLight,
+    fontSize: 12,
+    color: FreeShowTheme.colors.textSecondary,
     flex: 1,
   },
   discoveryToggleActive: {
-    backgroundColor: FreeShowTheme.colors.secondary,
-    borderColor: FreeShowTheme.colors.secondary,
+    backgroundColor: FreeShowTheme.colors.secondaryDark,
   },
 
   discoveryToggleText: {
-    fontSize: FreeShowTheme.fontSize.sm,
+    fontSize: 14,
     fontWeight: '600',
-    color: FreeShowTheme.colors.secondary,
-    marginLeft: FreeShowTheme.spacing.xs,
-  },
-  discoveryToggleTextActive: {
     color: 'white',
+    marginLeft: 8,
   },
   discoveryToggleContent: {
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 2,
   },
-  discoveryToggleTextMargin: {
-    marginLeft: 6,
-  },
   discoveredDevices: {
-    gap: FreeShowTheme.spacing.sm,
+    gap: 8,
   },
   discoveredDevice: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    padding: FreeShowTheme.spacing.md,
+    borderRadius: 8,
+    padding: 14,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '15',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
   },
   discoveredDeviceIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: FreeShowTheme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: FreeShowTheme.spacing.md,
+    marginRight: 12,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
   },
@@ -541,28 +505,26 @@ const styles = StyleSheet.create({
   capabilitiesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 4,
-    gap: 4,
+    marginTop: 6,
+    gap: 6,
   },
   capabilityBadge: {
-    fontSize: 11,
-    color: FreeShowTheme.colors.secondary,
-    backgroundColor: FreeShowTheme.colors.secondarySurface,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 0,
-    overflow: 'hidden',
+    backgroundColor: FreeShowTheme.colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   capabilityBadgeDisabled: {
+    backgroundColor: FreeShowTheme.colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    opacity: 0.6,
+  },
+  capabilityBadgeText: {
     fontSize: 11,
-    color: FreeShowTheme.colors.textSecondary,
-    backgroundColor: FreeShowTheme.colors.primaryLighter + '20',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 0,
-    overflow: 'hidden',
+    color: FreeShowTheme.colors.text,
+    fontWeight: '500',
   },
   capabilityBadgesRow: {
     flexDirection: 'row',
@@ -600,43 +562,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recentTitle: {
-    fontSize: FreeShowTheme.fontSize.md,
+    fontSize: 14,
     fontWeight: '600',
     color: FreeShowTheme.colors.textSecondary,
-    marginLeft: FreeShowTheme.spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   clearAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'transparent',
-    borderRadius: FreeShowTheme.borderRadius.sm,
-    paddingHorizontal: FreeShowTheme.spacing.sm,
-    paddingVertical: FreeShowTheme.spacing.xs,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
   },
   clearAllText: {
-    fontSize: FreeShowTheme.fontSize.xs,
+    fontSize: 12,
     color: FreeShowTheme.colors.textSecondary,
-    marginLeft: FreeShowTheme.spacing.xs,
+    marginLeft: 6,
     fontWeight: '500',
   },
   recentDevices: {
-    gap: FreeShowTheme.spacing.sm,
+    gap: 8,
   },
   recentDevice: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FreeShowTheme.colors.primaryDarkest,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    padding: FreeShowTheme.spacing.md,
+    borderRadius: 8,
+    padding: 14,
     borderWidth: 1,
     borderColor: FreeShowTheme.colors.primaryLighter,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
   recentDeviceActions: {
     flexDirection: 'row',

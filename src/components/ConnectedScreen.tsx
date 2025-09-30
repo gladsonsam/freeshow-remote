@@ -8,6 +8,7 @@ import {
   Dimensions,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,7 +75,10 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                port > 0 && 
                typeof port === 'number';
       })
-      .map(([name, port]) => ({ name, port }));
+      .map(([name, port]) => ({ 
+        name: name.toUpperCase() === 'API' ? 'API' : name, 
+        port 
+      }));
   };
 
   const ConnectionInfoCard = () => (
@@ -225,100 +229,49 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
 
   const ActionsCard = () => (
     <View style={styles.actionsCard}>
-      <LinearGradient
-        colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']}
-        style={styles.actionsCardGradient}
-      >
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={15} style={styles.actionsCardBlur}>
-            <View style={styles.actionsCardContent}>
-              <Text style={styles.actionsTitle}>Quick Actions</Text>
-              
-              <View style={styles.actionButtons}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    styles.shareButton,
-                    pressed && styles.actionButtonPressed
-                  ]}
-                  onPress={onShowQRCode}
-                >
-                  <LinearGradient
-                    colors={['#2196F3', '#1976D2']}
-                    style={styles.actionButtonGradient}
-                  >
-                    <Ionicons name="qr-code" size={20} color="white" />
-                    <Text style={styles.actionButtonText}>Share QR</Text>
-                  </LinearGradient>
-                </Pressable>
-                
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    styles.disconnectButton,
-                    pressed && styles.actionButtonPressed
-                  ]}
-                  onPress={onDisconnect}
-                >
-                  <LinearGradient
-                    colors={['#F44336', '#D32F2F']}
-                    style={styles.actionButtonGradient}
-                  >
-                    <Ionicons name="log-out-outline" size={20} color="white" />
-                    <Text style={styles.actionButtonText}>Disconnect</Text>
-                  </LinearGradient>
-                </Pressable>
-              </View>
+      <Text style={styles.actionsTitle}>Quick Actions</Text>
+      
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onShowQRCode}
+          activeOpacity={0.7}
+        >
+          <View style={styles.actionButtonContent}>
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
+              <Ionicons name="qr-code" size={24} color="#2196F3" />
             </View>
-          </BlurView>
-        ) : (
-          <View style={[styles.actionsCardContent, { backgroundColor: 'rgba(255,255,255,0.02)' }]}>
-            <Text style={styles.actionsTitle}>Quick Actions</Text>
-            
-            <View style={styles.actionButtons}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.shareButton,
-                  pressed && styles.actionButtonPressed
-                ]}
-                onPress={onShowQRCode}
-              >
-                <LinearGradient
-                  colors={['#2196F3', '#1976D2']}
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons name="qr-code" size={20} color="white" />
-                  <Text style={styles.actionButtonText}>Share QR</Text>
-                </LinearGradient>
-              </Pressable>
-              
-              <Pressable
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  styles.disconnectButton,
-                  pressed && styles.actionButtonPressed
-                ]}
-                onPress={onDisconnect}
-              >
-                <LinearGradient
-                  colors={['#F44336', '#D32F2F']}
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons name="log-out-outline" size={20} color="white" />
-                  <Text style={styles.actionButtonText}>Disconnect</Text>
-                </LinearGradient>
-              </Pressable>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionButtonTitle}>Share QR Code</Text>
+              <Text style={styles.actionButtonDescription}>Let others connect easily</Text>
             </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
           </View>
-        )}
-      </LinearGradient>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onDisconnect}
+          activeOpacity={0.7}
+        >
+          <View style={styles.actionButtonContent}>
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 83, 80, 0.15)' }]}>
+              <Ionicons name="power" size={24} color="#EF5350" />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionButtonTitle}>Disconnect</Text>
+              <Text style={styles.actionButtonDescription}>End current session</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      colors={FreeShowTheme.gradients.appBackground}
       style={[styles.container, !shouldSkipSafeArea && { paddingTop: insets.top }]}
     >
       <ScrollView
@@ -330,10 +283,31 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <Text style={[styles.screenTitle, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Connection Status</Text>
-            </View>
+          {/* Brand Header Card */}
+          <View style={styles.brandCard}>
+            <LinearGradient
+              colors={['rgba(240, 0, 140, 0.12)', 'rgba(240, 0, 140, 0.04)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.brandGradient}
+            >
+              {/* Title Section - Left */}
+              <View style={styles.titleSection}>
+                <Text style={[styles.screenTitle, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Connection Status</Text>
+                <Text style={[styles.subtitle, Dimensions.get('window').width >= 768 && styles.subtitleTablet]}>
+                  Manage your connection
+                </Text>
+              </View>
+
+              {/* Logo - Right */}
+              <View style={styles.logoContainer}>
+                <Image 
+                  source={require('../../assets/splash-icon.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+            </LinearGradient>
           </View>
         </View>
 
@@ -360,30 +334,57 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 0,
-    paddingBottom: 12,
+    paddingBottom: 20,
   },
-  headerTop: {
+  
+  // Brand Header Card
+  brandCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  brandGradient: {
+    padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(240, 0, 140, 0.15)',
+    gap: 16,
   },
-  headerLeft: {
+  titleSection: {
     flex: 1,
+    gap: 4,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 40,
+    height: 40,
   },
   screenTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: 'white',
-    marginBottom: 4,
     letterSpacing: -0.5,
   },
   titleTablet: {
-    fontSize: 34,
+    fontSize: 28,
   },
-  screenSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.2,
+  },
+  subtitleTablet: {
+    fontSize: 15,
   },
   cardsContainer: {
     gap: FreeShowTheme.spacing.lg,
@@ -401,17 +402,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   infoCardBlur: {
-    padding: 20,
+    padding: 16,
     borderRadius: 12,
     overflow: 'hidden',
   },
   infoCardContent: {
-    padding: 20,
+    padding: 16,
     borderRadius: 12,
     overflow: 'hidden',
   },
   infoHeader: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   statusIndicator: {
     flexDirection: 'row',
@@ -419,12 +420,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: '#4CAF50',
   },
   connectionDetails: {
-    gap: 16,
+    gap: 12,
   },
   detailRow: {
     flexDirection: 'row',
@@ -479,82 +480,75 @@ const styles = StyleSheet.create({
   },
   portsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 6,
   },
   portItem: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     alignItems: 'center',
-    minWidth: 80,
+    flex: 1,
+    minWidth: 0,
   },
   portName: {
-    fontSize: 12,
+    fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
     textTransform: 'capitalize',
     marginBottom: 2,
   },
   portNumber: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: 'white',
   },
   
   // Actions Card
   actionsCard: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionsCardGradient: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionsCardBlur: {
-    padding: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionsCardContent: {
-    padding: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
+    gap: 16,
   },
   actionsTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: 'white',
-    marginBottom: 16,
+    marginBottom: 4,
   },
   actionButtons: {
-    flexDirection: 'row',
     gap: 12,
   },
   actionButton: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  actionButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  actionButtonGradient: {
+  actionButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
+    padding: 16,
+    gap: 14,
   },
-  actionButtonText: {
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionTextContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  actionButtonTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+    letterSpacing: -0.2,
   },
-  shareButton: {},
-  disconnectButton: {},
+  actionButtonDescription: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
 });
 
 export default ConnectedScreen;

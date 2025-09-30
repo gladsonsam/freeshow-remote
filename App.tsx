@@ -26,6 +26,8 @@ import { ErrorLogger } from './src/services/ErrorLogger';
 import { configService } from './src/config/AppConfig';
 import { useAutoConnectExpected } from './src/hooks/useAutoConnect';
 import { getTabIcon } from './src/utils/tabConfig';
+import * as QuickActions from 'expo-quick-actions';
+import { QuickActionData } from './src/services/QuickActionsService';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -169,6 +171,7 @@ function BottomTabsLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        lazy: false, // Load all screens immediately to prevent flicker
       }}
     >
       <Tab.Screen
@@ -615,6 +618,39 @@ export default function App() {
     initializeApp();
   }, []);
 
+  // Store quick action for auto-connect
+  const quickActionRef = React.useRef<any>(null);
+
+  // Handle quick actions (Android/iOS launcher shortcuts)
+  useEffect(() => {
+    const handleQuickAction = (action: QuickActions.Action | null) => {
+      if (!action || !action.params) return;
+
+      const params = action.params as any;
+      
+      if (params.type === 'connect-history') {
+        ErrorLogger.info(`[QuickActions] Auto-connecting to: ${params.host}`, 'App');
+        
+        // Store the quick action data for auto-connect
+        quickActionRef.current = params;
+      }
+    };
+
+    // Handle app opened from quick action
+    if (QuickActions.initial) {
+      handleQuickAction(QuickActions.initial);
+    }
+
+    // Listen for quick actions while app is running
+    const subscription = QuickActions.addListener<QuickActions.Action>((action) => {
+      handleQuickAction(action);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
@@ -623,7 +659,7 @@ export default function App() {
       }}
     >
       <SafeAreaProvider>
-        <AppContextProvider navigation={navigationRef}>
+        <AppContextProvider navigation={navigationRef} quickActionRef={quickActionRef}>
           <NavigationContainer ref={navigationRef} theme={FreeShowNavigationTheme}>
             <Stack.Navigator
               screenOptions={{

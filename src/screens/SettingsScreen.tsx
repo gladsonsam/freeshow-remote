@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,7 +138,7 @@ const handleKeepAwakeToggle = async (value: boolean) => {
   return (
     <>
       <LinearGradient
-        colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+        colors={FreeShowTheme.gradients.appBackground}
         style={styles.container}
       >
       <SafeAreaWrapper style={[styles.safeAreaContainer, { backgroundColor: 'transparent' }]}>
@@ -150,10 +151,31 @@ const handleKeepAwakeToggle = async (value: boolean) => {
           >
             {/* Header */}
             <View style={styles.header}>
-              <View style={styles.headerTop}>
-                <View style={styles.headerLeft}>
-                  <Text style={[styles.title, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Settings</Text>
-                </View>
+              {/* Brand Header Card */}
+              <View style={styles.brandCard}>
+                <LinearGradient
+                  colors={['rgba(240, 0, 140, 0.12)', 'rgba(240, 0, 140, 0.04)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.brandGradient}
+                >
+                  {/* Title Section - Left */}
+                  <View style={styles.titleSection}>
+                    <Text style={[styles.title, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Settings</Text>
+                    <Text style={[styles.subtitle, Dimensions.get('window').width >= 768 && styles.subtitleTablet]}>
+                      Customize your experience
+                    </Text>
+                  </View>
+
+                  {/* Logo - Right */}
+                  <View style={styles.logoContainer}>
+                    <Image 
+                      source={require('../../assets/splash-icon.png')}
+                      style={styles.logo}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </LinearGradient>
               </View>
             </View>
 
@@ -535,26 +557,58 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    paddingHorizontal: 0, // Remove padding to inherit from parent container
-    paddingBottom: 12,
+    paddingHorizontal: 0,
+    paddingBottom: 20,
   },
-  headerTop: {
+
+  // Brand Header Card
+  brandCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  brandGradient: {
+    padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(240, 0, 140, 0.15)',
+    gap: 16,
   },
-  headerLeft: {
+  titleSection: {
     flex: 1,
+    gap: 4,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 40,
+    height: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: 'white',
     letterSpacing: -0.5,
   },
   titleTablet: {
-    fontSize: 34,
+    fontSize: 28,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.2,
+  },
+  subtitleTablet: {
+    fontSize: 15,
   },
 
   settingsCard: {

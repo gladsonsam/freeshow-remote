@@ -8,6 +8,8 @@ import {
   Modal,
   TextInput,
   Platform,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,9 +18,11 @@ import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useSettings, useConnection } from '../contexts';
 import { ConnectionHistory, settingsRepository } from '../repositories';
 import ConfirmationModal from '../components/ConfirmationModal';
+import ErrorModal from '../components/ErrorModal';
 import { ValidationService } from '../services/InputValidationService';
 import { configService } from '../config/AppConfig';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { interfacePingService } from '../services/InterfacePingService';
 
 interface ConnectionHistoryScreenProps {
   navigation: any;
@@ -35,6 +39,12 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [connectionToRemove, setConnectionToRemove] = useState<string | null>(null);
+  const [isPingingHost, setIsPingingHost] = useState(false);
+  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string}>({
+    visible: false,
+    title: '',
+    message: ''
+  });
 
   // Memoize sorted history
   const sortedHistory = useMemo(() => {
@@ -57,7 +67,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
       console.error('Failed to remove connection from history:', error);
       // You could add another modal for error display here if needed
     }
-  }, []);
+  }, [connectionToRemove, actions]);
 
   const cancelRemoveFromHistory = () => {
     setShowRemoveConfirm(false);
@@ -76,7 +86,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
       console.error('Failed to clear connection history:', error);
       // You could add another modal for error display here if needed
     }
-  }, []);
+  }, [actions]);
 
   const cancelClearAllHistory = () => {
     setShowClearAllConfirm(false);
@@ -101,7 +111,7 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
       console.error('Failed to update nickname:', error);
       // You could add an error modal here if needed, for now just log the error
     }
-  }, [editingConnection, editNicknameText]);
+  }, [editingConnection, editNicknameText, actions]);
 
   const handleCancelEdit = () => {
     setShowEditNickname(false);
@@ -111,32 +121,51 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
 
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      colors={FreeShowTheme.gradients.appBackground}
       style={styles.container}
     >
       <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>Connection History</Text>
-          <Text style={styles.subtitle}>
-            {history.length} {history.length === 1 ? 'connection' : 'connections'}
-          </Text>
-        </View>
-        {history.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearAllButton}
-            onPress={handleClearAllHistory}
+        <View style={styles.brandCard}>
+          <LinearGradient
+            colors={['rgba(240, 0, 140, 0.12)', 'rgba(240, 0, 140, 0.04)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.brandGradient}
           >
-            <Ionicons name="trash-outline" size={20} color={FreeShowTheme.colors.textSecondary} />
-          </TouchableOpacity>
-        )}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={FreeShowTheme.colors.text} />
+            </TouchableOpacity>
+
+            <View style={styles.titleSection}>
+              <Text style={styles.title}>Connection History</Text>
+              <Text style={styles.subtitle}>
+                {history.length} {history.length === 1 ? 'connection' : 'connections'}
+              </Text>
+            </View>
+
+            {history.length > 0 ? (
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={handleClearAllHistory}
+              >
+                <Ionicons name="trash-outline" size={22} color="rgba(239, 83, 80, 0.9)" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.logoContainer}>
+                <Image 
+                  source={require('../../assets/splash-icon.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+          </LinearGradient>
+        </View>
       </View>
 
       {/* Content */}
@@ -180,6 +209,23 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
                     validatedShowPorts = configService.getDefaultShowPorts();
                   }
                   
+                  // Ping host to check if it's reachable
+                  setIsPingingHost(true);
+                  try {
+                    const pingResult = await interfacePingService.pingHost(sanitizedHost);
+                    
+                    if (!pingResult.isReachable) {
+                      setErrorModal({
+                        visible: true,
+                        title: 'Host Not Reachable',
+                        message: `Cannot reach ${sanitizedHost}. Please check that the host is online and accessible from your network.`
+                      });
+                      return;
+                    }
+                  } finally {
+                    setIsPingingHost(false);
+                  }
+
                   ErrorLogger.info('Attempting connection from history with validated inputs', 'ConnectionHistoryScreen', 
                     new Error(`Host: ${sanitizedHost}, Ports: ${JSON.stringify(validatedShowPorts)}`)
                   );
@@ -200,9 +246,16 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
                     }
                   }
                 } catch (error) {
+                  setIsPingingHost(false);
                   ErrorLogger.error('History connection failed', 'ConnectionHistoryScreen', error instanceof Error ? error : new Error(String(error)));
+                  setErrorModal({
+                    visible: true,
+                    title: 'Connection Error',
+                    message: 'Failed to connect to this server. Please try again.'
+                  });
                 }
               }}
+              disabled={isPingingHost}
             >
               <View style={styles.historyItemHeader}>
                 <View style={styles.historyItemIcon}>
@@ -218,16 +271,20 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
                   </Text>
                 </View>
                 <View style={styles.historyItemActions}>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleEditNickname(item);
-                    }}
-                  >
-                    <Ionicons name="create-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  {isPingingHost ? (
+                    <ActivityIndicator size="small" color={FreeShowTheme.colors.secondary} />
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleEditNickname(item);
+                        }}
+                      >
+                        <Ionicons name="create-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={(e) => {
                       e.stopPropagation();
@@ -236,6 +293,8 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
                   >
                     <Ionicons name="trash-outline" size={18} color={FreeShowTheme.colors.textSecondary} />
                   </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               </View>
               
@@ -352,6 +411,14 @@ const ConnectionHistoryScreen: React.FC<ConnectionHistoryScreenProps> = React.me
         onConfirm={confirmClearAllHistory}
         onCancel={cancelClearAllHistory}
       />
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={errorModal.visible}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ visible: false, title: '', message: '' })}
+      />
       </SafeAreaView>
     </LinearGradient>
   );
@@ -365,37 +432,66 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    paddingBottom: FreeShowTheme.spacing.md,
+  },
+  brandCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  brandGradient: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 10 : 20,
-    borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.primaryLighter,
+    borderWidth: 1,
+    borderColor: 'rgba(240, 0, 140, 0.15)',
+    gap: 12,
   },
   backButton: {
-    padding: FreeShowTheme.spacing.sm,
-    marginRight: FreeShowTheme.spacing.sm,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  headerContent: {
+  titleSection: {
     flex: 1,
+    gap: 2,
   },
   title: {
-    fontSize: FreeShowTheme.fontSize.xl,
+    fontSize: 18,
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
-    marginBottom: 2,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.2,
   },
   clearAllButton: {
-    padding: FreeShowTheme.spacing.sm,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 83, 80, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 32,
+    height: 32,
   },
   scrollView: {
     flex: 1,

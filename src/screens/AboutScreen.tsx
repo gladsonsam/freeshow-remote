@@ -27,20 +27,40 @@ const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
 
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      colors={FreeShowTheme.gradients.appBackground}
       style={styles.container}
     >
       <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBackPress}
-        >
-          <Ionicons name="chevron-back" size={24} color={FreeShowTheme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>About</Text>
-        <View style={styles.placeholder} />
+        <View style={styles.brandCard}>
+          <LinearGradient
+            colors={['rgba(240, 0, 140, 0.12)', 'rgba(240, 0, 140, 0.04)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.brandGradient}
+          >
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={handleBackPress}
+            >
+              <Ionicons name="arrow-back" size={24} color={FreeShowTheme.colors.text} />
+            </TouchableOpacity>
+
+            <View style={styles.titleSection}>
+              <Text style={styles.headerTitle}>About</Text>
+              <Text style={styles.subtitle}>App information & support</Text>
+            </View>
+
+            <View style={styles.logoContainer}>
+              <Image 
+                source={require('../../assets/splash-icon.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+          </LinearGradient>
+        </View>
       </View>
 
       <ScrollView 
@@ -172,25 +192,58 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    paddingBottom: FreeShowTheme.spacing.md,
+  },
+  brandCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  brandGradient: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 10 : 20,
-    borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.primaryLighter,
+    borderWidth: 1,
+    borderColor: 'rgba(240, 0, 140, 0.15)',
+    gap: 12,
   },
   backButton: {
-    padding: FreeShowTheme.spacing.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  titleSection: {
+    flex: 1,
+    gap: 2,
   },
   headerTitle: {
-    fontSize: FreeShowTheme.fontSize.xl,
+    fontSize: 18,
     fontWeight: '700',
     color: FreeShowTheme.colors.text,
+    letterSpacing: -0.3,
   },
-  placeholder: {
-    width: 40, // Same width as back button for centering
+  subtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.2,
+  },
+  logoContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 32,
+    height: 32,
   },
   scrollView: {
     flex: 1,

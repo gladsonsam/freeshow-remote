@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { FreeShowTheme } from '../theme/FreeShowTheme';
 
 interface InterfaceHeaderProps {
   connectionName: string | null;
@@ -23,45 +24,74 @@ const InterfaceHeader: React.FC<InterfaceHeaderProps> = ({
 
   return (
     <View style={styles.header}>
-      <View style={styles.headerTop}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.title, isTablet && styles.titleTablet]}>FreeShow Remote</Text>
-        </View>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.profileButton,
-            pressed && styles.profileButtonPressed
-          ]}
-          onPress={onDisconnect}
+      {/* Brand Header Card */}
+      <View style={styles.brandCard}>
+        <LinearGradient
+          colors={['rgba(240, 0, 140, 0.12)', 'rgba(240, 0, 140, 0.04)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.brandGradient}
         >
-          <LinearGradient
-            colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-            style={styles.profileButtonGradient}
-          >
-            <Ionicons name="log-out-outline" size={isTablet ? 20 : 18} color="white" />
-          </LinearGradient>
-        </Pressable>
+          {/* Title Section - Left */}
+          <View style={styles.titleSection}>
+            <Text style={[styles.title, isTablet && styles.titleTablet]}>FreeShow Remote</Text>
+            <Text style={[styles.subtitle, isTablet && styles.subtitleTablet]}>
+              Select an interface
+            </Text>
+          </View>
+
+          {/* Logo - Right */}
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../assets/splash-icon.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+        </LinearGradient>
       </View>
 
       {/* Connection Status Card */}
-      <View style={styles.connectionCard}>
+      <View style={styles.statusCard}>
         <LinearGradient
-          colors={['rgba(139, 92, 246, 0.08)', 'rgba(168, 85, 247, 0.04)']}
-          style={[styles.connectionCardGradient, isTablet && styles.connectionCardGradientTablet]}
+          colors={['rgba(76, 175, 80, 0.15)', 'rgba(76, 175, 80, 0.05)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.statusCardGradient, isTablet && styles.statusCardGradientTablet]}
         >
-          <View style={styles.connectionInfo}>
-            <View style={styles.connectionStatus}>
-              <View style={styles.statusIndicator} />
-              <Text style={[styles.connectionLabel, isTablet && styles.connectionLabelTablet]}>Connected to</Text>
+          {/* Status Icon Circle */}
+          <View style={[styles.statusIconContainer, { backgroundColor: '#4CAF50' + '20' }]}>
+            <Ionicons name="checkmark-circle" size={isTablet ? 26 : 22} color="#4CAF50" />
+          </View>
+
+          {/* Connection Details */}
+          <View style={styles.statusInfo}>
+            <View style={styles.statusHeader}>
+              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+              <Text style={[styles.statusLabel, isTablet && styles.statusLabelTablet]}>
+                CONNECTED
+              </Text>
             </View>
-            <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet, isTablet && styles.connectionNameTabletLarge]}>
-              {connectionName || connectionHost || 'Unknown'}
+            <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet]}>
+              {connectionName || connectionHost || 'Connected'}
             </Text>
           </View>
-          <View style={styles.connectionIcon}>
-            <Ionicons name="checkmark-circle" size={20} color="#06D6A0" />
-          </View>
+
+          {/* Disconnect Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.actionButtonPressed
+            ]}
+            onPress={onDisconnect}
+          >
+            <LinearGradient
+              colors={['rgba(239, 83, 80, 0.2)', 'rgba(239, 83, 80, 0.1)']}
+              style={styles.actionButtonGradient}
+            >
+              <Ionicons name="power" size={isTablet ? 22 : 20} color="#EF5350" />
+            </LinearGradient>
+          </Pressable>
         </LinearGradient>
       </View>
     </View>
@@ -71,95 +101,131 @@ const InterfaceHeader: React.FC<InterfaceHeaderProps> = ({
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 0,
-    paddingBottom: 12,
+    paddingBottom: 20,
+    gap: 16,
   },
-  headerTop: {
+
+  // Brand Header Card
+  brandCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  brandGradient: {
+    padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(240, 0, 140, 0.15)',
+    gap: 16,
   },
-  headerLeft: {
+  titleSection: {
     flex: 1,
+    gap: 4,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 40,
+    height: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: 'white',
     letterSpacing: -0.5,
   },
   titleTablet: {
-    fontSize: 34,
+    fontSize: 28,
   },
-  profileButton: {
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.2,
+  },
+  subtitleTablet: {
+    fontSize: 15,
+  },
+  actionButton: {
     borderRadius: 12,
     overflow: 'hidden',
   },
-  profileButtonPressed: {
-    transform: [{ scale: 0.95 }],
+  actionButtonPressed: {
+    opacity: 0.7,
   },
-  profileButtonGradient: {
+  actionButtonGradient: {
     width: 44,
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(239, 83, 80, 0.25)',
   },
 
-  // Connection Card
-  connectionCard: {
+  // Status Card
+  statusCard: {
     borderRadius: 16,
     overflow: 'hidden',
   },
-  connectionCardGradient: {
-    padding: 12,
+  statusCardGradient: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 14,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  connectionCardGradientTablet: {
-    padding: 18,
+  statusCardGradientTablet: {
+    padding: 20,
   },
-  connectionInfo: {
+  statusIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusInfo: {
     flex: 1,
+    gap: 4,
   },
-  connectionStatus: {
+  statusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 8,
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#06D6A0',
-    marginRight: 8,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  connectionLabel: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '500',
+  statusLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  connectionLabelTablet: {
-    fontSize: 16,
+  statusLabelTablet: {
+    fontSize: 13,
   },
   connectionName: {
-    fontSize: 16,
+    fontSize: 17,
     color: 'white',
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
   connectionNameTablet: {
-    fontSize: 22,
-  },
-  connectionNameTabletLarge: {
-    fontSize: 26,
-  },
-  connectionIcon: {
-    marginLeft: 16,
+    fontSize: 20,
   },
 });
 

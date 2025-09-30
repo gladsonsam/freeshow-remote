@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -52,10 +52,34 @@ const getResponsiveDimensions = () => {
 
 const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, port }) => {
   const { history } = useSettings();
-  const defaultPorts = configService.getDefaultShowPorts();
-  const connection = history.find(h => h.host === host);
+  
+  // Don't render the modal content if no valid host
+  if (!host || host.trim() === '') {
+    return (
+      <Modal visible={visible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { padding: 40 }]}>
+            <Text style={styles.title}>No connection available</Text>
+            <TouchableOpacity style={styles.doneButton} onPress={onClose}>
+              <Text style={styles.doneButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+  
+  // Memoize default ports
+  const defaultPorts = useMemo(() => configService.getDefaultShowPorts(), []);
+  
+  // Memoize connection lookup
+  const connection = useMemo(() => 
+    history.find(h => h.host === host),
+    [history, host]
+  );
 
-  const payload = {
+  // Memoize payload to prevent recreating on every render
+  const payload = useMemo(() => ({
     type: 'freeshow-remote-connection',
     version: 1,
     host,
@@ -67,7 +91,8 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
       output: connection?.showPorts?.output ?? defaultPorts.output,
       api: connection?.showPorts?.api ?? Number(port ?? defaultPorts.api),
     },
-  };
+  }), [host, port, connection?.nickname, connection?.showPorts, defaultPorts]);
+  
   const [dimensions, setDimensions] = useState(getResponsiveDimensions());
 
   // Update dimensions when orientation changes
@@ -87,8 +112,6 @@ const ShareQRModal: React.FC<ShareQRModalProps> = ({ visible, onClose, host, por
   }, [visible]);
 
   const { qrSize, modalMaxWidth, isTablet } = dimensions;
-
-  console.log('ShareQRModal render:', { visible, host, port, payload: JSON.stringify(payload) });
 
   return (
     <Modal visible={visible} animationType="slide" transparent>

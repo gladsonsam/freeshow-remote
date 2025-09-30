@@ -68,21 +68,28 @@ const ConnectingScreen: React.FC<ConnectingScreenProps> = ({
 
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
-      style={[styles.container, { paddingTop: insets.top }]}
+      colors={FreeShowTheme.gradients.appBackground}
+      style={styles.container}
     >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <Animated.View
         style={[
           styles.connectingContainer,
-          isFloatingNav ? { paddingBottom: 120 } : { paddingBottom: 40 },
+          { 
+            paddingTop: insets.top,
+            paddingBottom: isFloatingNav ? 120 : 40,
+          },
+          {
+            opacity: 1,
+            transform: [{ translateY: 0 }],
+          }
         ]}
       >
         {/* Icon container - matches not connected design exactly */}
         <View style={styles.connectingIcon}>
           <Animated.View style={{ opacity: pulseAnimation }}>
-            <Ionicons name="wifi-outline" size={48} color={FreeShowTheme.colors.secondary} />
+            <Ionicons name="wifi-outline" size={56} color={FreeShowTheme.colors.textSecondary} />
           </Animated.View>
         </View>
 
@@ -91,7 +98,6 @@ const ConnectingScreen: React.FC<ConnectingScreenProps> = ({
           {getStatusMessage()}
         </Text>
 
-        {/* Cancel button - keeping the design you liked */}
         <Pressable
           style={({ pressed }) => [
             styles.cancelButton,
@@ -102,13 +108,7 @@ const ConnectingScreen: React.FC<ConnectingScreenProps> = ({
           accessibilityLabel="Cancel connection attempt"
           accessibilityHint="Stop the current connection attempt"
         >
-          <LinearGradient
-            colors={['rgba(240, 0, 140, 0.1)', 'rgba(224, 0, 122, 0.1)']}
-            style={styles.cancelButtonGradient}
-          >
-            <Ionicons name="close-outline" size={20} color={FreeShowTheme.colors.secondary} />
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </LinearGradient>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
         </Pressable>
       </Animated.View>
     </LinearGradient>
@@ -126,51 +126,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   connectingIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-    backgroundColor: FreeShowTheme.colors.secondary + '22',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '44',
-    position: 'relative',
+    borderColor: FreeShowTheme.colors.primaryLighter,
   },
   connectingTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 12,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   connectingSubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
+    color: FreeShowTheme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
+    lineHeight: 24,
+    marginBottom: 40,
+    maxWidth: 320,
   },
   cancelButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '44',
-  },
-  cancelButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  cancelButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 28,
     paddingVertical: 16,
-    gap: 8,
+    borderRadius: 12,
+    minWidth: 200,
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
+  },
+  cancelButtonPressed: {
+    backgroundColor: FreeShowTheme.colors.primaryDarkest,
+    transform: [{ scale: 0.98 }],
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: FreeShowTheme.colors.secondary,
+    color: FreeShowTheme.colors.textSecondary,
+    letterSpacing: 0.2,
   },
 });
 

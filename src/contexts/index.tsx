@@ -10,13 +10,15 @@ import { SettingsProvider, useSettings } from './SettingsContext';
 const ConnectionProviderWithSettings: React.FC<{
   children: ReactNode;
   navigation?: any;
-}> = ({ children, navigation }) => {
+  quickActionRef?: React.MutableRefObject<any>;
+}> = ({ children, navigation, quickActionRef }) => {
   const { actions } = useSettings();
   
   return (
     <ConnectionProvider 
       navigation={navigation}
       onConnectionHistoryUpdate={actions.refreshHistory}
+      quickActionRef={quickActionRef}
     >
       <DiscoveryProvider autoStartDiscovery={false}>
         {children}
@@ -29,10 +31,11 @@ const ConnectionProviderWithSettings: React.FC<{
 export const AppContextProvider: React.FC<{
   children: ReactNode;
   navigation?: any;
-}> = ({ children, navigation }) => {
+  quickActionRef?: React.MutableRefObject<any>;
+}> = ({ children, navigation, quickActionRef }) => {
   return (
     <SettingsProvider>
-      <ConnectionProviderWithSettings navigation={navigation}>
+      <ConnectionProviderWithSettings navigation={navigation} quickActionRef={quickActionRef}>
         {children}
       </ConnectionProviderWithSettings>
     </SettingsProvider>

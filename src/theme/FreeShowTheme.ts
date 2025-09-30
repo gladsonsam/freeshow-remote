@@ -50,7 +50,9 @@ export const FreeShowTheme = {
     blue: 'linear-gradient(120deg, #0074D9 0%, #0051A3 60%, #00346C 100%)',
     purple: 'linear-gradient(120deg, #B10DC9 0%, #8A0AA4 60%, #5F0578 100%)',
     
-    dark: ['#363945', '#292c36', '#191923'],
+    dark: ['#363945', '#292c36', '#191923'] as const,
+    // App background gradient - used across all screens
+    appBackground: ['#0a0a0f', '#0d0d15', '#0f0f18'] as const,
   },
   
   spacing: {

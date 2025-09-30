@@ -2,7 +2,7 @@
   "expo": {
     "name": "FreeShow Remote",
     "slug": "freeshow-remote",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -13,8 +13,8 @@
       "android"
     ],
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
+      "image": "./assets/splash-icon-bg.png",
+      "resizeMode": "contain",
       "backgroundColor": "#0a0a0f"
     },
     "assetBundlePatterns": [
@@ -24,8 +24,8 @@
       "supportsTablet": true,
       "requireFullScreen": false,
       "splash": {
-        "image": "./assets/splash-icon.png",
-        "resizeMode": "cover",
+        "image": "./assets/splash-icon-bg.png",
+        "resizeMode": "contain",
         "backgroundColor": "#0a0a0f"
       },
       "infoPlist": {
@@ -33,7 +33,7 @@
           "NSAllowsArbitraryLoads": true
         },
         "CFBundleDisplayName": "FreeShow Remote",
-        "CFBundleShortVersionString": "1.0.2",
+        "CFBundleShortVersionString": "1.0.3",
         "CFBundleVersion": "1",
         "UIStatusBarHidden": false,
         "UIViewControllerBasedStatusBarAppearance": true,
@@ -48,7 +48,8 @@
           "UIInterfaceOrientationPortraitUpsideDown",
           "UIInterfaceOrientationLandscapeLeft",
           "UIInterfaceOrientationLandscapeRight"
-        ]
+        ],
+        "UIApplicationShortcutItems": []
       },
       "bundleIdentifier": "com.gladsonsam.freeshowremote",
       "config": {
@@ -60,8 +61,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": true,
       "splash": {
-        "image": "./assets/splash-icon.png",
-        "resizeMode": "cover",
+        "image": "./assets/splash-icon-bg.png",
+        "resizeMode": "contain",
         "backgroundColor": "#0a0a0f"
       },
       "permissions": [
@@ -115,7 +116,27 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0a0a0f",
+          "image": "./assets/splash-icon-bg.png",
+          "imageWidth": 250,
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-quick-actions",
+        {
+          "androidIcons": {
+            "wifi_shortcut": {
+              "foregroundImage": "./assets/icon.png",
+              "backgroundColor": "#0a0a0f"
+            }
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

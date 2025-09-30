@@ -257,7 +257,7 @@ const InterfaceScreen: React.FC<InterfaceScreenProps> = ({ navigation }) => {
 
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      colors={FreeShowTheme.gradients.appBackground}
       style={[styles.container, !shouldSkipSafeArea && { paddingTop: insets.top }]}
     >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />

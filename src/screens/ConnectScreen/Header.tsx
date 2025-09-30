@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
@@ -84,187 +84,253 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <View style={styles.header}>
-      <View style={styles.headerTop}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.title, isTablet && styles.titleTablet]}>FreeShow Remote</Text>
-        </View>
-
-        {onDisconnect && isConnected && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.profileButton,
-              pressed && styles.profileButtonPressed
-            ]}
-            onPress={onDisconnect}
-          >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-              style={styles.profileButtonGradient}
-            >
-              <Ionicons name="log-out-outline" size={isTablet ? 20 : 18} color="white" />
-            </LinearGradient>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Connection Status Card */}
-      <View style={styles.connectionCard}>
+      {/* Brand Header Card */}
+      <View style={styles.brandCard}>
         <LinearGradient
-          colors={
-            connectionStatus === 'connected' || isConnected
-              ? ['rgba(76, 175, 80, 0.08)', 'rgba(76, 175, 80, 0.04)']
-              : connectionStatus === 'connecting'
-              ? ['rgba(255, 152, 0, 0.08)', 'rgba(255, 152, 0, 0.04)']
-              : connectionStatus === 'error'
-              ? ['rgba(239, 83, 80, 0.08)', 'rgba(239, 83, 80, 0.04)']
-              : ['rgba(102, 102, 102, 0.08)', 'rgba(102, 102, 102, 0.04)']
-          }
-          style={[styles.connectionCardGradient, isTablet && styles.connectionCardGradientTablet]}
+          colors={['rgba(240, 0, 140, 0.12)', 'rgba(240, 0, 140, 0.04)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.brandGradient}
         >
-          <View style={styles.connectionInfo}>
-            <View style={styles.connectionStatus}>
-              <View style={[styles.statusIndicator, { backgroundColor: status.color }]} />
-              <Text style={[styles.connectionLabel, isTablet && styles.connectionLabelTablet]}>
-                {status.label}
-              </Text>
-            </View>
-            {(connectionStatus === 'connected' || isConnected) && (
-              <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet, isTablet && styles.connectionNameTabletLarge]}>
-                {connectionName || connectionHost || 'Connected'}
-              </Text>
-            )}
-            {isConnected && currentShowPorts && (
-              <View style={styles.portsContainer}>
-                {Object.entries(currentShowPorts)
-                  .filter(([_, port]) => port > 0)
-                  .map(([name, port]) => (
-                    <View key={name} style={styles.portChip}>
-                      <Text style={styles.portChipText}>
-                        {name}: {port}
-                      </Text>
-                    </View>
-                  ))}
-              </View>
-            )}
+          {/* Title Section - Left */}
+          <View style={styles.titleSection}>
+            <Text style={[styles.title, isTablet && styles.titleTablet]}>FreeShow Remote</Text>
+            <Text style={[styles.subtitle, isTablet && styles.subtitleTablet]}>
+              Control your presentations
+            </Text>
           </View>
-          <View style={styles.connectionIcon}>
-            <Ionicons name={status.icon} size={20} color={status.color} />
+
+          {/* Logo - Right */}
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../../assets/splash-icon.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
+
+          {/* Disconnect Button */}
+          {onDisconnect && isConnected && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed && styles.actionButtonPressed
+              ]}
+              onPress={onDisconnect}
+            >
+              <LinearGradient
+                colors={['rgba(239, 83, 80, 0.2)', 'rgba(239, 83, 80, 0.1)']}
+                style={styles.actionButtonGradient}
+              >
+                <Ionicons name="power" size={isTablet ? 22 : 20} color="#EF5350" />
+              </LinearGradient>
+            </Pressable>
+          )}
         </LinearGradient>
       </View>
+
+      {/* Connection Status Card - Only show when connected, connecting, or error */}
+      {(isConnected || connectionStatus === 'connecting' || connectionStatus === 'error') && (
+        <View style={styles.statusCard}>
+          <LinearGradient
+            colors={
+              connectionStatus === 'connected' || isConnected
+                ? ['rgba(76, 175, 80, 0.15)', 'rgba(76, 175, 80, 0.05)']
+                : connectionStatus === 'connecting'
+                ? ['rgba(255, 152, 0, 0.15)', 'rgba(255, 152, 0, 0.05)']
+                : ['rgba(239, 83, 80, 0.15)', 'rgba(239, 83, 80, 0.05)']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.statusCardGradient, isTablet && styles.statusCardGradientTablet]}
+          >
+            {/* Status Icon Circle */}
+            <View style={[styles.statusIconContainer, { backgroundColor: status.color + '20' }]}>
+              <Ionicons name={status.icon} size={isTablet ? 26 : 22} color={status.color} />
+            </View>
+
+            {/* Connection Details */}
+            <View style={styles.statusInfo}>
+              <View style={styles.statusHeader}>
+                <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+                <Text style={[styles.statusLabel, isTablet && styles.statusLabelTablet]}>
+                  {status.label}
+                </Text>
+              </View>
+              {(connectionStatus === 'connected' || isConnected) && (
+                <Text style={[styles.connectionName, isTablet && styles.connectionNameTablet]}>
+                  {connectionName || connectionHost || 'Connected'}
+                </Text>
+              )}
+              {isConnected && currentShowPorts && (
+                <View style={styles.portsContainer}>
+                  {Object.entries(currentShowPorts)
+                    .filter(([_, port]) => port > 0)
+                    .map(([name, port]) => (
+                      <View key={name} style={styles.portChip}>
+                        <Ionicons name="radio-button-on" size={8} color="#4CAF50" />
+                        <Text style={styles.portChipText}>
+                          {name} · {port}
+                        </Text>
+                      </View>
+                    ))}
+                </View>
+              )}
+            </View>
+          </LinearGradient>
+        </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: 0, // Remove padding to inherit from parent container
-    paddingBottom: 12,
+    paddingHorizontal: 0,
+    paddingBottom: 20,
+    gap: 16,
   },
-  headerTop: {
+
+  // Brand Header Card
+  brandCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  brandGradient: {
+    padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(240, 0, 140, 0.15)',
+    gap: 16,
   },
-  headerLeft: {
+  titleSection: {
     flex: 1,
+    gap: 4,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 40,
+    height: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: 'white',
     letterSpacing: -0.5,
   },
   titleTablet: {
-    fontSize: 34,
+    fontSize: 28,
   },
-  profileButton: {
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    letterSpacing: 0.2,
+  },
+  subtitleTablet: {
+    fontSize: 15,
+  },
+  actionButton: {
     borderRadius: 12,
     overflow: 'hidden',
   },
-  profileButtonPressed: {
-    transform: [{ scale: 0.95 }],
+  actionButtonPressed: {
+    opacity: 0.7,
   },
-  profileButtonGradient: {
+  actionButtonGradient: {
     width: 44,
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(239, 83, 80, 0.25)',
   },
 
-  // Connection Card
-  connectionCard: {
+  // Status Card
+  statusCard: {
     borderRadius: 16,
     overflow: 'hidden',
   },
-  connectionCardGradient: {
-    padding: 12,
+  statusCardGradient: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 14,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  connectionCardGradientTablet: {
-    padding: 18,
+  statusCardGradientTablet: {
+    padding: 20,
   },
-  connectionInfo: {
+  statusIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusInfo: {
     flex: 1,
+    gap: 4,
   },
-  connectionStatus: {
+  statusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 8,
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  connectionLabel: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '500',
+  statusLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  connectionLabelTablet: {
-    fontSize: 16,
+  statusLabelTablet: {
+    fontSize: 13,
   },
   connectionName: {
-    fontSize: 16,
+    fontSize: 17,
     color: 'white',
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
   connectionNameTablet: {
-    fontSize: 22,
-  },
-  connectionNameTabletLarge: {
-    fontSize: 26,
-  },
-  connectionIcon: {
-    marginLeft: 16,
+    fontSize: 20,
   },
   portsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   portChip: {
-    backgroundColor: 'rgba(76,175,80,0.15)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(76,175,80,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   portChipText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#4CAF50',
     textTransform: 'capitalize',
   },

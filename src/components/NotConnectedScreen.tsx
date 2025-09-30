@@ -29,7 +29,7 @@ const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({
 
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      colors={FreeShowTheme.gradients.appBackground}
       style={styles.container}
     >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -48,7 +48,7 @@ const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({
         ]}
       >
         <View style={styles.notConnectedIcon}>
-          <Ionicons name="wifi-outline" size={48} color={FreeShowTheme.colors.secondary} />
+          <Ionicons name="wifi-outline" size={56} color={FreeShowTheme.colors.textSecondary} />
         </View>
 
         <Text style={styles.notConnectedTitle}>Not Connected</Text>
@@ -66,16 +66,8 @@ const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({
           accessibilityLabel="Connect to FreeShow server"
           accessibilityHint="Navigate to connection screen to set up a new connection"
         >
-          <LinearGradient
-            colors={['#F0008C', '#E0007A', '#D0006B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.connectButtonGradient}
-          >
-            <View style={styles.connectButtonInner}>
-              <Text style={styles.connectButtonText}>Connect to FreeShow</Text>
-            </View>
-          </LinearGradient>
+          <Text style={styles.connectButtonText}>Connect to FreeShow</Text>
+          <Ionicons name="arrow-forward" size={18} color="white" style={styles.connectButtonIcon} />
         </Pressable>
       </Animated.View>
     </LinearGradient>
@@ -93,63 +85,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   notConnectedIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-    backgroundColor: FreeShowTheme.colors.secondary + '22',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     borderWidth: 1,
-    borderColor: FreeShowTheme.colors.secondary + '44',
+    borderColor: FreeShowTheme.colors.primaryLighter,
   },
   notConnectedTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: '600',
+    color: FreeShowTheme.colors.text,
+    marginBottom: 12,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   notConnectedSubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
+    color: FreeShowTheme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
+    lineHeight: 24,
+    marginBottom: 40,
+    maxWidth: 320,
   },
   connectButton: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    // Enhanced shadow for depth
-    shadowColor: '#F0008C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-    // Subtle border glow
-    borderWidth: 1,
-    borderColor: 'rgba(240, 0, 140, 0.3)',
-  },
-  connectButtonPressed: {
-    transform: [{ scale: 0.96 }],
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-  },
-  connectButtonGradient: {
-    borderRadius: 20,
-  },
-  connectButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 18,
+    backgroundColor: FreeShowTheme.colors.secondary,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 12,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  connectButtonPressed: {
+    backgroundColor: FreeShowTheme.colors.secondaryDark,
+    transform: [{ scale: 0.98 }],
   },
   connectButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: 'white',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
+  },
+  connectButtonIcon: {
+    marginLeft: 8,
   },
 });
 

@@ -701,62 +701,56 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
 
   const isConnecting = connectionStatus === 'connecting';
 
-  // Show connected screen when connected
-  if (isConnected) {
-    return (
-      <>
-        <ConnectedScreen
-          connectionName={connectionName}
-          connectionHost={connectionHost}
-          currentShowPorts={currentShowPorts}
-          onDisconnect={handleDisconnect}
-          onShowQRCode={() => setShowQrModalVisible(true)}
-          onEditNickname={() => {
-            // Find the current connection in history and trigger edit
-            let currentConnection = history.find(item => 
-              item.host === connectionHost && item.showPorts?.api === currentShowPorts?.api
-            );
-            
-            // If no matching connection found, create a temporary one for editing
-            if (!currentConnection) {
-              currentConnection = {
-                id: connectionHost || 'unknown',
-                host: connectionHost || 'unknown',
-                nickname: connectionName || undefined,
-                lastUsed: new Date().toISOString(),
-                successfulConnections: 1,
-                showPorts: currentShowPorts || undefined,
-              };
-            }
-            
-            handleEditNickname(currentConnection);
-          }}
-          isFloatingNav={isFloatingNav}
-        />
-        <ShareQRModal
-          visible={showQrModalVisible}
-          onClose={() => setShowQrModalVisible(false)}
-          host={connectionHost || host}
-          port={String(configService.getNetworkConfig().defaultPort)}
-        />
-        <EditNicknameModal
-          visible={showEditNickname}
-          editingConnection={editingConnection}
-          editNicknameText={editNicknameText}
-          setEditNicknameText={setEditNicknameText}
-          onSave={handleSaveNickname}
-          onCancel={handleCancelEdit}
-        />
-      </>
-    );
-  }
+  // Render connected screen when connected
+  const connectedContent = isConnected ? (
+    <>
+      <ConnectedScreen
+        connectionName={connectionName}
+        connectionHost={connectionHost}
+        currentShowPorts={currentShowPorts}
+        onDisconnect={handleDisconnect}
+        onShowQRCode={() => setShowQrModalVisible(true)}
+        onEditNickname={() => {
+          // Find the current connection in history and trigger edit
+          let currentConnection = history.find(item => 
+            item.host === connectionHost && item.showPorts?.api === currentShowPorts?.api
+          );
+          
+          // If no matching connection found, create a temporary one for editing
+          if (!currentConnection) {
+            currentConnection = {
+              id: connectionHost || 'unknown',
+              host: connectionHost || 'unknown',
+              nickname: connectionName || undefined,
+              lastUsed: new Date().toISOString(),
+              successfulConnections: 1,
+              showPorts: currentShowPorts || undefined,
+            };
+          }
+          
+          handleEditNickname(currentConnection);
+        }}
+        isFloatingNav={isFloatingNav}
+      />
+      
+      <EditNicknameModal
+        visible={showEditNickname}
+        editingConnection={editingConnection}
+        editNicknameText={editNicknameText}
+        setEditNicknameText={setEditNicknameText}
+        onSave={handleSaveNickname}
+        onCancel={handleCancelEdit}
+      />
+    </>
+  ) : null;
 
   const { shouldSkipSafeArea } = getNavigationLayoutInfo(settings?.navigationLayout);
   const SafeAreaWrapper = shouldSkipSafeArea ? View : SafeAreaView;
 
-  return (
+  // Render disconnected screen when not connected
+  const disconnectedContent = !isConnected ? (
     <LinearGradient
-      colors={['#0a0a0f', '#0d0d15', '#0f0f18']}
+      colors={FreeShowTheme.gradients.appBackground}
       style={styles.container}
     >
       <SafeAreaWrapper style={styles.safeArea}>
@@ -840,20 +834,6 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
           onScan={handleQRScan}
         />
 
-        <ShareQRModal
-          visible={showShareQR}
-          onClose={() => setShowShareQR(false)}
-          host={host}
-          port={String(configService.getNetworkConfig().defaultPort)}
-        />
-
-        <ShareQRModal
-          visible={showQrModalVisible}
-          onClose={() => setShowQrModalVisible(false)}
-          host={connectionHost || host}
-          port={String(configService.getNetworkConfig().defaultPort)}
-        />
-
         {/* Clear All History Confirmation Modal */}
         <ConfirmationModal
           visible={showClearAllConfirm}
@@ -877,6 +857,25 @@ const ConnectScreen: React.FC<ConnectScreenProps> = ({ navigation }) => {
         </KeyboardAvoidingView>
       </SafeAreaWrapper>
     </LinearGradient>
+  ) : null;
+
+  // Render the appropriate content based on connection state
+  return (
+    <>
+      {connectedContent}
+      {disconnectedContent}
+      
+      {/* Shared modals available in both connected and disconnected states */}
+      <ShareQRModal
+        visible={showShareQR || showQrModalVisible}
+        onClose={() => {
+          setShowShareQR(false);
+          setShowQrModalVisible(false);
+        }}
+        host={connectionHost || host}
+        port={String(configService.getNetworkConfig().defaultPort)}
+      />
+    </>
   );
 };
 

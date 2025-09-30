@@ -71,6 +71,7 @@ interface ConnectionProviderProps {
   service?: IFreeShowService;
   navigation?: any;
   onConnectionHistoryUpdate?: () => Promise<void>;
+  quickActionRef?: React.MutableRefObject<any>;
 }
 
 // Global auto-reconnect flag - prevents multiple simultaneous attempts
@@ -83,7 +84,8 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
   children, 
   service: injectedService,
   navigation,
-  onConnectionHistoryUpdate
+  onConnectionHistoryUpdate,
+  quickActionRef
 }) => {
   const [state, setState] = useState<ConnectionState>({
     isConnected: false,
@@ -718,6 +720,57 @@ export const ConnectionProvider: React.FC<ConnectionProviderProps> = ({
       autoConnectAttempted: attempted,
     }));
   }, []);
+
+  // Handle quick action auto-connect
+  const quickActionProcessedRef = useRef(false);
+  
+  useEffect(() => {
+    const handleQuickActionConnect = async () => {
+      if (!quickActionRef?.current || quickActionProcessedRef.current) return;
+      
+      const params = quickActionRef.current;
+      quickActionProcessedRef.current = true;
+      
+      ErrorLogger.info(`[QuickActions] Processing auto-connect to: ${params.host}`, logContext);
+      
+      try {
+        // Find the connection in history to get ports
+        const history = await settingsRepository.getConnectionHistory();
+        const connectionData = history.find((item: any) => item.id === params.connectionId);
+        
+        if (connectionData) {
+          // Validate and connect with full connection data
+          const defaultPort = configService.getNetworkConfig().defaultPort;
+          const validatedShowPorts = connectionData.showPorts || configService.getDefaultShowPorts();
+          
+          // Connect to the server
+          const connected = await connect(params.host, defaultPort, params.nickname);
+          
+          if (connected) {
+            // Update show ports after connection
+            await updateShowPorts(validatedShowPorts);
+            ErrorLogger.info('[QuickActions] Successfully auto-connected', logContext);
+          }
+        } else {
+          ErrorLogger.warn('[QuickActions] Connection not found in history', logContext);
+        }
+      } catch (error) {
+        ErrorLogger.error('[QuickActions] Failed to auto-connect', logContext, error instanceof Error ? error : new Error(String(error)));
+      } finally {
+        // Clear the quick action reference
+        if (quickActionRef) {
+          quickActionRef.current = null;
+        }
+      }
+    };
+    
+    // Wait a bit for the app to fully initialize before auto-connecting
+    const timeout = setTimeout(() => {
+      handleQuickActionConnect();
+    }, 800);
+    
+    return () => clearTimeout(timeout);
+  }, [quickActionRef, connect, updateShowPorts, logContext]);
 
   const actions: ConnectionActions = {
     connect,

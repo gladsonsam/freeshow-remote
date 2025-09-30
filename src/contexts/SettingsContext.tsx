@@ -7,6 +7,7 @@ import {
   ConnectionHistory,
 } from '../repositories/SettingsRepository';
 import { ErrorLogger } from '../services/ErrorLogger';
+import { quickActionsService } from '../services/QuickActionsService';
 
 export interface SettingsState {
   appSettings: AppSettings;
@@ -67,6 +68,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
       setSettings(appSettings);
       setHistory(connectionHistory);
       setError(null);
+      
+      // Update quick actions with recent connections
+      await quickActionsService.updateRecentConnections(connectionHistory);
+      
       ErrorLogger.debug('Settings and history loaded', 'SettingsProvider', {
         settingsLoaded: !!appSettings,
         historyCount: connectionHistory.length,
@@ -112,6 +117,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({
     try {
       const connectionHistory = await settingsRepository.getConnectionHistory();
       setHistory(connectionHistory);
+      
+      // Update quick actions with recent connections
+      await quickActionsService.updateRecentConnections(connectionHistory);
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
       setError(err.message);
