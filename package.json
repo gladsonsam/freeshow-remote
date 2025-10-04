@@ -7,7 +7,7 @@
   "author": "Gladson Sam",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gladsonsam/freeshow-remote.git"
+    "url": "git+https://github.com/gladsonsam/freeshow-remote.git"
   },
   "keywords": [
     "freeshow",
@@ -65,8 +65,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-webview": "13.15.0",
-    "react-native-zeroconf": "^0.13.8",
-    "socket.io-client": "^4.8.1"
+    "react-native-zeroconf": "^0.13.8"
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",
@@ -77,6 +76,7 @@
     "eslint": "^9.35.0",
     "eslint-config-expo": "~10.0.0",
     "prettier": "^3.6.2",
+    "socket.io-client": "^4.8.1",
     "typescript": "~5.9.2"
   },
   "expo": {
@@ -86,5 +86,9 @@
       }
     }
   },
-  "private": true
+  "private": true,
+  "bugs": {
+    "url": "https://github.com/gladsonsam/freeshow-remote/issues"
+  },
+  "homepage": "https://github.com/gladsonsam/freeshow-remote#readme"
 }

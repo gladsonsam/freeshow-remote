@@ -237,9 +237,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       description: 'Browse and select shows',
       icon: 'albums',
       color: '#e74c3c',
-      onPress: () => {
-        sendApiCommand('get_shows');
-      },
+      route: 'Shows',
     },
     {
       id: 'advanced',

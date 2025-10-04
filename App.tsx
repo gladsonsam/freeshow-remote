@@ -15,6 +15,7 @@ import InterfaceScreen from './src/screens/InterfaceScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import APIScreen from './src/screens/APIScreen';
 import ScriptureScreen from './src/screens/APIScreen/ScriptureScreen';
+import ShowsScreen from './src/screens/APIScreen/ShowsScreen';
 
 import SettingsScreen from './src/screens/SettingsScreen';
 import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
@@ -862,6 +863,35 @@ export default function App() {
                   </ErrorBoundary>
                 )}
               </Stack.Screen>
+
+              <Stack.Screen
+                name="Shows"
+                options={{
+                  presentation: 'card',
+                  headerShown: false,
+                  gestureEnabled: true,
+                  cardStyleInterpolator: ({ current, layouts }) => ({
+                    cardStyle: {
+                      transform: [
+                        {
+                          translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                          }),
+                        },
+                      ],
+                      opacity: current.progress.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 0.8, 1],
+                      }),
+                    },
+                    overlayStyle: {
+                      backgroundColor: 'transparent',
+                    },
+                  }),
+                }}
+                component={ShowsScreen}
+              />
 
               <Stack.Screen
                 name="About"
