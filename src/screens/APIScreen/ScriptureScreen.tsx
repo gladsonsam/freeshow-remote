@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FreeShowTheme } from '../../theme/FreeShowTheme';
 import { useConnection } from '../../contexts';
 import { useSettings } from '../../contexts';
@@ -435,8 +436,11 @@ const ScriptureScreen: React.FC<ScriptureScreenProps> = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.container}>
+    <LinearGradient
+      colors={FreeShowTheme.gradients.appBackground}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -500,8 +504,8 @@ const ScriptureScreen: React.FC<ScriptureScreenProps> = ({ navigation }) => {
             <Text style={styles.toastText}>{toastMessage}</Text>
           </Animated.View>
         )}
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -511,7 +515,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
+    backgroundColor: 'transparent',
   },
 
   // Header
@@ -523,13 +527,18 @@ const styles = StyleSheet.create({
     paddingVertical: FreeShowTheme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: FreeShowTheme.colors.primaryLighter,
+    position: 'relative',
   },
   backButton: {
     padding: FreeShowTheme.spacing.sm,
   },
   headerTitleContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: FreeShowTheme.spacing.sm,
   },
   headerTitle: {

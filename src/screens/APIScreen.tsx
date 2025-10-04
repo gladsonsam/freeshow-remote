@@ -397,21 +397,21 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
               <TouchableOpacity
-                style={[styles.quickActionButton, { backgroundColor: '#27ae60' }]}
-                onPress={() => handleQuickAction('next_slide')}
-                disabled={!socketConnected}
-              >
-                <Ionicons name="play-forward" size={24} color="white" />
-                <Text style={styles.quickActionText}>Next</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 style={[styles.quickActionButton, { backgroundColor: '#f39c12' }]}
                 onPress={() => handleQuickAction('previous_slide')}
                 disabled={!socketConnected}
               >
                 <Ionicons name="play-back" size={24} color="white" />
                 <Text style={styles.quickActionText}>Previous</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#27ae60' }]}
+                onPress={() => handleQuickAction('next_slide')}
+                disabled={!socketConnected}
+              >
+                <Ionicons name="play-forward" size={24} color="white" />
+                <Text style={styles.quickActionText}>Next</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
