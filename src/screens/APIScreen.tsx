@@ -5,13 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  TextInput,
-  Modal,
-  TouchableWithoutFeedback,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { io, Socket } from 'socket.io-client';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { ErrorLogger } from '../services/ErrorLogger';
@@ -32,43 +31,71 @@ interface APIScreenProps {
   navigation: any;
 }
 
+interface APIFeature {
+  id: string;
+  title: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  route?: string;
+  onPress?: () => void;
+}
+
 const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const { state } = useConnection();
   const { settings } = useSettings();
   const { connectionHost, isConnected, currentShowPorts } = state;
-  const { title = 'FreeShow Remote' } = route.params || {};
-  const { shouldSkipSafeArea } = getNavigationLayoutInfo(settings?.navigationLayout);
+  const { title = 'API Hub' } = route.params || {};
+  const { shouldSkipSafeArea, isFloatingNav } = getNavigationLayoutInfo(settings?.navigationLayout);
   const SafeAreaWrapper = shouldSkipSafeArea ? View : SafeAreaView;
 
   // State management
   const [socketConnected, setSocketConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  
-  // Advanced mode state
-  const [customCommand, setCustomCommand] = useState('');
-  const [apiResponse, setApiResponse] = useState<string>('');
-  const [shows, setShows] = useState<any[]>([]);
-  
-  // Fullscreen state
-  const [lastTap, setLastTap] = useState<number | null>(null);
-  const [showCornerFeedback, setShowCornerFeedback] = useState(false);
-  const [showFullscreenHint, setShowFullscreenHint] = useState(false);
-  const DOUBLE_TAP_DELAY = configService.getNetworkConfig().doubleTapDelay;
-  
   const socketRef = useRef<Socket | null>(null);
-  const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownErrorRef = useRef<boolean>(false);
-  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string, onRetry?: () => void}>({
+  const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const [errorModal, setErrorModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onRetry?: () => void;
+  }>({
     visible: false,
     title: '',
     message: '',
-    onRetry: undefined
+    onRetry: undefined,
   });
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Check if API is available
+  const isApiAvailable = currentShowPorts?.api && currentShowPorts.api > 0;
+
+  // Animate on mount
   useEffect(() => {
-    if (isConnected && connectionHost) {
+    if (isConnected && isApiAvailable) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isConnected, isApiAvailable]);
+
+  // WebSocket connection management
+  useEffect(() => {
+    if (isConnected && connectionHost && isApiAvailable) {
       connectWebSocket();
     } else {
       disconnectWebSocket();
@@ -77,82 +104,26 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     return () => {
       disconnectWebSocket();
     };
-  }, [isConnected, connectionHost]);
-
-  // Show fullscreen hint when entering fullscreen
-  useEffect(() => {
-    if (isFullScreen) {
-      setShowFullscreenHint(true);
-      const timer = setTimeout(() => {
-        setShowFullscreenHint(false);
-      }, configService.getNetworkConfig().fullscreenHintDuration);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isFullScreen]);
-
-  const handleShowSelect = (show: ShowOption) => {
-    navigation.navigate('WebView', {
-      title: show.title,
-      url: `http://${connectionHost}:${show.port}`,
-      showId: show.id,
-    });
-  };
-
-  // Check if API is available
-  const isApiAvailable = currentShowPorts?.api && currentShowPorts.api > 0;
-
-  const handleToggleFullScreen = () => {
-    setIsFullScreen(!isFullScreen);
-  };
-
-  const handleClose = () => {
-    navigation.goBack();
-  };
-
-  // Handle double-tap on corner to exit fullscreen
-  const handleCornerDoubleTap = () => {
-    if (!isFullScreen) return;
-
-    const now = Date.now();
-    
-    setShowCornerFeedback(true);
-    setTimeout(() => setShowCornerFeedback(false), configService.getNetworkConfig().cornerFeedbackDuration);
-
-    if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
-      // Double tap detected - exit fullscreen
-      setIsFullScreen(false);
-      setLastTap(null);
-    } else {
-      setLastTap(now);
-    }
-  };
+  }, [isConnected, connectionHost, isApiAvailable]);
 
   const connectWebSocket = async () => {
-    if (!connectionHost) return;
-
-    // If API is not available, don't try to connect
-    if (!isApiAvailable) {
-      ErrorLogger.info('API not available - interface-only mode', 'APIScreen');
-      setSocketConnected(false);
-      return;
-    }
+    if (!connectionHost || !isApiAvailable) return;
 
     try {
       hasShownErrorRef.current = false;
       ErrorLogger.info('Connecting to FreeShow WebSocket API', 'APIScreen');
-      
+
       if (connectionErrorTimeoutRef.current) {
         clearTimeout(connectionErrorTimeoutRef.current);
       }
-      
+
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
 
       const socketUrl = `http://${connectionHost}:${currentShowPorts.api}`;
-      socketRef.current = io(socketUrl, { 
-        transports: ["websocket"],
+      socketRef.current = io(socketUrl, {
+        transports: ['websocket'],
         timeout: configService.getNetworkConfig().connectionTimeout,
         reconnection: true,
         reconnectionAttempts: 5,
@@ -160,9 +131,9 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       });
 
       socketRef.current.on('connect', () => {
-        ErrorLogger.info('FreeShow Remote connected successfully', 'APIScreen');
+        ErrorLogger.info('FreeShow API connected successfully', 'APIScreen');
         setSocketConnected(true);
-        
+
         if (connectionErrorTimeoutRef.current) {
           clearTimeout(connectionErrorTimeoutRef.current);
         }
@@ -170,13 +141,13 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       });
 
       socketRef.current.on('disconnect', (reason) => {
-        ErrorLogger.info('FreeShow Remote disconnected', 'APIScreen', { reason });
+        ErrorLogger.info('FreeShow API disconnected', 'APIScreen', { reason });
         setSocketConnected(false);
       });
 
       socketRef.current.on('connect_error', (error) => {
         ErrorLogger.error('WebSocket connection error', 'APIScreen', error);
-        
+
         if (!hasShownErrorRef.current) {
           connectionErrorTimeoutRef.current = setTimeout(() => {
             if (!socketConnected && !hasShownErrorRef.current) {
@@ -184,32 +155,19 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
               setErrorModal({
                 visible: true,
                 title: 'Connection Failed',
-                message: `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port ${configService.getNetworkConfig().defaultPort} is accessible`,
+                message: `Cannot connect to FreeShow API:\n\n${error.message}`,
                 onRetry: () => {
                   hasShownErrorRef.current = false;
-                  setErrorModal({visible: false, title: '', message: ''});
+                  setErrorModal({ visible: false, title: '', message: '' });
                   connectWebSocket();
-                }
+                },
               });
             }
           }, 3000);
         }
       });
-
-      socketRef.current.on('data', (response) => {
-        handleApiResponse(response);
-      });
-
     } catch (error) {
       ErrorLogger.error('Failed to setup WebSocket connection', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
-      if (!hasShownErrorRef.current) {
-        hasShownErrorRef.current = true;
-        setErrorModal({
-          visible: true,
-          title: 'Setup Failed',
-          message: `Failed to setup connection: ${error instanceof Error ? error.message : 'Unknown error'}`
-        });
-      }
     }
   };
 
@@ -217,7 +175,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     if (connectionErrorTimeoutRef.current) {
       clearTimeout(connectionErrorTimeoutRef.current);
     }
-    
+
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -226,62 +184,13 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     hasShownErrorRef.current = false;
   };
 
-  const handleApiResponse = (response: any) => {
-    try {
-      let data;
-      if (typeof response === 'string') {
-        try {
-          data = JSON.parse(response);
-        } catch {
-          data = response;
-        }
-      } else {
-        data = response;
-      }
-
-      ErrorLogger.debug('API Response received', 'APIScreen', { data });
-      setApiResponse(JSON.stringify(data, null, 2));
-
-      // Handle shows data for advanced mode
-      if (data && typeof data === 'object' && isShowsData(data)) {
-        const showsList: any[] = [];
-        for (const [showId, showData] of Object.entries(data)) {
-          if (showData && typeof showData === 'object') {
-            showsList.push({
-              id: showId,
-              name: (showData as any).name || showId,
-            });
-          }
-        }
-        setShows(showsList);
-      }
-    } catch (error) {
-              ErrorLogger.error('Error parsing API response', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
-      setApiResponse(`Parse error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const isShowsData = (data: any): boolean => {
-    if (!data || typeof data !== 'object') return false;
-    const firstKey = Object.keys(data)[0];
-    if (!firstKey) return false;
-    const firstItem = data[firstKey];
-    return firstItem && (
-      Object.prototype.hasOwnProperty.call(firstItem, 'name') || 
-      Object.prototype.hasOwnProperty.call(firstItem, 'slides') ||
-      Object.prototype.hasOwnProperty.call(firstItem, 'category')
-    );
-  };
-
-  const sendApiCommand = async (action: string, data: any = {}, showAlert: boolean = true): Promise<void> => {
+  const sendApiCommand = async (action: string, data: any = {}): Promise<void> => {
     if (!connectionHost || !socketRef.current || !socketRef.current.connected) {
-      if (showAlert) {
-        setErrorModal({
-          visible: true,
-          title: 'Error',
-          message: 'Not connected to FreeShow'
-        });
-      }
+      setErrorModal({
+        visible: true,
+        title: 'Error',
+        message: 'Not connected to FreeShow API',
+      });
       return;
     }
 
@@ -292,438 +201,476 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       socketRef.current.emit('data', JSON.stringify(command));
     } catch (error) {
       ErrorLogger.error('API command failed', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
-      if (showAlert) {
-        setErrorModal({
-          visible: true,
-          title: 'Command Failed',
-          message: `Failed to execute "${action}"`
-        });
-      }
+      setErrorModal({
+        visible: true,
+        title: 'Command Failed',
+        message: `Failed to execute "${action}"`,
+      });
     } finally {
       setIsConnecting(false);
     }
   };
 
-  // Core remote functions
-  const handleNextSlide = () => sendApiCommand('next_slide');
-  const handlePreviousSlide = () => sendApiCommand('previous_slide');
-  const handleNextProject = () => sendApiCommand('next_project_item');
-  const handlePreviousProject = () => sendApiCommand('previous_project_item');
-  const handleClearAll = () => sendApiCommand('clear_all');
+  // Define API features/sub-pages
+  const apiFeatures: APIFeature[] = [
+    {
+      id: 'scripture',
+      title: 'Scripture',
+      description: 'Search and display Bible verses',
+      icon: 'book',
+      color: '#9b59b6',
+      route: 'Scripture',
+    },
+    {
+      id: 'quick-controls',
+      title: 'Quick Controls',
+      description: 'Slide & project navigation',
+      icon: 'game-controller',
+      color: '#3498db',
+      onPress: () => {
+        // Navigate to quick controls (inline on this screen for now)
+      },
+    },
+    {
+      id: 'shows',
+      title: 'Shows',
+      description: 'Browse and select shows',
+      icon: 'albums',
+      color: '#e74c3c',
+      onPress: () => {
+        sendApiCommand('get_shows');
+      },
+    },
+    {
+      id: 'advanced',
+      title: 'Advanced',
+      description: 'Custom API commands & testing',
+      icon: 'code-slash',
+      color: '#95a5a6',
+      onPress: () => {
+        // Navigate to advanced controls
+      },
+    },
+  ];
 
-  // Advanced functions
-  const handleCustomCommand = () => {
-    if (!customCommand.trim()) return;
-    
-    try {
-      const parsed = JSON.parse(customCommand);
-      if (parsed.action) {
-        sendApiCommand(parsed.action, parsed.data || {}, false);
-      } else {
-        sendApiCommand(customCommand.trim(), {}, false);
-      }
-    } catch {
-      sendApiCommand(customCommand.trim(), {}, false);
+  const handleShowSelect = (show: ShowOption) => {
+    navigation.navigate('WebView', {
+      title: show.title,
+      url: `http://${connectionHost}:${show.port}`,
+      showId: show.id,
+    });
+  };
+
+  const handleFeaturePress = (feature: APIFeature) => {
+    if (feature.route) {
+      navigation.navigate(feature.route);
+    } else if (feature.onPress) {
+      feature.onPress();
     }
   };
 
+  const handleQuickAction = (action: string) => {
+    sendApiCommand(action);
+  };
+
+  // Not connected state
   if (!isConnected) {
     return (
-      <SafeAreaWrapper style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>{title}</Text>
-          <View style={styles.placeholder} />
-        </View>
-        <View style={styles.centerContainer}>
-          <Ionicons name="wifi-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
-          <Text style={styles.errorText}>Not connected to FreeShow</Text>
-          <TouchableOpacity 
-            style={styles.connectButton}
-            onPress={() => navigation.navigate('Connect')}
-          >
-            <Text style={styles.connectButtonText}>Go to Connect</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaWrapper>
-    );
-  }
-
-  // Show API not available UI if connected but API is disabled
-  if (!isApiAvailable) {
-    return (
-      <SafeAreaWrapper style={styles.safeArea} {...(!shouldSkipSafeArea && { edges: ['top', 'left', 'right'] })}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
-          </TouchableOpacity>
-          
-          {connectionHost ? (
-            <ShowSwitcher
-              currentTitle={title}
-              currentShowId="api"
-              connectionHost={connectionHost}
-              showPorts={currentShowPorts || undefined}
-              onShowSelect={handleShowSelect}
-            />
-          ) : (
-            <Text style={styles.title}>{title}</Text>
-          )}
-          
-          <View style={styles.placeholder} />
-        </View>
-
-        <View style={styles.centerContainer}>
-          <Ionicons name="settings-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
-          <Text style={styles.errorText}>API Interface Not Available</Text>
-          <Text style={styles.errorSubtext}>
-            The API interface is disabled in your current connection. 
-            To use API features, enable the API port in FreeShow and reconnect.
-          </Text>
-          <TouchableOpacity 
-            style={styles.connectButton}
-            onPress={() => navigation.navigate('Connect')}
-          >
-            <Text style={styles.connectButtonText}>Reconnect with API</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaWrapper>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.container}>
-      {!isFullScreen && (
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
-          </TouchableOpacity>
-          
-          {connectionHost ? (
-            <ShowSwitcher
-              currentTitle={title}
-              currentShowId="api"
-              connectionHost={connectionHost}
-              showPorts={currentShowPorts || undefined}
-              onShowSelect={handleShowSelect}
-            />
-          ) : (
-            <Text style={styles.title}>{title}</Text>
-          )}
-
-          <TouchableOpacity style={styles.fullScreenButton} onPress={handleToggleFullScreen}>
-            <Ionicons 
-              name={isFullScreen ? "contract" : "expand"} 
-              size={20} 
-              color={FreeShowTheme.colors.text} 
-            />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.container}>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Slide Controls */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Slide Control</Text>
-          <View style={styles.controlRow}>
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.previousButton]}
-              onPress={handlePreviousSlide}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="chevron-back" size={32} color="white" />
-              <Text style={styles.controlButtonText}>Previous</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.nextButton]}
-              onPress={handleNextSlide}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="chevron-forward" size={32} color="white" />
-              <Text style={styles.controlButtonText}>Next</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Project Controls */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Project Control</Text>
-          <View style={styles.controlRow}>
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.projectButton]}
-              onPress={handlePreviousProject}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="folder-open" size={24} color="white" />
-              <Text style={styles.controlButtonText}>Previous Project</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.projectButton]}
-              onPress={handleNextProject}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="folder" size={24} color="white" />
-              <Text style={styles.controlButtonText}>Next Project</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Advanced Button */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Advanced</Text>
-          <TouchableOpacity
-            style={[styles.advancedButton, !socketConnected && styles.advancedButtonDisabled]}
-            onPress={() => setShowAdvanced(true)}
-            disabled={!socketConnected}
-          >
-            <View style={styles.advancedButtonContent}>
-              <Ionicons name="settings-outline" size={28} color="white" />
-              <View style={styles.advancedButtonTextContainer}>
-                <Text style={styles.advancedButtonTitle}>Advanced Controls</Text>
-                <Text style={styles.advancedButtonSubtitle}>Access advanced API functions</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="white" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      {/* Clear All - Always at bottom */}
-      <View style={styles.bottomSection}>
-        <TouchableOpacity 
-          style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
-          onPress={handleClearAll}
-          disabled={isConnecting || !socketConnected}
-        >
-          <Ionicons name="close-circle" size={24} color="white" />
-          <Text style={styles.clearAllButtonText}>Clear All</Text>
-        </TouchableOpacity>
-      </View>
-
-      </View>
-
-      {/* Loading Overlay */}
-      {isConnecting && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="small" color={FreeShowTheme.colors.secondary} />
-        </View>
-      )}
-
-      {/* Advanced Modal */}
-      <Modal
-        visible={showAdvanced}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowAdvanced(false)}
-      >
-        <SafeAreaView style={styles.advancedContainer}>
-          <View style={styles.advancedHeader}>
-            <Text style={styles.advancedTitle}>Advanced API Controls</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAdvanced(false)}
-            >
+      <LinearGradient colors={FreeShowTheme.gradients.appBackground} style={styles.container}>
+        <SafeAreaWrapper style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
               <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
             </TouchableOpacity>
+            <Text style={styles.headerTitle}>API Hub</Text>
+            <View style={styles.placeholder} />
           </View>
+          <View style={styles.centerContainer}>
+            <Ionicons name="wifi-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
+            <Text style={styles.errorText}>Not connected to FreeShow</Text>
+            <TouchableOpacity style={styles.connectButton} onPress={() => navigation.navigate('Connect')}>
+              <Text style={styles.connectButtonText}>Go to Connect</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaWrapper>
+      </LinearGradient>
+    );
+  }
 
-          <ScrollView style={styles.advancedContent}>
-            {/* Connection Status */}
-            <View style={styles.advancedSection}>
-              <Text style={styles.advancedSectionTitle}>Connection Status</Text>
-              <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>WebSocket:</Text>
-                <View style={styles.statusIndicator}>
-                  <View style={[styles.statusDot, { backgroundColor: socketConnected ? '#28a745' : '#dc3545' }]} />
-                  <Text style={styles.statusText}>{socketConnected ? 'Connected' : 'Disconnected'}</Text>
-                </View>
-              </View>
-            </View>
+  // API not available state
+  if (!isApiAvailable) {
+    return (
+      <LinearGradient colors={FreeShowTheme.gradients.appBackground} style={styles.container}>
+        <SafeAreaWrapper style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+              <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+            </TouchableOpacity>
 
-            {/* Quick Data Loading */}
-            <View style={styles.advancedSection}>
-              <Text style={styles.advancedSectionTitle}>Data Loading</Text>
-              <View style={styles.advancedButtonRow}>
-                <TouchableOpacity 
-                  style={styles.advancedModalButton}
-                  onPress={() => sendApiCommand('get_shows', {}, false)}
-                  disabled={isConnecting || !socketConnected}
-                >
-                  <Text style={styles.advancedButtonText}>Load Shows</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.advancedModalButton}
-                  onPress={() => sendApiCommand('get_projects', {}, false)}
-                  disabled={isConnecting || !socketConnected}
-                >
-                  <Text style={styles.advancedButtonText}>Load Projects</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Custom Command */}
-            <View style={styles.advancedSection}>
-              <Text style={styles.advancedSectionTitle}>Custom API Command</Text>
-              <View style={styles.customCommandContainer}>
-                <TextInput
-                  style={styles.customCommandInput}
-                  value={customCommand}
-                  onChangeText={setCustomCommand}
-                  placeholder='e.g., get_shows or {"action":"get_slide","showId":"show1"}'
-                  placeholderTextColor={FreeShowTheme.colors.textSecondary}
-                  multiline
-                />
-                <TouchableOpacity
-                  style={[styles.sendButton, !customCommand.trim() && styles.sendButtonDisabled]}
-                  onPress={handleCustomCommand}
-                  disabled={isConnecting || !customCommand.trim() || !socketConnected}
-                >
-                  <Ionicons name="send" size={20} color="white" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* API Response */}
-            <View style={styles.advancedSection}>
-              <Text style={styles.advancedSectionTitle}>API Response</Text>
-              <ScrollView style={styles.responseContainer} nestedScrollEnabled>
-                <Text style={styles.responseText}>{apiResponse || 'No response yet'}</Text>
-              </ScrollView>
-            </View>
-
-            {/* Shows List (if loaded) */}
-            {shows.length > 0 && (
-              <View style={styles.advancedSection}>
-                <Text style={styles.advancedSectionTitle}>Shows ({shows.length})</Text>
-                {shows.slice(0, 10).map((show) => (
-                  <TouchableOpacity
-                    key={show.id}
-                    style={styles.showItem}
-                    onPress={() => sendApiCommand('name_select_show', { value: show.name }, false)}
-                    disabled={isConnecting}
-                  >
-                    <Text style={styles.showItemText}>{show.name}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.textSecondary} />
-                  </TouchableOpacity>
-                ))}
-                {shows.length > 10 && (
-                  <Text style={styles.moreItemsText}>... and {shows.length - 10} more shows</Text>
-                )}
-              </View>
+            {connectionHost ? (
+              <ShowSwitcher
+                currentTitle={title}
+                currentShowId="api"
+                connectionHost={connectionHost}
+                showPorts={currentShowPorts || undefined}
+                onShowSelect={handleShowSelect}
+              />
+            ) : (
+              <Text style={styles.headerTitle}>API Hub</Text>
             )}
 
-            {/* Clear All in Advanced Mode too */}
-            <View style={styles.advancedSection}>
-              <TouchableOpacity 
-                style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
-                onPress={handleClearAll}
-                disabled={isConnecting || !socketConnected}
+            <View style={styles.placeholder} />
+          </View>
+
+          <View style={styles.centerContainer}>
+            <Ionicons name="settings-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
+            <Text style={styles.errorText}>API Interface Not Available</Text>
+            <Text style={styles.errorSubtext}>
+              The API interface is disabled. Enable the API port in FreeShow and reconnect.
+            </Text>
+            <TouchableOpacity style={styles.connectButton} onPress={() => navigation.navigate('Connect')}>
+              <Text style={styles.connectButtonText}>Reconnect with API</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaWrapper>
+      </LinearGradient>
+    );
+  }
+
+  // Main content
+  return (
+    <LinearGradient colors={FreeShowTheme.gradients.appBackground} style={styles.container}>
+      <SafeAreaWrapper style={styles.safeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
+          </TouchableOpacity>
+
+          {connectionHost ? (
+            <ShowSwitcher
+              currentTitle={title}
+              currentShowId="api"
+              connectionHost={connectionHost}
+              showPorts={currentShowPorts || undefined}
+              onShowSelect={handleShowSelect}
+            />
+          ) : (
+            <Text style={styles.headerTitle}>API Hub</Text>
+          )}
+
+          <View style={styles.connectionStatus}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: socketConnected ? FreeShowTheme.colors.connected : FreeShowTheme.colors.disconnected },
+              ]}
+            />
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={isFloatingNav ? styles.scrollContentFloating : styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Hero Section */}
+          <Animated.View style={[styles.heroSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.heroContent}>
+              <View style={styles.heroIconContainer}>
+                <LinearGradient
+                  colors={['rgba(240, 0, 140, 0.2)', 'rgba(240, 0, 140, 0.05)']}
+                  style={styles.heroIconGradient}
+                >
+                  <Ionicons name="rocket" size={32} color={FreeShowTheme.colors.secondary} />
+                </LinearGradient>
+              </View>
+              <Text style={styles.heroTitle}>FreeShow API</Text>
+              <Text style={styles.heroDescription}>
+                Access powerful features to control and interact with FreeShow
+              </Text>
+            </View>
+          </Animated.View>
+
+          {/* Quick Actions */}
+          <Animated.View style={[styles.quickActionsSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.quickActionsGrid}>
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#27ae60' }]}
+                onPress={() => handleQuickAction('next_slide')}
+                disabled={!socketConnected}
+              >
+                <Ionicons name="play-forward" size={24} color="white" />
+                <Text style={styles.quickActionText}>Next</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#f39c12' }]}
+                onPress={() => handleQuickAction('previous_slide')}
+                disabled={!socketConnected}
+              >
+                <Ionicons name="play-back" size={24} color="white" />
+                <Text style={styles.quickActionText}>Previous</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickActionButton, { backgroundColor: '#e74c3c' }]}
+                onPress={() => handleQuickAction('clear_all')}
+                disabled={!socketConnected}
               >
                 <Ionicons name="close-circle" size={24} color="white" />
-                <Text style={styles.clearAllButtonText}>Clear All</Text>
+                <Text style={styles.quickActionText}>Clear</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+          </Animated.View>
 
-      {/* Error Modal */}
-      <ErrorModal
-        visible={errorModal.visible}
-        title={errorModal.title}
-        message={errorModal.message}
-        buttonText={errorModal.onRetry ? 'Retry' : 'OK'}
-        onClose={() => {
-          if (errorModal.onRetry) {
-            errorModal.onRetry();
-          } else {
-            setErrorModal({visible: false, title: '', message: ''});
-          }
-        }}
-      />
+          {/* Features Grid */}
+          <Animated.View style={[styles.featuresSection, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>API Features</Text>
+            <View style={styles.featuresGrid}>
+              {apiFeatures.map((feature, index) => (
+                <Animated.View
+                  key={feature.id}
+                  style={[
+                    styles.featureCardWrapper,
+                    {
+                      opacity: fadeAnim,
+                      transform: [
+                        {
+                          translateY: slideAnim.interpolate({
+                            inputRange: [0, 30],
+                            outputRange: [0, 30 + index * 10],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.featureCard}
+                    onPress={() => handleFeaturePress(feature)}
+                    activeOpacity={0.8}
+                    disabled={!socketConnected}
+                  >
+                    <LinearGradient
+                      colors={[feature.color + '15', feature.color + '05']}
+                      style={styles.featureCardGradient}
+                    >
+                      <View style={[styles.featureIconContainer, { backgroundColor: feature.color + '20' }]}>
+                        <Ionicons name={feature.icon} size={28} color={feature.color} />
+                      </View>
+                      <Text style={styles.featureTitle}>{feature.title}</Text>
+                      <Text style={styles.featureDescription}>{feature.description}</Text>
+                      <View style={styles.featureArrow}>
+                        <Ionicons name="arrow-forward" size={20} color={FreeShowTheme.colors.textSecondary} />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </View>
+          </Animated.View>
+        </ScrollView>
 
-      {/* Fullscreen hint (tap to dismiss) */}
-      {isFullScreen && showFullscreenHint && (
-        <TouchableOpacity
-          style={styles.fullscreenHint}
-          activeOpacity={0.85}
-          onPress={() => setShowFullscreenHint(false)}
-        >
-          <View style={styles.hintContainer}>
-            <Ionicons name="information-circle" size={20} color={FreeShowTheme.colors.text} />
-            <Text style={styles.hintText}>Double-tap any corner to exit fullscreen</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-
-      {/* Double-tap corners to exit fullscreen */}
-      {isFullScreen && (
-        <>
-          {/* Top-left corner */}
-          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.topLeft, showCornerFeedback && styles.cornerFeedback]} />
-          </TouchableWithoutFeedback>
-
-          {/* Top-right corner */}
-          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.topRight, showCornerFeedback && styles.cornerFeedback]} />
-          </TouchableWithoutFeedback>
-
-          {/* Bottom-left corner */}
-          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.bottomLeft, showCornerFeedback && styles.cornerFeedback]} />
-          </TouchableWithoutFeedback>
-
-          {/* Bottom-right corner */}
-          <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.bottomRight, showCornerFeedback && styles.cornerFeedback]} />
-          </TouchableWithoutFeedback>
-        </>
-      )}
-    </SafeAreaView>
+        {/* Error Modal */}
+        <ErrorModal
+          visible={errorModal.visible}
+          title={errorModal.title}
+          message={errorModal.message}
+          buttonText={errorModal.onRetry ? 'Retry' : 'OK'}
+          onClose={() => {
+            if (errorModal.onRetry) {
+              errorModal.onRetry();
+            } else {
+              setErrorModal({ visible: false, title: '', message: '' });
+            }
+          }}
+        />
+      </SafeAreaWrapper>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
-  },
   container: {
     flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: FreeShowTheme.spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: FreeShowTheme.spacing.lg,
     paddingVertical: FreeShowTheme.spacing.md,
-    paddingTop: 10,
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
     borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.primaryLighter,
+    borderBottomColor: FreeShowTheme.colors.primaryLighter + '40',
   },
   closeButton: {
-    padding: FreeShowTheme.spacing.sm,
+    width: 40,
+    height: 40,
+    borderRadius: FreeShowTheme.borderRadius.md,
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter,
   },
-  title: {
-    fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: 'bold',
+  headerTitle: {
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
     color: FreeShowTheme.colors.text,
-    fontFamily: FreeShowTheme.fonts.system,
   },
   placeholder: {
     width: 40,
   },
+  connectionStatus: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   content: {
     flex: 1,
-    padding: FreeShowTheme.spacing.lg,
   },
+  scrollContent: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingBottom: FreeShowTheme.spacing.xxxl * 2,
+  },
+  scrollContentFloating: {
+    paddingHorizontal: FreeShowTheme.spacing.lg,
+    paddingBottom: 140,
+  },
+
+  // Hero Section
+  heroSection: {
+    marginTop: FreeShowTheme.spacing.lg,
+    marginBottom: FreeShowTheme.spacing.xl,
+  },
+  heroContent: {
+    backgroundColor: FreeShowTheme.colors.primaryDarker,
+    borderRadius: FreeShowTheme.borderRadius.xl,
+    padding: FreeShowTheme.spacing.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter + '40',
+  },
+  heroIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    marginBottom: FreeShowTheme.spacing.md,
+  },
+  heroIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.secondary + '30',
+    borderRadius: 32,
+  },
+  heroTitle: {
+    fontSize: FreeShowTheme.fontSize.xxl,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.text,
+    marginBottom: FreeShowTheme.spacing.sm,
+  },
+  heroDescription: {
+    fontSize: FreeShowTheme.fontSize.md,
+    color: FreeShowTheme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+
+  // Quick Actions
+  quickActionsSection: {
+    marginBottom: FreeShowTheme.spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.text,
+    marginBottom: FreeShowTheme.spacing.md,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    gap: FreeShowTheme.spacing.md,
+  },
+  quickActionButton: {
+    flex: 1,
+    paddingVertical: FreeShowTheme.spacing.lg,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: FreeShowTheme.spacing.xs,
+  },
+  quickActionText: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    fontWeight: '600',
+    color: 'white',
+  },
+
+  // Features Grid
+  featuresSection: {
+    marginBottom: FreeShowTheme.spacing.xl,
+  },
+  featuresGrid: {
+    gap: FreeShowTheme.spacing.md,
+  },
+  featureCardWrapper: {
+    width: '100%',
+  },
+  featureCard: {
+    borderRadius: FreeShowTheme.borderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: FreeShowTheme.colors.primaryLighter + '40',
+  },
+  featureCardGradient: {
+    padding: FreeShowTheme.spacing.lg,
+    minHeight: 120,
+  },
+  featureIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: FreeShowTheme.spacing.md,
+  },
+  featureTitle: {
+    fontSize: FreeShowTheme.fontSize.lg,
+    fontWeight: '700',
+    color: FreeShowTheme.colors.text,
+    marginBottom: FreeShowTheme.spacing.xs,
+  },
+  featureDescription: {
+    fontSize: FreeShowTheme.fontSize.sm,
+    color: FreeShowTheme.colors.textSecondary,
+    lineHeight: 20,
+  },
+  featureArrow: {
+    position: 'absolute',
+    top: FreeShowTheme.spacing.lg,
+    right: FreeShowTheme.spacing.lg,
+  },
+
+  // Error/Empty States
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -755,318 +702,6 @@ const styles = StyleSheet.create({
     fontSize: FreeShowTheme.fontSize.md,
     fontWeight: '600',
   },
-  section: {
-    marginBottom: FreeShowTheme.spacing.xl * 1.5,
-  },
-  sectionTitle: {
-    fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-    marginBottom: FreeShowTheme.spacing.lg,
-  },
-  // Control Buttons
-  controlRow: {
-    flexDirection: 'row',
-    gap: FreeShowTheme.spacing.lg,
-  },
-  controlButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: FreeShowTheme.spacing.xl,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    gap: FreeShowTheme.spacing.sm,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  controlButtonText: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: '600',
-  },
-  previousButton: {
-    backgroundColor: '#FF851B',
-  },
-  nextButton: {
-    backgroundColor: FreeShowTheme.colors.secondary,
-  },
-  projectButton: {
-    backgroundColor: '#007bff',
-  },
-  // Advanced Button
-  advancedButton: {
-    backgroundColor: '#333',
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    padding: FreeShowTheme.spacing.lg,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  advancedButtonDisabled: {
-    backgroundColor: '#6c757d',
-    opacity: 0.6,
-  },
-  advancedButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  advancedButtonTextContainer: {
-    flex: 1,
-    marginLeft: FreeShowTheme.spacing.lg,
-    marginRight: FreeShowTheme.spacing.md,
-  },
-  advancedButtonTitle: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.lg,
-    fontWeight: '600',
-    marginBottom: FreeShowTheme.spacing.xs,
-  },
-  advancedButtonSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: FreeShowTheme.fontSize.sm,
-  },
-  // Bottom Section
-  bottomSection: {
-    padding: FreeShowTheme.spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: FreeShowTheme.colors.primaryLighter,
-  },
-  clearAllButton: {
-    backgroundColor: '#dc3545',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: FreeShowTheme.spacing.lg,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    gap: FreeShowTheme.spacing.sm,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  clearAllButtonDisabled: {
-    backgroundColor: '#6c757d',
-    opacity: 0.6,
-  },
-  clearAllButtonText: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: '600',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // Advanced Modal Styles
-  advancedContainer: {
-    flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
-  },
-  advancedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: FreeShowTheme.spacing.lg,
-    paddingVertical: FreeShowTheme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: FreeShowTheme.colors.primaryLighter,
-  },
-  advancedTitle: {
-    fontSize: FreeShowTheme.fontSize.xl,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-  },
-  advancedContent: {
-    flex: 1,
-    padding: FreeShowTheme.spacing.lg,
-  },
-  advancedSection: {
-    marginBottom: FreeShowTheme.spacing.xl,
-    backgroundColor: FreeShowTheme.colors.primaryDarker,
-    borderRadius: FreeShowTheme.borderRadius.lg,
-    padding: FreeShowTheme.spacing.lg,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
-  },
-  advancedSectionTitle: {
-    fontSize: FreeShowTheme.fontSize.md,
-    fontWeight: '600',
-    color: FreeShowTheme.colors.text,
-    marginBottom: FreeShowTheme.spacing.md,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statusLabel: {
-    fontSize: FreeShowTheme.fontSize.md,
-    color: FreeShowTheme.colors.textSecondary,
-  },
-  statusIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: FreeShowTheme.spacing.xs,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: FreeShowTheme.fontSize.md,
-    color: FreeShowTheme.colors.text,
-    fontWeight: '600',
-  },
-  advancedButtonRow: {
-    flexDirection: 'row',
-    gap: FreeShowTheme.spacing.md,
-  },
-  advancedModalButton: {
-    flex: 1,
-    backgroundColor: FreeShowTheme.colors.secondary,
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.md,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    alignItems: 'center',
-  },
-  advancedButtonText: {
-    color: 'white',
-    fontSize: FreeShowTheme.fontSize.sm,
-    fontWeight: '600',
-  },
-  customCommandContainer: {
-    flexDirection: 'row',
-    gap: FreeShowTheme.spacing.md,
-    alignItems: 'flex-start',
-  },
-  customCommandInput: {
-    flex: 1,
-    backgroundColor: FreeShowTheme.colors.primary,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    padding: FreeShowTheme.spacing.md,
-    color: FreeShowTheme.colors.text,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
-    maxHeight: 100,
-    fontSize: FreeShowTheme.fontSize.sm,
-  },
-  sendButton: {
-    backgroundColor: FreeShowTheme.colors.secondary,
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.md,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#6c757d',
-    opacity: 0.6,
-  },
-  responseContainer: {
-    backgroundColor: FreeShowTheme.colors.primary,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    padding: FreeShowTheme.spacing.md,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
-    maxHeight: 200,
-  },
-  responseText: {
-    fontSize: FreeShowTheme.fontSize.xs,
-    color: FreeShowTheme.colors.text,
-    fontFamily: 'monospace',
-  },
-  showItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: FreeShowTheme.spacing.md,
-    paddingHorizontal: FreeShowTheme.spacing.md,
-    backgroundColor: FreeShowTheme.colors.primary,
-    borderRadius: FreeShowTheme.borderRadius.md,
-    marginBottom: FreeShowTheme.spacing.sm,
-    borderWidth: 1,
-    borderColor: FreeShowTheme.colors.primaryLighter,
-  },
-  showItemText: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.text,
-    fontWeight: '500',
-  },
-  moreItemsText: {
-    fontSize: FreeShowTheme.fontSize.sm,
-    color: FreeShowTheme.colors.textSecondary,
-    textAlign: 'center',
-    padding: FreeShowTheme.spacing.md,
-    fontStyle: 'italic',
-  },
-  
-  // Fullscreen styles
-  fullScreenButton: {
-    padding: FreeShowTheme.spacing.sm,
-  },
-  fullscreenHint: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-    right: 20,
-    zIndex: 1000,
-  },
-  hintContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  hintText: {
-    color: FreeShowTheme.colors.text,
-    fontSize: 14,
-    flex: 1,
-  },
-  corner: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    backgroundColor: 'transparent',
-    zIndex: 999,
-  },
-  topLeft: {
-    top: 0,
-    left: 0,
-  },
-  topRight: {
-    top: 0,
-    right: 0,
-  },
-  bottomLeft: {
-    bottom: 0,
-    left: 0,
-  },
-  bottomRight: {
-    bottom: 0,
-    right: 0,
-  },
-  cornerFeedback: {
-    backgroundColor: FreeShowTheme.colors.secondary + '30',
-    borderRadius: 8,
-  },
 });
 
-export default APIScreen; 
+export default APIScreen;

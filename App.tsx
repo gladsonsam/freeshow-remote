@@ -14,6 +14,7 @@ import ConnectScreen from './src/screens/ConnectScreen';
 import InterfaceScreen from './src/screens/InterfaceScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
 import APIScreen from './src/screens/APIScreen';
+import ScriptureScreen from './src/screens/APIScreen/ScriptureScreen';
 
 import SettingsScreen from './src/screens/SettingsScreen';
 import ConnectionHistoryScreen from './src/screens/ConnectionHistoryScreen';
@@ -195,7 +196,7 @@ function BottomTabsLayout() {
 
 // Route definitions for sidebar navigation
 const SIDEBAR_ROUTES = ['Interface', 'Connect', 'Settings'];
-const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'ConnectionHistory', 'About', 'Main'];
+const EXTERNAL_ROUTES = ['WebView', 'APIScreen', 'Scripture', 'ConnectionHistory', 'About', 'Main'];
 
 // Sidebar Layout with content area
 function SidebarLayout() {
@@ -760,6 +761,56 @@ export default function App() {
                 {(props) => (
                   <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('APIScreen Error', 'App', error, { errorInfo })}>
                     <APIScreen {...props} />
+                  </ErrorBoundary>
+                )}
+              </Stack.Screen>
+
+              <Stack.Screen
+                name="Scripture"
+                options={{
+                  presentation: 'card',
+                  headerShown: false,
+                  gestureEnabled: true,
+                  cardStyleInterpolator: ({ current, layouts }) => ({
+                    cardStyle: {
+                      transform: [
+                        {
+                          translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                          }),
+                        },
+                      ],
+                      opacity: current.progress.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 0.8, 1],
+                      }),
+                    },
+                    overlayStyle: {
+                      backgroundColor: 'transparent',
+                    },
+                  }),
+                  transitionSpec: {
+                    open: {
+                      animation: 'timing',
+                      config: {
+                        duration: 200,
+                        easing: require('react-native').Easing.out(require('react-native').Easing.exp),
+                      },
+                    },
+                    close: {
+                      animation: 'timing',
+                      config: {
+                        duration: 180,
+                        easing: require('react-native').Easing.in(require('react-native').Easing.exp),
+                      },
+                    },
+                  },
+                }}
+              >
+                {(props) => (
+                  <ErrorBoundary onError={(error, errorInfo) => ErrorLogger.error('ScriptureScreen Error', 'App', error, { errorInfo })}>
+                    <ScriptureScreen {...props} />
                   </ErrorBoundary>
                 )}
               </Stack.Screen>
