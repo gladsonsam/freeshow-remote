@@ -1,11 +1,20 @@
 # FreeShow Remote
 <img src="assets/splash-icon.png" width="64" height="64" alt="FreeShow Remote Logo" align="right" style="margin: 10px 0 0 15px;"/>
-A mobile remote app for [FreeShow](https://freeshow.app) presentation software, built with React Native and Expo. Not affiliated with FreeShow.
+A mobile remote app for FreeShow presentation software, built with React Native and Expo. Not affiliated with FreeShow.
 
 ---
 
-> **⚠️ Important Note**: Currently only available for Android. The $99/year Apple Developer Program fee makes iOS distribution unfeasible. If you're interested in sponsoring iOS distribution or publishing this on the App Store, please [open an issue](https://github.com/gladsonsam/freeshow-remote/issues) or contact me! Android users can download the APK from the releases page. Will be released to the Play Store in the future.
 
+> ⚠️ Availability
+>
+> - Android: Closed testing only (not publicly listed).
+> - iOS: Not available. The $99/year Apple Developer Program fee makes iOS distribution unfeasible. If you’re interested in sponsoring iOS distribution or App Store publishing, please [open an issue](https://github.com/gladsonsam/freeshow-remote/issues) or contact me.
+
+- Tester Google Group: https://groups.google.com/g/freeshow-remote
+- Closed testing opt‑in (web): https://play.google.com/apps/testing/com.gladsonsam.freeshowremote
+- Closed testing opt‑in (open in Play app on Android): https://play.google.com/store/apps/details?id=com.gladsonsam.freeshowremote
+
+Note: Both links are private and only work for accounts added to the tester group. The app is not searchable or publicly viewable on Google Play. The app can only be published publicly on the Play Store once 14 testers have used the app for 14 days.
 ## Features
 
 - **Auto-discovery**: Automatically finds FreeShow on your network - no need to type IP addresses
