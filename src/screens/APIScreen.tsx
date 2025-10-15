@@ -1,26 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
-  TextInput,
   Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
-import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { ErrorLogger } from '../services/ErrorLogger';
-import { useConnection, useSettings } from '../contexts';
-import { getNavigationLayoutInfo } from '../utils/navigationUtils';
-import ShowSwitcher from '../components/ShowSwitcher';
-import { ShowOption } from '../types';
 import ErrorModal from '../components/ErrorModal';
+import ShowSwitcher from '../components/ShowSwitcher';
 import { configService } from '../config/AppConfig';
+import { useConnection } from '../contexts';
+import { ErrorLogger } from '../services/ErrorLogger';
+import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { ShowOption } from '../types';
+import { getNavigationLayoutInfo } from '../utils/navigationUtils';
 
 interface APIScreenProps {
   route: {
@@ -34,10 +34,9 @@ interface APIScreenProps {
 
 const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const { state } = useConnection();
-  const { settings } = useSettings();
   const { connectionHost, isConnected, currentShowPorts } = state;
   const { title = 'FreeShow Remote' } = route.params || {};
-  const { shouldSkipSafeArea } = getNavigationLayoutInfo(settings?.navigationLayout);
+  const { shouldSkipSafeArea } = getNavigationLayoutInfo();
   const SafeAreaWrapper = shouldSkipSafeArea ? View : SafeAreaView;
 
   // State management
@@ -45,26 +44,31 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  
+
   // Advanced mode state
   const [customCommand, setCustomCommand] = useState('');
   const [apiResponse, setApiResponse] = useState<string>('');
   const [shows, setShows] = useState<any[]>([]);
-  
+
   // Fullscreen state
   const [lastTap, setLastTap] = useState<number | null>(null);
   const [showCornerFeedback, setShowCornerFeedback] = useState(false);
   const [showFullscreenHint, setShowFullscreenHint] = useState(false);
   const DOUBLE_TAP_DELAY = configService.getNetworkConfig().doubleTapDelay;
-  
+
   const socketRef = useRef<Socket | null>(null);
   const connectionErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownErrorRef = useRef<boolean>(false);
-  const [errorModal, setErrorModal] = useState<{visible: boolean, title: string, message: string, onRetry?: () => void}>({
+  const [errorModal, setErrorModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onRetry?: () => void;
+  }>({
     visible: false,
     title: '',
     message: '',
-    onRetry: undefined
+    onRetry: undefined,
   });
 
   useEffect(() => {
@@ -86,7 +90,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       const timer = setTimeout(() => {
         setShowFullscreenHint(false);
       }, configService.getNetworkConfig().fullscreenHintDuration);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isFullScreen]);
@@ -115,11 +119,14 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     if (!isFullScreen) return;
 
     const now = Date.now();
-    
-    setShowCornerFeedback(true);
-    setTimeout(() => setShowCornerFeedback(false), configService.getNetworkConfig().cornerFeedbackDuration);
 
-    if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
+    setShowCornerFeedback(true);
+    setTimeout(
+      () => setShowCornerFeedback(false),
+      configService.getNetworkConfig().cornerFeedbackDuration
+    );
+
+    if (lastTap && now - lastTap < DOUBLE_TAP_DELAY) {
       // Double tap detected - exit fullscreen
       setIsFullScreen(false);
       setLastTap(null);
@@ -141,18 +148,18 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     try {
       hasShownErrorRef.current = false;
       ErrorLogger.info('Connecting to FreeShow WebSocket API', 'APIScreen');
-      
+
       if (connectionErrorTimeoutRef.current) {
         clearTimeout(connectionErrorTimeoutRef.current);
       }
-      
+
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
 
       const socketUrl = `http://${connectionHost}:${currentShowPorts.api}`;
-      socketRef.current = io(socketUrl, { 
-        transports: ["websocket"],
+      socketRef.current = io(socketUrl, {
+        transports: ['websocket'],
         timeout: configService.getNetworkConfig().connectionTimeout,
         reconnection: true,
         reconnectionAttempts: 5,
@@ -162,21 +169,21 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       socketRef.current.on('connect', () => {
         ErrorLogger.info('FreeShow Remote connected successfully', 'APIScreen');
         setSocketConnected(true);
-        
+
         if (connectionErrorTimeoutRef.current) {
           clearTimeout(connectionErrorTimeoutRef.current);
         }
         hasShownErrorRef.current = false;
       });
 
-      socketRef.current.on('disconnect', (reason) => {
+      socketRef.current.on('disconnect', reason => {
         ErrorLogger.info('FreeShow Remote disconnected', 'APIScreen', { reason });
         setSocketConnected(false);
       });
 
-      socketRef.current.on('connect_error', (error) => {
+      socketRef.current.on('connect_error', error => {
         ErrorLogger.error('WebSocket connection error', 'APIScreen', error);
-        
+
         if (!hasShownErrorRef.current) {
           connectionErrorTimeoutRef.current = setTimeout(() => {
             if (!socketConnected && !hasShownErrorRef.current) {
@@ -187,27 +194,30 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
                 message: `Cannot connect to FreeShow:\n\n${error.message}\n\nPlease check:\n• FreeShow is running\n• WebSocket/REST API is enabled\n• Port ${configService.getNetworkConfig().defaultPort} is accessible`,
                 onRetry: () => {
                   hasShownErrorRef.current = false;
-                  setErrorModal({visible: false, title: '', message: ''});
+                  setErrorModal({ visible: false, title: '', message: '' });
                   connectWebSocket();
-                }
+                },
               });
             }
           }, 3000);
         }
       });
 
-      socketRef.current.on('data', (response) => {
+      socketRef.current.on('data', response => {
         handleApiResponse(response);
       });
-
     } catch (error) {
-      ErrorLogger.error('Failed to setup WebSocket connection', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to setup WebSocket connection',
+        'APIScreen',
+        error instanceof Error ? error : new Error(String(error))
+      );
       if (!hasShownErrorRef.current) {
         hasShownErrorRef.current = true;
         setErrorModal({
           visible: true,
           title: 'Setup Failed',
-          message: `Failed to setup connection: ${error instanceof Error ? error.message : 'Unknown error'}`
+          message: `Failed to setup connection: ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
       }
     }
@@ -217,7 +227,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     if (connectionErrorTimeoutRef.current) {
       clearTimeout(connectionErrorTimeoutRef.current);
     }
-    
+
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -256,7 +266,11 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         setShows(showsList);
       }
     } catch (error) {
-              ErrorLogger.error('Error parsing API response', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Error parsing API response',
+        'APIScreen',
+        error instanceof Error ? error : new Error(String(error))
+      );
       setApiResponse(`Parse error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -266,20 +280,25 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
     const firstKey = Object.keys(data)[0];
     if (!firstKey) return false;
     const firstItem = data[firstKey];
-    return firstItem && (
-      Object.prototype.hasOwnProperty.call(firstItem, 'name') || 
-      Object.prototype.hasOwnProperty.call(firstItem, 'slides') ||
-      Object.prototype.hasOwnProperty.call(firstItem, 'category')
+    return (
+      firstItem &&
+      (Object.prototype.hasOwnProperty.call(firstItem, 'name') ||
+        Object.prototype.hasOwnProperty.call(firstItem, 'slides') ||
+        Object.prototype.hasOwnProperty.call(firstItem, 'category'))
     );
   };
 
-  const sendApiCommand = async (action: string, data: any = {}, showAlert: boolean = true): Promise<void> => {
+  const sendApiCommand = async (
+    action: string,
+    data: any = {},
+    showAlert: boolean = true
+  ): Promise<void> => {
     if (!connectionHost || !socketRef.current || !socketRef.current.connected) {
       if (showAlert) {
         setErrorModal({
           visible: true,
           title: 'Error',
-          message: 'Not connected to FreeShow'
+          message: 'Not connected to FreeShow',
         });
       }
       return;
@@ -291,12 +310,16 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
       ErrorLogger.debug('Sending API command', 'APIScreen', { command });
       socketRef.current.emit('data', JSON.stringify(command));
     } catch (error) {
-      ErrorLogger.error('API command failed', 'APIScreen', error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'API command failed',
+        'APIScreen',
+        error instanceof Error ? error : new Error(String(error))
+      );
       if (showAlert) {
         setErrorModal({
           visible: true,
           title: 'Command Failed',
-          message: `Failed to execute "${action}"`
+          message: `Failed to execute "${action}"`,
         });
       }
     } finally {
@@ -314,7 +337,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   // Advanced functions
   const handleCustomCommand = () => {
     if (!customCommand.trim()) return;
-    
+
     try {
       const parsed = JSON.parse(customCommand);
       if (parsed.action) {
@@ -340,7 +363,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         <View style={styles.centerContainer}>
           <Ionicons name="wifi-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
           <Text style={styles.errorText}>Not connected to FreeShow</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.connectButton}
             onPress={() => navigation.navigate('Connect')}
           >
@@ -354,12 +377,15 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
   // Show API not available UI if connected but API is disabled
   if (!isApiAvailable) {
     return (
-      <SafeAreaWrapper style={styles.safeArea} {...(!shouldSkipSafeArea && { edges: ['top', 'left', 'right'] })}>
+      <SafeAreaWrapper
+        style={styles.safeArea}
+        {...(!shouldSkipSafeArea && { edges: ['top', 'left', 'right'] })}
+      >
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
-          
+
           {connectionHost ? (
             <ShowSwitcher
               currentTitle={title}
@@ -371,7 +397,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           ) : (
             <Text style={styles.title}>{title}</Text>
           )}
-          
+
           <View style={styles.placeholder} />
         </View>
 
@@ -379,10 +405,10 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           <Ionicons name="settings-outline" size={64} color={FreeShowTheme.colors.textSecondary} />
           <Text style={styles.errorText}>API Interface Not Available</Text>
           <Text style={styles.errorSubtext}>
-            The API interface is disabled in your current connection. 
-            To use API features, enable the API port in FreeShow and reconnect.
+            The API interface is disabled in your current connection. To use API features, enable
+            the API port in FreeShow and reconnect.
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.connectButton}
             onPress={() => navigation.navigate('Connect')}
           >
@@ -400,7 +426,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
           </TouchableOpacity>
-          
+
           {connectionHost ? (
             <ShowSwitcher
               currentTitle={title}
@@ -414,10 +440,10 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           )}
 
           <TouchableOpacity style={styles.fullScreenButton} onPress={handleToggleFullScreen}>
-            <Ionicons 
-              name={isFullScreen ? "contract" : "expand"} 
-              size={20} 
-              color={FreeShowTheme.colors.text} 
+            <Ionicons
+              name={isFullScreen ? 'contract' : 'expand'}
+              size={20}
+              color={FreeShowTheme.colors.text}
             />
           </TouchableOpacity>
         </View>
@@ -425,86 +451,85 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
 
       <View style={styles.container}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Slide Controls */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Slide Control</Text>
-          <View style={styles.controlRow}>
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.previousButton]}
-              onPress={handlePreviousSlide}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="chevron-back" size={32} color="white" />
-              <Text style={styles.controlButtonText}>Previous</Text>
-            </TouchableOpacity>
+          {/* Slide Controls */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Slide Control</Text>
+            <View style={styles.controlRow}>
+              <TouchableOpacity
+                style={[styles.controlButton, styles.previousButton]}
+                onPress={handlePreviousSlide}
+                disabled={isConnecting || !socketConnected}
+              >
+                <Ionicons name="chevron-back" size={32} color="white" />
+                <Text style={styles.controlButtonText}>Previous</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.nextButton]}
-              onPress={handleNextSlide}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="chevron-forward" size={32} color="white" />
-              <Text style={styles.controlButtonText}>Next</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Project Controls */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Project Control</Text>
-          <View style={styles.controlRow}>
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.projectButton]}
-              onPress={handlePreviousProject}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="folder-open" size={24} color="white" />
-              <Text style={styles.controlButtonText}>Previous Project</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.controlButton, styles.projectButton]}
-              onPress={handleNextProject}
-              disabled={isConnecting || !socketConnected}
-            >
-              <Ionicons name="folder" size={24} color="white" />
-              <Text style={styles.controlButtonText}>Next Project</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Advanced Button */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Advanced</Text>
-          <TouchableOpacity
-            style={[styles.advancedButton, !socketConnected && styles.advancedButtonDisabled]}
-            onPress={() => setShowAdvanced(true)}
-            disabled={!socketConnected}
-          >
-            <View style={styles.advancedButtonContent}>
-              <Ionicons name="settings-outline" size={28} color="white" />
-              <View style={styles.advancedButtonTextContainer}>
-                <Text style={styles.advancedButtonTitle}>Advanced Controls</Text>
-                <Text style={styles.advancedButtonSubtitle}>Access advanced API functions</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="white" />
+              <TouchableOpacity
+                style={[styles.controlButton, styles.nextButton]}
+                onPress={handleNextSlide}
+                disabled={isConnecting || !socketConnected}
+              >
+                <Ionicons name="chevron-forward" size={32} color="white" />
+                <Text style={styles.controlButtonText}>Next</Text>
+              </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Project Controls */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Project Control</Text>
+            <View style={styles.controlRow}>
+              <TouchableOpacity
+                style={[styles.controlButton, styles.projectButton]}
+                onPress={handlePreviousProject}
+                disabled={isConnecting || !socketConnected}
+              >
+                <Ionicons name="folder-open" size={24} color="white" />
+                <Text style={styles.controlButtonText}>Previous Project</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.controlButton, styles.projectButton]}
+                onPress={handleNextProject}
+                disabled={isConnecting || !socketConnected}
+              >
+                <Ionicons name="folder" size={24} color="white" />
+                <Text style={styles.controlButtonText}>Next Project</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Advanced Button */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Advanced</Text>
+            <TouchableOpacity
+              style={[styles.advancedButton, !socketConnected && styles.advancedButtonDisabled]}
+              onPress={() => setShowAdvanced(true)}
+              disabled={!socketConnected}
+            >
+              <View style={styles.advancedButtonContent}>
+                <Ionicons name="settings-outline" size={28} color="white" />
+                <View style={styles.advancedButtonTextContainer}>
+                  <Text style={styles.advancedButtonTitle}>Advanced Controls</Text>
+                  <Text style={styles.advancedButtonSubtitle}>Access advanced API functions</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="white" />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        {/* Clear All - Always at bottom */}
+        <View style={styles.bottomSection}>
+          <TouchableOpacity
+            style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
+            onPress={handleClearAll}
+            disabled={isConnecting || !socketConnected}
+          >
+            <Ionicons name="close-circle" size={24} color="white" />
+            <Text style={styles.clearAllButtonText}>Clear All</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      {/* Clear All - Always at bottom */}
-      <View style={styles.bottomSection}>
-        <TouchableOpacity 
-          style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
-          onPress={handleClearAll}
-          disabled={isConnecting || !socketConnected}
-        >
-          <Ionicons name="close-circle" size={24} color="white" />
-          <Text style={styles.clearAllButtonText}>Clear All</Text>
-        </TouchableOpacity>
-      </View>
-
       </View>
 
       {/* Loading Overlay */}
@@ -524,10 +549,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         <SafeAreaView style={styles.advancedContainer}>
           <View style={styles.advancedHeader}>
             <Text style={styles.advancedTitle}>Advanced API Controls</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAdvanced(false)}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={() => setShowAdvanced(false)}>
               <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
             </TouchableOpacity>
           </View>
@@ -539,8 +561,15 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
               <View style={styles.statusRow}>
                 <Text style={styles.statusLabel}>WebSocket:</Text>
                 <View style={styles.statusIndicator}>
-                  <View style={[styles.statusDot, { backgroundColor: socketConnected ? '#28a745' : '#dc3545' }]} />
-                  <Text style={styles.statusText}>{socketConnected ? 'Connected' : 'Disconnected'}</Text>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: socketConnected ? '#28a745' : '#dc3545' },
+                    ]}
+                  />
+                  <Text style={styles.statusText}>
+                    {socketConnected ? 'Connected' : 'Disconnected'}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -549,14 +578,14 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             <View style={styles.advancedSection}>
               <Text style={styles.advancedSectionTitle}>Data Loading</Text>
               <View style={styles.advancedButtonRow}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.advancedModalButton}
                   onPress={() => sendApiCommand('get_shows', {}, false)}
                   disabled={isConnecting || !socketConnected}
                 >
                   <Text style={styles.advancedButtonText}>Load Shows</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.advancedModalButton}
                   onPress={() => sendApiCommand('get_projects', {}, false)}
                   disabled={isConnecting || !socketConnected}
@@ -600,7 +629,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
             {shows.length > 0 && (
               <View style={styles.advancedSection}>
                 <Text style={styles.advancedSectionTitle}>Shows ({shows.length})</Text>
-                {shows.slice(0, 10).map((show) => (
+                {shows.slice(0, 10).map(show => (
                   <TouchableOpacity
                     key={show.id}
                     style={styles.showItem}
@@ -608,7 +637,11 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
                     disabled={isConnecting}
                   >
                     <Text style={styles.showItemText}>{show.name}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={FreeShowTheme.colors.textSecondary} />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color={FreeShowTheme.colors.textSecondary}
+                    />
                   </TouchableOpacity>
                 ))}
                 {shows.length > 10 && (
@@ -619,7 +652,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
 
             {/* Clear All in Advanced Mode too */}
             <View style={styles.advancedSection}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.clearAllButton, !socketConnected && styles.clearAllButtonDisabled]}
                 onPress={handleClearAll}
                 disabled={isConnecting || !socketConnected}
@@ -642,7 +675,7 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
           if (errorModal.onRetry) {
             errorModal.onRetry();
           } else {
-            setErrorModal({visible: false, title: '', message: ''});
+            setErrorModal({ visible: false, title: '', message: '' });
           }
         }}
       />
@@ -666,22 +699,38 @@ const APIScreen: React.FC<APIScreenProps> = ({ route, navigation }) => {
         <>
           {/* Top-left corner */}
           <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.topLeft, showCornerFeedback && styles.cornerFeedback]} />
+            <View
+              style={[styles.corner, styles.topLeft, showCornerFeedback && styles.cornerFeedback]}
+            />
           </TouchableWithoutFeedback>
 
           {/* Top-right corner */}
           <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.topRight, showCornerFeedback && styles.cornerFeedback]} />
+            <View
+              style={[styles.corner, styles.topRight, showCornerFeedback && styles.cornerFeedback]}
+            />
           </TouchableWithoutFeedback>
 
           {/* Bottom-left corner */}
           <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.bottomLeft, showCornerFeedback && styles.cornerFeedback]} />
+            <View
+              style={[
+                styles.corner,
+                styles.bottomLeft,
+                showCornerFeedback && styles.cornerFeedback,
+              ]}
+            />
           </TouchableWithoutFeedback>
 
           {/* Bottom-right corner */}
           <TouchableWithoutFeedback onPress={handleCornerDoubleTap}>
-            <View style={[styles.corner, styles.bottomRight, showCornerFeedback && styles.cornerFeedback]} />
+            <View
+              style={[
+                styles.corner,
+                styles.bottomRight,
+                showCornerFeedback && styles.cornerFeedback,
+              ]}
+            />
           </TouchableWithoutFeedback>
         </>
       )}
@@ -1014,7 +1063,7 @@ const styles = StyleSheet.create({
     padding: FreeShowTheme.spacing.md,
     fontStyle: 'italic',
   },
-  
+
   // Fullscreen styles
   fullScreenButton: {
     padding: FreeShowTheme.spacing.sm,
@@ -1069,4 +1118,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default APIScreen; 
+export default APIScreen;

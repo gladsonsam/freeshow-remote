@@ -1,23 +1,21 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  Dimensions,
-  Platform,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import {
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreeShowTheme } from '../theme/FreeShowTheme';
-import { useSettings } from '../contexts';
-import { getNavigationLayoutInfo, getBottomPadding } from '../utils/navigationUtils';
+import { getBottomPadding, getNavigationLayoutInfo } from '../utils/navigationUtils';
 
 interface ConnectedScreenProps {
   connectionName: string | null;
@@ -42,26 +40,22 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
   onDisconnect,
   onShowQRCode,
   onEditNickname,
-  isFloatingNav = false,
 }) => {
   const insets = useSafeAreaInsets();
-  const { settings } = useSettings();
-  const { shouldSkipSafeArea, isFloatingNav: navIsFloating } = getNavigationLayoutInfo(settings?.navigationLayout);
-  
-  // Use prop value if provided, otherwise use detected value
-  const effectiveIsFloatingNav = isFloatingNav || navIsFloating;
+  const { shouldSkipSafeArea } = getNavigationLayoutInfo();
 
   const getActivePortsCount = () => {
     if (!currentShowPorts) return 0;
-    return Object.entries(currentShowPorts)
-      .filter(([name, port]) => {
-        // Filter out non-port properties like hasEnabledInterfaces
-        return name !== 'hasEnabledInterfaces' && 
-               name !== 'validatedPorts' && 
-               port && 
-               port > 0 && 
-               typeof port === 'number';
-      }).length;
+    return Object.entries(currentShowPorts).filter(([name, port]) => {
+      // Filter out non-port properties like hasEnabledInterfaces
+      return (
+        name !== 'hasEnabledInterfaces' &&
+        name !== 'validatedPorts' &&
+        port &&
+        port > 0 &&
+        typeof port === 'number'
+      );
+    }).length;
   };
 
   const getActivePortsList = () => {
@@ -69,15 +63,17 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
     return Object.entries(currentShowPorts)
       .filter(([name, port]) => {
         // Filter out non-port properties like hasEnabledInterfaces
-        return name !== 'hasEnabledInterfaces' && 
-               name !== 'validatedPorts' && 
-               port && 
-               port > 0 && 
-               typeof port === 'number';
+        return (
+          name !== 'hasEnabledInterfaces' &&
+          name !== 'validatedPorts' &&
+          port &&
+          port > 0 &&
+          typeof port === 'number'
+        );
       })
-      .map(([name, port]) => ({ 
-        name: name.toUpperCase() === 'API' ? 'API' : name, 
-        port 
+      .map(([name, port]) => ({
+        name: name.toUpperCase() === 'API' ? 'API' : name,
+        port,
       }));
   };
 
@@ -96,7 +92,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                   <Text style={styles.statusText}>Connected</Text>
                 </View>
               </View>
-              
+
               <View style={styles.connectionDetails}>
                 <TouchableOpacity style={styles.detailRow} onPress={onEditNickname}>
                   <Ionicons name="wifi" size={20} color={FreeShowTheme.colors.secondary} />
@@ -107,24 +103,30 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                     </Text>
                   </View>
                 </TouchableOpacity>
-                
+
                 {connectionHost && (
                   <View style={styles.detailRow}>
-                    <Ionicons name="globe-outline" size={20} color={FreeShowTheme.colors.secondary} />
+                    <Ionicons
+                      name="globe-outline"
+                      size={20}
+                      color={FreeShowTheme.colors.secondary}
+                    />
                     <View style={styles.detailContent}>
                       <Text style={styles.detailLabel}>IP Address</Text>
                       <Text style={styles.detailValue}>{connectionHost}</Text>
                     </View>
                   </View>
                 )}
-                
+
                 <View style={styles.detailRow}>
-                  <Ionicons name="layers-outline" size={20} color={FreeShowTheme.colors.secondary} />
+                  <Ionicons
+                    name="layers-outline"
+                    size={20}
+                    color={FreeShowTheme.colors.secondary}
+                  />
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Active Interfaces</Text>
-                    <Text style={styles.detailValue}>
-                      {getActivePortsCount()} of 5 enabled
-                    </Text>
+                    <Text style={styles.detailValue}>{getActivePortsCount()} of 5 enabled</Text>
                   </View>
                 </View>
               </View>
@@ -138,7 +140,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                 <Text style={styles.statusText}>Connected</Text>
               </View>
             </View>
-            
+
             <View style={styles.connectionDetails}>
               <TouchableOpacity style={styles.detailRow} onPress={onEditNickname}>
                 <Ionicons name="wifi" size={20} color={FreeShowTheme.colors.secondary} />
@@ -149,7 +151,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                   </Text>
                 </View>
               </TouchableOpacity>
-              
+
               {connectionHost && (
                 <View style={styles.detailRow}>
                   <Ionicons name="globe-outline" size={20} color={FreeShowTheme.colors.secondary} />
@@ -159,14 +161,12 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
                   </View>
                 </View>
               )}
-              
+
               <View style={styles.detailRow}>
                 <Ionicons name="layers-outline" size={20} color={FreeShowTheme.colors.secondary} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Active Interfaces</Text>
-                  <Text style={styles.detailValue}>
-                    {getActivePortsCount()} of 5 enabled
-                  </Text>
+                  <Text style={styles.detailValue}>{getActivePortsCount()} of 5 enabled</Text>
                 </View>
               </View>
             </View>
@@ -186,10 +186,14 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
           <BlurView intensity={15} style={styles.portsCardBlur}>
             <View style={styles.portsCardContent}>
               <View style={styles.portsHeader}>
-                <Ionicons name="settings-outline" size={24} color={FreeShowTheme.colors.secondary} />
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={FreeShowTheme.colors.secondary}
+                />
                 <Text style={styles.portsTitle}>Interface Ports</Text>
               </View>
-              
+
               <View style={styles.portsGrid}>
                 {getActivePortsList().map(({ name, port }) => {
                   if (!port || port <= 0 || isNaN(port)) return null;
@@ -209,7 +213,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
               <Ionicons name="settings-outline" size={24} color={FreeShowTheme.colors.secondary} />
               <Text style={styles.portsTitle}>Interface Ports</Text>
             </View>
-            
+
             <View style={styles.portsGrid}>
               {getActivePortsList().map(({ name, port }) => {
                 if (!port || port <= 0 || isNaN(port)) return null;
@@ -230,13 +234,9 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
   const ActionsCard = () => (
     <View style={styles.actionsCard}>
       <Text style={styles.actionsTitle}>Quick Actions</Text>
-      
+
       <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onShowQRCode}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.actionButton} onPress={onShowQRCode} activeOpacity={0.7}>
           <View style={styles.actionButtonContent}>
             <View style={[styles.actionIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
               <Ionicons name="qr-code" size={24} color="#2196F3" />
@@ -248,12 +248,8 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
             <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onDisconnect}
-          activeOpacity={0.7}
-        >
+
+        <TouchableOpacity style={styles.actionButton} onPress={onDisconnect} activeOpacity={0.7}>
           <View style={styles.actionButtonContent}>
             <View style={[styles.actionIcon, { backgroundColor: 'rgba(239, 83, 80, 0.15)' }]}>
               <Ionicons name="power" size={24} color="#EF5350" />
@@ -276,10 +272,7 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
     >
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: getBottomPadding(effectiveIsFloatingNav) }
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: getBottomPadding() }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -293,15 +286,27 @@ const ConnectedScreen: React.FC<ConnectedScreenProps> = ({
             >
               {/* Title Section - Left */}
               <View style={styles.titleSection}>
-                <Text style={[styles.screenTitle, Dimensions.get('window').width >= 768 && styles.titleTablet]}>Connection Status</Text>
-                <Text style={[styles.subtitle, Dimensions.get('window').width >= 768 && styles.subtitleTablet]}>
+                <Text
+                  style={[
+                    styles.screenTitle,
+                    Dimensions.get('window').width >= 768 && styles.titleTablet,
+                  ]}
+                >
+                  Connection Status
+                </Text>
+                <Text
+                  style={[
+                    styles.subtitle,
+                    Dimensions.get('window').width >= 768 && styles.subtitleTablet,
+                  ]}
+                >
                   Manage your connection
                 </Text>
               </View>
 
               {/* Logo - Right */}
               <View style={styles.logoContainer}>
-                <Image 
+                <Image
                   source={require('../../assets/splash-icon.png')}
                   style={styles.logo}
                   resizeMode="contain"
@@ -336,7 +341,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingBottom: 20,
   },
-  
+
   // Brand Header Card
   brandCard: {
     borderRadius: 16,
@@ -389,7 +394,7 @@ const styles = StyleSheet.create({
   cardsContainer: {
     gap: FreeShowTheme.spacing.lg,
   },
-  
+
   // Connection Info Card
   infoCard: {
     borderRadius: 12,
@@ -445,7 +450,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
-  
+
   // Ports Card
   portsCard: {
     borderRadius: 12,
@@ -502,7 +507,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: 'white',
   },
-  
+
   // Actions Card
   actionsCard: {
     gap: 16,
