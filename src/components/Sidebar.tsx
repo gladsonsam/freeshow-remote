@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
 import { useConnection } from '../contexts';
 import { configService } from '../config/AppConfig';
+import { useIsTV } from '../hooks/useIsTV';
+import { useTVEvent } from '../hooks/useTVEvent';
 
 interface SidebarProps {
   navigation: any;
@@ -32,38 +34,91 @@ interface NavigationItem {
   route: string;
 }
 
+// Shared navigation items used by both sidebar variants
+const NAVIGATION_ITEMS: NavigationItem[] = [
+  {
+    key: 'Interface',
+    label: 'Interface',
+    icon: 'apps-outline',
+    iconFocused: 'apps',
+    route: 'Interface',
+  },
+  {
+    key: 'Connect',
+    label: 'Connect',
+    icon: 'wifi-outline',
+    iconFocused: 'wifi',
+    route: 'Connect',
+  },
+  {
+    key: 'Settings',
+    label: 'Settings',
+    icon: 'settings-outline',
+    iconFocused: 'settings',
+    route: 'Settings',
+  },
+];
+
+// Normalize various TV event shapes to a canonical string action
+const normalizeTVEvent = (evt: any): string | null => {
+  if (!evt) return null;
+  if (evt.eventType && typeof evt.eventType === 'string') return evt.eventType;
+  if (evt.type && typeof evt.type === 'string') return evt.type;
+
+  const code = evt.eventType ?? evt.keyCode ?? evt.keycode ?? evt;
+  const num = typeof code === 'number' ? code : parseInt(code, 10);
+  if (!isNaN(num)) {
+    switch (num) {
+      case 19:
+        return 'up';
+      case 20:
+        return 'down';
+      case 21:
+        return 'left';
+      case 22:
+        return 'right';
+      case 23:
+        return 'select';
+      case 66:
+        return 'select';
+      case 4:
+        return 'back';
+      case 82:
+        return 'menu';
+      default:
+        return String(num);
+    }
+  }
+  return null;
+};
+
 const { width: screenWidth } = Dimensions.get('window');
 const SIDEBAR_WIDTH = Math.min(280, screenWidth * 0.75);
 
-export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose, navigation: _navigation, currentRoute }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  onNavigate,
+  isVisible,
+  onClose,
+  navigation: _navigation,
+  currentRoute,
+}) => {
   const [slideAnim] = useState(new Animated.Value(-SIDEBAR_WIDTH));
   const [backdropOpacity] = useState(new Animated.Value(0));
   const { state } = useConnection();
   const { isConnected, connectionStatus } = state;
+  const isTV = useIsTV();
 
-  const navigationItems: NavigationItem[] = [
-    {
-      key: 'Interface',
-      label: 'Interface',
-      icon: 'apps-outline',
-      iconFocused: 'apps',
-      route: 'Interface',
-    },
-    {
-      key: 'Connect',
-      label: 'Connect',
-      icon: 'wifi-outline',
-      iconFocused: 'wifi',
-      route: 'Connect',
-    },
-    {
-      key: 'Settings',
-      label: 'Settings',
-      icon: 'settings-outline',
-      iconFocused: 'settings',
-      route: 'Settings',
-    },
-  ];
+  // Focus index for TV remote navigation
+  const [focusedIndex, setFocusedIndex] = useState<number>(() => {
+    const idx = NAVIGATION_ITEMS.findIndex(n => n.route === currentRoute);
+    return idx >= 0 ? idx : 0;
+  });
+  const focusedIndexRef = useRef<number>(focusedIndex);
+  useEffect(() => {
+    focusedIndexRef.current = focusedIndex;
+  }, [focusedIndex]);
+
+  // use NAVIGATION_ITEMS
 
   // Animation effect when visibility changes
   useEffect(() => {
@@ -108,6 +163,72 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
     onClose();
   };
 
+  // Sync focused index when current route changes
+  useEffect(() => {
+    const idx = NAVIGATION_ITEMS.findIndex(n => n.route === currentRoute);
+    if (idx >= 0) setFocusedIndex(idx);
+  }, [currentRoute]);
+
+  // When overlay becomes visible, ensure the focused index matches current route
+  useEffect(() => {
+    if (isVisible) {
+      const idx = NAVIGATION_ITEMS.findIndex(n => n.route === currentRoute);
+      setFocusedIndex(idx >= 0 ? idx : 0);
+    }
+  }, [isVisible, currentRoute]);
+
+  // TV remote event handling (only when running on TV)
+  const normalizeTVEvent = (evt: any): string | null => {
+    if (!evt) return null;
+    // Common string shapes
+    if (evt.eventType && typeof evt.eventType === 'string') return evt.eventType;
+    if (evt.type && typeof evt.type === 'string') return evt.type;
+
+    // Some platforms use numeric codes (Android KeyEvent): map common keyCodes
+    const code = evt.eventType ?? evt.keyCode ?? evt.keycode ?? evt;
+    const num = typeof code === 'number' ? code : parseInt(code, 10);
+    if (!isNaN(num)) {
+      switch (num) {
+        case 19:
+          return 'up'; // dpad up
+        case 20:
+          return 'down'; // dpad down
+        case 21:
+          return 'left';
+        case 22:
+          return 'right';
+        case 23:
+          return 'select'; // dpad center
+        case 66:
+          return 'select'; // enter
+        case 4:
+          return 'back';
+        case 82:
+          return 'menu';
+        default:
+          return String(num);
+      }
+    }
+    return null;
+  };
+
+  useTVEvent((evt: any) => {
+    if (!isVisible) return; // only when overlay visible
+    const type = normalizeTVEvent(evt);
+    const len = NAVIGATION_ITEMS.length;
+
+    if (type === 'up') {
+      setFocusedIndex(i => (i - 1 + len) % len);
+    } else if (type === 'down') {
+      setFocusedIndex(i => (i + 1) % len);
+    } else if (type === 'select' || type === 'play' || type === 'selectPlay' || type === 'enter') {
+      const item = NAVIGATION_ITEMS[focusedIndexRef.current];
+      if (item) handleNavigate(item.route);
+    } else if (type === 'menu' || type === 'back') {
+      onClose();
+    }
+  }, isTV && isVisible);
+
   const getConnectionColor = () => {
     if (isConnected) {
       return '#4CAF50'; // Green when connected
@@ -140,16 +261,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
     >
       {/* Backdrop */}
       <TouchableWithoutFeedback onPress={handleBackdropPress}>
-        <Animated.View 
-          style={[
-            styles.backdrop, 
-            { opacity: backdropOpacity }
-          ]} 
-        />
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
       </TouchableWithoutFeedback>
 
       {/* Sidebar */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.sidebarContainer,
           {
@@ -157,30 +273,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
           },
         ]}
       >
-    <SafeAreaView style={styles.safeArea} edges={['left', 'top', 'bottom']}>
+        <SafeAreaView style={styles.safeArea} edges={['left', 'top', 'bottom']}>
           <View style={styles.sidebar}>
             {/* Header with close button */}
             <View style={styles.header}>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={onClose}
-                activeOpacity={0.7}
-              >
-                <Ionicons 
-                  name="close" 
-                  size={24} 
-                  color={FreeShowTheme.colors.text} 
-                />
+              <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.7}>
+                <Ionicons name="close" size={24} color={FreeShowTheme.colors.text} />
               </TouchableOpacity>
-              
+
               <View style={styles.headerText}>
                 <Text style={styles.appName}>FreeShow</Text>
                 <Text style={styles.appSubtitle}>Remote</Text>
               </View>
-              
+
               <View style={styles.logoContainer}>
                 <View style={styles.logoCircle}>
-                  <Image 
+                  <Image
                     source={require('../../assets/icon.png')}
                     style={styles.logoImage}
                     resizeMode="cover"
@@ -191,21 +299,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
 
             {/* Navigation Items */}
             <View style={styles.navigation}>
-              {navigationItems.map((item) => {
+              {NAVIGATION_ITEMS.map((item, index) => {
                 const isActive = currentRoute === item.route;
                 const itemColor = getItemColor(item);
                 const backgroundColor = getItemBackgroundColor(item);
-                
+                const isFocusedTV = isTV && focusedIndex === index;
+
                 return (
                   <TouchableOpacity
                     key={item.key}
-                    style={[
-                      styles.navItem, 
-                      { backgroundColor }
-                    ]}
+                    style={[styles.navItem, { backgroundColor }]}
                     onPress={() => handleNavigate(item.route)}
                     activeOpacity={0.7}
+                    focusable={isTV}
+                    hasTVPreferredFocus={isFocusedTV}
+                    onFocus={() => {
+                      if (isTV) setFocusedIndex(index);
+                    }}
                   >
+                    {isFocusedTV && <View style={styles.tvHighlight} pointerEvents="none" />}
                     <View style={styles.navItemIcon}>
                       <Ionicons
                         name={isActive ? item.iconFocused : item.icon}
@@ -213,16 +325,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
                         color={itemColor}
                       />
                     </View>
-                    
+
                     <View style={styles.navItemText}>
-                      <Text style={[styles.navItemLabel, { color: itemColor }]}>
-                        {item.label}
-                      </Text>
+                      <Text style={[styles.navItemLabel, { color: itemColor }]}>{item.label}</Text>
                     </View>
-                    
-                    {isActive && (
-                      <View style={styles.activeIndicator} />
-                    )}
+
+                    {isActive && <View style={styles.activeIndicator} />}
                   </TouchableOpacity>
                 );
               })}
@@ -232,14 +340,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, isVisible, onClose
             <View style={styles.statusSection}>
               <View style={styles.connectionStatus}>
                 <View style={styles.statusIndicator}>
-                  <View 
-                    style={[
-                      styles.statusDot, 
-                      { backgroundColor: getConnectionColor() }
-                    ]} 
-                  />
+                  <View style={[styles.statusDot, { backgroundColor: getConnectionColor() }]} />
                   <Text style={styles.statusText}>
-                    {isConnected ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                    {isConnected
+                      ? 'Connected'
+                      : connectionStatus === 'connecting'
+                        ? 'Connecting...'
+                        : 'Disconnected'}
                   </Text>
                 </View>
               </View>
@@ -345,6 +452,30 @@ const styles = StyleSheet.create({
     borderRadius: FreeShowTheme.borderRadius.lg,
     marginBottom: FreeShowTheme.spacing.xs,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  tvFocusedItem: {
+    backgroundColor: FreeShowTheme.colors.secondarySurface,
+    transform: [{ scale: 1.02 } as any],
+    shadowColor: FreeShowTheme.colors.secondary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  tvHighlight: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: FreeShowTheme.colors.secondarySurface,
+    borderRadius: FreeShowTheme.borderRadius.lg,
+    shadowColor: FreeShowTheme.colors.secondary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 8,
   },
   navItemIcon: {
     width: 40,
@@ -413,53 +544,67 @@ interface SidebarTraditionalProps {
   onNavigate: (route: string) => void;
 }
 
-export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigation: _navigation, currentRoute, onNavigate }) => {
+export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({
+  navigation: _navigation,
+  currentRoute,
+  onNavigate,
+}) => {
   const [isExpanded, setIsExpanded] = useState(true); // Start expanded on larger screens
   const [animatedWidth] = useState(new Animated.Value(SIDEBAR_WIDTH));
   const { state } = useConnection();
   const { isConnected, connectionStatus } = state;
+  const isTV = useIsTV();
 
-  const navigationItems: NavigationItem[] = [
-    {
-      key: 'Interface',
-      label: 'Interface',
-      icon: 'apps-outline',
-      iconFocused: 'apps',
-      route: 'Interface',
-    },
-    {
-      key: 'Connect',
-      label: 'Connect',
-      icon: 'wifi-outline',
-      iconFocused: 'wifi',
-      route: 'Connect',
-    },
-    {
-      key: 'Settings',
-      label: 'Settings',
-      icon: 'settings-outline',
-      iconFocused: 'settings',
-      route: 'Settings',
-    },
-  ];
+  // Focus index for TV remote navigation in traditional sidebar
+  const [focusedIndex, setFocusedIndex] = useState<number>(() => {
+    const idx = NAVIGATION_ITEMS.findIndex(n => n.route === currentRoute);
+    return idx >= 0 ? idx : 0;
+  });
+  const focusedIndexRef = useRef<number>(focusedIndex);
+  useEffect(() => {
+    focusedIndexRef.current = focusedIndex;
+  }, [focusedIndex]);
+
+  // use NAVIGATION_ITEMS
 
   const SIDEBAR_WIDTH_COLLAPSED = 70;
 
   const toggleSidebar = () => {
     const targetWidth = isExpanded ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH;
-    
+
     Animated.timing(animatedWidth, {
       toValue: targetWidth,
       duration: 150,
       useNativeDriver: false,
     }).start();
-    
+
     setIsExpanded(!isExpanded);
   };
 
   const handleNavigate = (route: string) => {
     onNavigate(route);
   };
+
+  // Sync focused index when current route changes
+  useEffect(() => {
+    const idx = NAVIGATION_ITEMS.findIndex(n => n.route === currentRoute);
+    if (idx >= 0) setFocusedIndex(idx);
+  }, [currentRoute]);
+
+  // TV remote event handling for traditional sidebar
+  useTVEvent((evt: any) => {
+    const type = normalizeTVEvent(evt);
+    const len = NAVIGATION_ITEMS.length;
+
+    if (type === 'up') {
+      setFocusedIndex(i => (i - 1 + len) % len);
+    } else if (type === 'down') {
+      setFocusedIndex(i => (i + 1) % len);
+    } else if (type === 'select' || type === 'play' || type === 'selectPlay' || type === 'enter') {
+      const item = NAVIGATION_ITEMS[focusedIndexRef.current];
+      if (item) handleNavigate(item.route);
+    }
+  }, isTV);
 
   const getConnectionColor = () => {
     if (isConnected) {
@@ -488,28 +633,28 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
       <Animated.View style={[traditionalStyles.sidebar, { width: animatedWidth }]}>
         {/* Header with toggle button */}
         <View style={[traditionalStyles.header, !isExpanded && traditionalStyles.headerCollapsed]}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={traditionalStyles.toggleButton}
             onPress={toggleSidebar}
             activeOpacity={0.7}
           >
-            <Ionicons 
-              name={isExpanded ? "chevron-back" : "menu"} 
-              size={24} 
-              color={FreeShowTheme.colors.text} 
+            <Ionicons
+              name={isExpanded ? 'chevron-back' : 'menu'}
+              size={24}
+              color={FreeShowTheme.colors.text}
             />
           </TouchableOpacity>
-          
+
           {isExpanded && (
             <>
               <View style={traditionalStyles.headerText}>
                 <Text style={traditionalStyles.appName}>FreeShow</Text>
                 <Text style={traditionalStyles.appSubtitle}>Remote</Text>
               </View>
-              
+
               <View style={traditionalStyles.logoContainer}>
                 <View style={traditionalStyles.logoCircle}>
-                  <Image 
+                  <Image
                     source={require('../../assets/icon.png')}
                     style={traditionalStyles.logoImage}
                     resizeMode="cover"
@@ -521,31 +666,49 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
         </View>
 
         {/* Navigation Items */}
-        <View style={[traditionalStyles.navigation, !isExpanded && traditionalStyles.navigationCollapsed]}>
-          {navigationItems.map((item) => {
+        <View
+          style={[
+            traditionalStyles.navigation,
+            !isExpanded && traditionalStyles.navigationCollapsed,
+          ]}
+        >
+          {NAVIGATION_ITEMS.map((item, index) => {
             const isActive = currentRoute === item.route;
             const itemColor = getItemColor(item);
             const backgroundColor = getItemBackgroundColor(item);
-            
+            const isFocusedTV = isTV && focusedIndex === index;
+            const focusedStyle = isFocusedTV ? traditionalStyles.tvFocusedItem : {};
+
             return (
               <TouchableOpacity
                 key={item.key}
                 style={[
-                  traditionalStyles.navItem, 
+                  traditionalStyles.navItem,
                   { backgroundColor },
-                  !isExpanded && traditionalStyles.navItemCollapsed
+                  !isExpanded && traditionalStyles.navItemCollapsed,
                 ]}
                 onPress={() => handleNavigate(item.route)}
                 activeOpacity={0.7}
+                focusable={isTV}
+                hasTVPreferredFocus={isFocusedTV}
+                onFocus={() => {
+                  if (isTV) setFocusedIndex(index);
+                }}
               >
-                <View style={[traditionalStyles.navItemIcon, !isExpanded && traditionalStyles.navItemIconCollapsed]}>
+                {/* {isFocusedTV && <View style={traditionalStyles.tvHighlight} pointerEvents="none" />} */}
+                <View
+                  style={[
+                    traditionalStyles.navItemIcon,
+                    !isExpanded && traditionalStyles.navItemIconCollapsed,
+                  ]}
+                >
                   <Ionicons
                     name={isActive ? item.iconFocused : item.icon}
                     size={24}
                     color={itemColor}
                   />
                 </View>
-                
+
                 {isExpanded && (
                   <View style={traditionalStyles.navItemText}>
                     <Text style={[traditionalStyles.navItemLabel, { color: itemColor }]}>
@@ -553,11 +716,9 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
                     </Text>
                   </View>
                 )}
-                
-                {isActive && isExpanded && (
-                  <View style={traditionalStyles.activeIndicator} />
-                )}
-                
+
+                {isActive && isExpanded && <View style={traditionalStyles.activeIndicator} />}
+
                 {isActive && !isExpanded && (
                   <View style={traditionalStyles.activeIndicatorCollapsed} />
                 )}
@@ -571,14 +732,15 @@ export const SidebarTraditional: React.FC<SidebarTraditionalProps> = ({ navigati
           <View style={traditionalStyles.statusSection}>
             <View style={traditionalStyles.connectionStatus}>
               <View style={traditionalStyles.statusIndicator}>
-                <View 
-                  style={[
-                    traditionalStyles.statusDot, 
-                    { backgroundColor: getConnectionColor() }
-                  ]} 
+                <View
+                  style={[traditionalStyles.statusDot, { backgroundColor: getConnectionColor() }]}
                 />
                 <Text style={traditionalStyles.statusText}>
-                  {isConnected ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                  {isConnected
+                    ? 'Connected'
+                    : connectionStatus === 'connecting'
+                      ? 'Connecting...'
+                      : 'Disconnected'}
                 </Text>
               </View>
             </View>
@@ -673,6 +835,15 @@ const traditionalStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: 54,
+  },
+  tvFocusedItem: {
+    backgroundColor: FreeShowTheme.colors.secondarySurface,
+    transform: [{ scale: 1.02 } as any],
+    shadowColor: FreeShowTheme.colors.secondary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
   },
   navItemIcon: {
     width: 40,
