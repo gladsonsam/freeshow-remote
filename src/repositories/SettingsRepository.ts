@@ -1,7 +1,7 @@
-import { IStorageRepository, StorageKeys } from './IStorageRepository';
-import { storageRepository } from './AsyncStorageRepository';
-import { ErrorLogger } from '../services/ErrorLogger';
 import { configService } from '../config/AppConfig';
+import { ErrorLogger } from '../services/ErrorLogger';
+import { storageRepository } from './AsyncStorageRepository';
+import { IStorageRepository, StorageKeys } from './IStorageRepository';
 
 // Types for settings domain
 export interface AppSettings {
@@ -11,7 +11,6 @@ export interface AppSettings {
   autoLaunchInterface: 'none' | 'remote' | 'stage' | 'control' | 'output' | 'api';
   autoLaunchFullscreen: boolean;
   connectionTimeout: number; // in seconds
-  navigationLayout: 'bottomBar' | 'sidebar' | 'floating';
   keepAwake: boolean;
 }
 
@@ -21,7 +20,8 @@ export interface ConnectionHistory {
   nickname?: string; // User-friendly nickname/display name
   lastUsed: string; // ISO date string
   successfulConnections: number;
-  showPorts?: { // Interface port configs stored per IP
+  showPorts?: {
+    // Interface port configs stored per IP
     remote: number;
     stage: number;
     control: number;
@@ -55,7 +55,6 @@ export class SettingsRepository {
           autoLaunchInterface: 'none',
           autoLaunchFullscreen: false,
           connectionTimeout: 10,
-          navigationLayout: 'bottomBar',
           keepAwake: false,
         };
         await this.setAppSettings(defaultSettings);
@@ -63,7 +62,11 @@ export class SettingsRepository {
       }
       return settings;
     } catch (error) {
-      ErrorLogger.error('Failed to get app settings', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to get app settings',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -73,7 +76,11 @@ export class SettingsRepository {
       await this.storage.setObject(StorageKeys.APP_SETTINGS, settings);
       ErrorLogger.debug('App settings updated', this.logContext, { settings });
     } catch (error) {
-      ErrorLogger.error('Failed to set app settings', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to set app settings',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -85,7 +92,11 @@ export class SettingsRepository {
       await this.setAppSettings(updatedSettings);
       return updatedSettings;
     } catch (error) {
-      ErrorLogger.error('Failed to update app settings', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to update app settings',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -93,10 +104,16 @@ export class SettingsRepository {
   // Connection History
   async getConnectionHistory(): Promise<ConnectionHistory[]> {
     try {
-      const history = await this.storage.getObject<ConnectionHistory[]>(StorageKeys.CONNECTION_HISTORY);
+      const history = await this.storage.getObject<ConnectionHistory[]>(
+        StorageKeys.CONNECTION_HISTORY
+      );
       return history || [];
     } catch (error) {
-      ErrorLogger.error('Failed to get connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to get connection history',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       return [];
     }
   }
@@ -104,9 +121,16 @@ export class SettingsRepository {
   async setConnectionHistory(history: ConnectionHistory[]): Promise<void> {
     try {
       await this.storage.setObject(StorageKeys.CONNECTION_HISTORY, history);
-      ErrorLogger.debug(`Updated connection history with ${history.length} entries`, this.logContext);
+      ErrorLogger.debug(
+        `Updated connection history with ${history.length} entries`,
+        this.logContext
+      );
     } catch (error) {
-      ErrorLogger.error('Failed to set connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to set connection history',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -120,11 +144,11 @@ export class SettingsRepository {
     try {
       const history = await this.getConnectionHistory();
       const existingIndex = history.findIndex(item => item.host === host);
-      
+
       // Get default ports if not provided, but preserve existing ports if they exist
       const defaultPorts = configService.getDefaultShowPorts();
       let portsToStore;
-      
+
       if (showPorts) {
         // Use provided ports
         portsToStore = showPorts;
@@ -141,7 +165,7 @@ export class SettingsRepository {
           api: defaultPorts.api,
         };
       }
-      
+
       if (existingIndex >= 0) {
         // Update existing entry
         history[existingIndex] = {
@@ -171,14 +195,18 @@ export class SettingsRepository {
         .slice(0, maxConnections);
 
       await this.setConnectionHistory(sortedHistory);
-      ErrorLogger.info('Added to connection history', this.logContext, { 
-        host, 
-        port, 
+      ErrorLogger.info('Added to connection history', this.logContext, {
+        host,
+        port,
         totalConnections: sortedHistory.length,
-        maxConnections 
+        maxConnections,
       });
     } catch (error) {
-      ErrorLogger.error('Failed to add to connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to add to connection history',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -187,23 +215,27 @@ export class SettingsRepository {
     try {
       const history = await this.getConnectionHistory();
       const existingIndex = history.findIndex(item => item.id === hostId || item.host === hostId);
-      
+
       if (existingIndex >= 0) {
         history[existingIndex] = {
           ...history[existingIndex],
           nickname: nickname.trim() || history[existingIndex].host, // Fallback to host if empty
         };
-        
+
         await this.setConnectionHistory(history);
-        ErrorLogger.info('Updated connection nickname', this.logContext, { 
-          hostId, 
-          nickname: nickname.trim() || history[existingIndex].host 
+        ErrorLogger.info('Updated connection nickname', this.logContext, {
+          hostId,
+          nickname: nickname.trim() || history[existingIndex].host,
         });
       } else {
         throw new Error(`Connection with ID ${hostId} not found in history`);
       }
     } catch (error) {
-      ErrorLogger.error('Failed to update connection nickname', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to update connection nickname',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -215,7 +247,7 @@ export class SettingsRepository {
     try {
       const history = await this.getConnectionHistory();
       const existingIndex = history.findIndex(item => item.host === host);
-      
+
       if (existingIndex >= 0) {
         // Update existing entry without incrementing connection count
         history[existingIndex] = {
@@ -223,21 +255,27 @@ export class SettingsRepository {
           lastUsed: new Date().toISOString(),
           showPorts,
         };
-        
+
         await this.setConnectionHistory(history);
-        ErrorLogger.info('Updated connection ports', this.logContext, { 
-          host, 
-          showPorts 
+        ErrorLogger.info('Updated connection ports', this.logContext, {
+          host,
+          showPorts,
         });
       } else {
         // If connection doesn't exist in history, this shouldn't happen during port updates
         // But we can handle it gracefully
-        ErrorLogger.warn('Attempted to update ports for non-existent connection', this.logContext, 
+        ErrorLogger.warn(
+          'Attempted to update ports for non-existent connection',
+          this.logContext,
           new Error(`Host not found in history: ${host}`)
         );
       }
     } catch (error) {
-      ErrorLogger.error('Failed to update connection ports', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to update connection ports',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -249,7 +287,11 @@ export class SettingsRepository {
       await this.setConnectionHistory(filteredHistory);
       ErrorLogger.info('Removed from connection history', this.logContext, { id });
     } catch (error) {
-      ErrorLogger.error('Failed to remove from connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to remove from connection history',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -259,7 +301,11 @@ export class SettingsRepository {
       await this.setConnectionHistory([]);
       ErrorLogger.info('Cleared connection history', this.logContext);
     } catch (error) {
-      ErrorLogger.error('Failed to clear connection history', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to clear connection history',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -272,9 +318,15 @@ export class SettingsRepository {
         return null;
       }
       // Return the most recently used connection
-      return history.sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())[0];
+      return history.sort(
+        (a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+      )[0];
     } catch (error) {
-      ErrorLogger.error('Failed to get last connection', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to get last connection',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       return null;
     }
   }
@@ -287,7 +339,11 @@ export class SettingsRepository {
       await this.storage.removeItem(StorageKeys.USER_PREFERENCES);
       ErrorLogger.info('Cleared all settings data', this.logContext);
     } catch (error) {
-      ErrorLogger.error('Failed to clear all data', this.logContext, error instanceof Error ? error : new Error(String(error)));
+      ErrorLogger.error(
+        'Failed to clear all data',
+        this.logContext,
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }

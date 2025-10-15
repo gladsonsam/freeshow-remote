@@ -1,16 +1,10 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  StatusBar,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { getBottomPadding } from '../utils/navigationUtils';
 
 interface NotConnectedScreenProps {
   onNavigateToConnect: () => void;
@@ -21,30 +15,24 @@ interface NotConnectedScreenProps {
  * Not Connected Screen Component
  * Shows when the app is not connected to FreeShow with option to connect
  */
-const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({ 
-  onNavigateToConnect, 
-  isFloatingNav = false 
-}) => {
+const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({ onNavigateToConnect }) => {
   const insets = useSafeAreaInsets();
 
   return (
-    <LinearGradient
-      colors={FreeShowTheme.gradients.appBackground}
-      style={styles.container}
-    >
+    <LinearGradient colors={FreeShowTheme.gradients.appBackground} style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <Animated.View
         style={[
           styles.notConnectedContainer,
-          { 
+          {
             paddingTop: insets.top,
-            paddingBottom: isFloatingNav ? 120 : 40,
+            paddingBottom: getBottomPadding(),
           },
           {
             opacity: 1,
             transform: [{ translateY: 0 }],
-          }
+          },
         ]}
       >
         <View style={styles.notConnectedIcon}>
@@ -52,15 +40,10 @@ const NotConnectedScreen: React.FC<NotConnectedScreenProps> = ({
         </View>
 
         <Text style={styles.notConnectedTitle}>Not Connected</Text>
-        <Text style={styles.notConnectedSubtitle}>
-          Connect to FreeShow to access interfaces
-        </Text>
+        <Text style={styles.notConnectedSubtitle}>Connect to FreeShow to access interfaces</Text>
 
         <Pressable
-          style={({ pressed }) => [
-            styles.connectButton,
-            pressed && styles.connectButtonPressed
-          ]}
+          style={({ pressed }) => [styles.connectButton, pressed && styles.connectButtonPressed]}
           onPress={onNavigateToConnect}
           accessibilityRole="button"
           accessibilityLabel="Connect to FreeShow server"

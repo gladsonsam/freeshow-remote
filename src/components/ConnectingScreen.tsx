@@ -1,16 +1,10 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  StatusBar,
-  Pressable,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FreeShowTheme } from '../theme/FreeShowTheme';
+import { getBottomPadding } from '../utils/navigationUtils';
 
 interface ConnectingScreenProps {
   onCancel: () => void;
@@ -22,13 +16,8 @@ interface ConnectingScreenProps {
  * Connecting Screen Component
  * Shows a clean, mature connecting state that matches the not connected screen design
  */
-const ConnectingScreen: React.FC<ConnectingScreenProps> = ({ 
-  onCancel, 
-  connectionStatus, 
-  isFloatingNav = false 
-}) => {
+const ConnectingScreen: React.FC<ConnectingScreenProps> = ({ onCancel, connectionStatus }) => {
   const insets = useSafeAreaInsets();
-
 
   const getStatusMessage = () => {
     switch (connectionStatus) {
@@ -61,29 +50,26 @@ const ConnectingScreen: React.FC<ConnectingScreenProps> = ({
         }),
       ])
     );
-    
+
     pulse.start();
     return () => pulse.stop();
   }, [pulseAnimation]);
 
   return (
-    <LinearGradient
-      colors={FreeShowTheme.gradients.appBackground}
-      style={styles.container}
-    >
+    <LinearGradient colors={FreeShowTheme.gradients.appBackground} style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <Animated.View
         style={[
           styles.connectingContainer,
-          { 
+          {
             paddingTop: insets.top,
-            paddingBottom: isFloatingNav ? 120 : 40,
+            paddingBottom: getBottomPadding(),
           },
           {
             opacity: 1,
             transform: [{ translateY: 0 }],
-          }
+          },
         ]}
       >
         {/* Icon container - matches not connected design exactly */}
@@ -94,15 +80,10 @@ const ConnectingScreen: React.FC<ConnectingScreenProps> = ({
         </View>
 
         <Text style={styles.connectingTitle}>Connecting</Text>
-        <Text style={styles.connectingSubtitle}>
-          {getStatusMessage()}
-        </Text>
+        <Text style={styles.connectingSubtitle}>{getStatusMessage()}</Text>
 
         <Pressable
-          style={({ pressed }) => [
-            styles.cancelButton,
-            pressed && styles.cancelButtonPressed
-          ]}
+          style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
           onPress={onCancel}
           accessibilityRole="button"
           accessibilityLabel="Cancel connection attempt"

@@ -1,27 +1,27 @@
 import { Dimensions } from 'react-native';
+import { useIsTV } from '../hooks/useIsTV';
+import { use } from 'react';
 
 export interface NavigationLayoutInfo {
-  isFloatingNav: boolean;
-  isMobileSidebar: boolean;
   isTablet: boolean;
+  isTV: boolean;
   shouldSkipSafeArea: boolean;
 }
 
-export const getNavigationLayoutInfo = (navigationLayout?: 'bottomBar' | 'sidebar' | 'floating'): NavigationLayoutInfo => {
+export const getNavigationLayoutInfo = (): NavigationLayoutInfo => {
   const screenWidth = Dimensions.get('window').width;
   const isTablet = screenWidth >= 768;
-  const isFloatingNav = navigationLayout === 'floating';
-  const isMobileSidebar = navigationLayout === 'sidebar' && !isTablet;
-  const shouldSkipSafeArea = isFloatingNav || isMobileSidebar;
+  const isTV = useIsTV();
+  const shouldSkipSafeArea = !isTV && !isTablet;
 
   return {
-    isFloatingNav,
-    isMobileSidebar,
     isTablet,
+    isTV,
     shouldSkipSafeArea,
   };
 };
 
-export const getBottomPadding = (isFloatingNav: boolean): number => {
-  return isFloatingNav ? 120 : 40;
+export const getBottomPadding = (): number => {
+  const isTV = useIsTV();
+  return isTV ? 40 : 120;
 };
